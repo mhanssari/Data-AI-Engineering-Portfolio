@@ -1,0 +1,71 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+service-account*.json
+secrets/
+profiles.yml
+!profiles.example.yml
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Python and tooling caches
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+
+# Generated data and local databases; small committed samples remain allowed
+**/data/raw/
+**/data/generated/
+**/data/processed/
+*.duckdb
+*.duckdb.wal
+*.sqlite
+*.sqlite3
+*.db
+
+# Platform and execution output
+**/dbt/target/
+**/dbt/dbt_packages/
+**/dbt/logs/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.example.tfvars
+*.tfplan
+**/.databricks/
+**/.pbi/
+logs/
+*.log
+checkpoints/
+spark-warehouse/
+.fabric/
+
+# Local editor and operating-system metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local development notes, kept off GitHub
+/AGENTS.md
+/CLAUDE.md
+/docs/
+/.github/workflows/README.md
+/cases/*/CONTEXT.md
+/cases/*/PROGRESS.md
+/cases/06-p2p-agentic-reconciliation/docs/capability-coverage.md
