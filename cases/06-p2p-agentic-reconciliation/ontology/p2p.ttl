@@ -1,0 +1,192 @@
+@prefix p2p:  <https://example.org/p2p#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# Procure-to-pay ontology. Synthetic portfolio case 06.
+# Namespace example.org is a placeholder for a portfolio project, not a published vocabulary.
+
+<https://example.org/p2p> a owl:Ontology ;
+    rdfs:label "Procure-to-pay ontology"@en ;
+    dcterms:description "Entities and relationships for requisition, approval, purchase order, goods receipt and supplier invoice reconciliation across two ERPs."@en ;
+    owl:versionInfo "0.2.0" ;
+    dcterms:created "2026-10-30"^^xsd:date .
+
+######## Classes ########
+
+p2p:LegalEntity a owl:Class ;
+    rdfs:label "Legal entity"@en ;
+    skos:definition "A company in the group that owns documents and ledgers, identified by a company code."@en .
+
+p2p:Party a owl:Class ;
+    rdfs:label "Party"@en ;
+    skos:definition "A person or organisation that takes part in the procure-to-pay process."@en .
+
+p2p:Supplier a owl:Class ;
+    rdfs:subClassOf p2p:Party ;
+    rdfs:label "Supplier (source record)"@en ;
+    skos:definition "A supplier as recorded in one source ERP. The same real-world supplier may appear in several ERPs under different identifiers."@en .
+
+p2p:GoldenSupplier a owl:Class ;
+    rdfs:label "Golden supplier"@en ;
+    skos:definition "The resolved, single real-world supplier that one or more source supplier records refer to."@en .
+
+p2p:BankAccount a owl:Class ;
+    rdfs:label "Supplier bank account"@en ;
+    skos:definition "A versioned bank account used to pay a supplier; changes are monitored as a fraud signal."@en .
+
+p2p:Employee a owl:Class ;
+    rdfs:subClassOf p2p:Party ;
+    rdfs:label "Employee"@en ;
+    skos:definition "A person who can request or approve spend, with an approval limit."@en .
+
+p2p:CostCentre a owl:Class ;
+    rdfs:label "Cost centre"@en ;
+    skos:definition "An organisational unit that spend is charged to."@en .
+
+p2p:GLAccount a owl:Class ;
+    rdfs:label "General ledger account"@en ;
+    skos:definition "An account in the chart of accounts that spend is posted to."@en .
+
+p2p:Item a owl:Class ;
+    rdfs:label "Item"@en ;
+    skos:definition "A material or service that is requested, ordered, received and invoiced."@en .
+
+p2p:Contract a owl:Class ;
+    rdfs:label "Contract or price agreement"@en ;
+    skos:definition "A supplier agreement that sets agreed prices and matching tolerances for a validity period."@en .
+
+p2p:BusinessDocument a owl:Class ;
+    rdfs:label "Business document"@en ;
+    skos:definition "Any procure-to-pay document with a number, date and owning legal entity."@en .
+
+p2p:DocumentLine a owl:Class ;
+    rdfs:label "Document line"@en ;
+    skos:definition "A line of a business document."@en .
+
+p2p:PurchaseRequisition a owl:Class ;
+    rdfs:subClassOf p2p:BusinessDocument ;
+    rdfs:label "Purchase requisition"@en ;
+    skos:altLabel "PR"@en ;
+    skos:definition "An internal request to buy, which must be approved before a purchase order is raised."@en .
+
+p2p:Approval a owl:Class ;
+    rdfs:label "Approval"@en ;
+    skos:definition "One approval step on a purchase requisition by an employee within their approval limit."@en .
+
+p2p:PurchaseOrder a owl:Class ;
+    rdfs:subClassOf p2p:BusinessDocument ;
+    rdfs:label "Purchase order"@en ;
+    skos:altLabel "PO"@en ;
+    skos:definition "A commitment to a supplier to buy items at stated prices and quantities."@en .
+
+p2p:POLine a owl:Class ;
+    rdfs:subClassOf p2p:DocumentLine ;
+    rdfs:label "Purchase order line"@en .
+
+p2p:GoodsReceipt a owl:Class ;
+    rdfs:subClassOf p2p:BusinessDocument ;
+    rdfs:label "Goods receipt"@en ;
+    skos:altLabel "GRN"@en , "Goods received note"@en ;
+    skos:definition "Confirmation that goods or services were received against a purchase order."@en .
+
+p2p:GRNLine a owl:Class ;
+    rdfs:subClassOf p2p:DocumentLine ;
+    rdfs:label "Goods receipt line"@en .
+
+p2p:SupplierInvoice a owl:Class ;
+    rdfs:subClassOf p2p:BusinessDocument ;
+    rdfs:label "Supplier invoice"@en ;
+    skos:definition "A supplier's request for payment, matched against the purchase order and goods receipt."@en .
+
+p2p:InvoiceLine a owl:Class ;
+    rdfs:subClassOf p2p:DocumentLine ;
+    rdfs:label "Invoice line"@en .
+
+p2p:CreditNote a owl:Class ;
+    rdfs:subClassOf p2p:SupplierInvoice ;
+    rdfs:label "Credit note"@en ;
+    skos:definition "A supplier document that reduces or reverses an earlier invoice."@en .
+
+p2p:PaymentProposal a owl:Class ;
+    rdfs:label "Payment proposal"@en ;
+    skos:definition "A proposal that an invoice is ready for payment, subject to human approval."@en .
+
+p2p:JournalEntry a owl:Class ;
+    rdfs:label "Journal entry"@en ;
+    skos:definition "A balanced set of debits and credits to general ledger accounts. In this case, the proposed goods-received-not-invoiced accrual at a cut-off date; nothing is posted."@en .
+
+p2p:MatchResult a owl:Class ;
+    rdfs:label "Match result"@en ;
+    skos:definition "The outcome of matching one invoice line against its purchase order line and receipts in one run."@en .
+
+p2p:ReconException a owl:Class ;
+    rdfs:label "Reconciliation exception"@en ;
+    skos:definition "A reason an invoice line cannot be released without investigation."@en .
+
+######## Object properties ########
+
+p2p:belongsToEntity a owl:ObjectProperty ; rdfs:domain p2p:BusinessDocument ; rdfs:range p2p:LegalEntity ; rdfs:label "belongs to entity"@en .
+p2p:requestedBy     a owl:ObjectProperty ; rdfs:domain p2p:PurchaseRequisition ; rdfs:range p2p:Employee ; rdfs:label "requested by"@en .
+p2p:hasApproval     a owl:ObjectProperty ; rdfs:domain p2p:PurchaseRequisition ; rdfs:range p2p:Approval ; rdfs:label "has approval"@en .
+p2p:approvedBy      a owl:ObjectProperty ; rdfs:domain p2p:Approval ; rdfs:range p2p:Employee ; rdfs:label "approved by"@en .
+p2p:convertedTo     a owl:ObjectProperty ; rdfs:domain p2p:PurchaseRequisition ; rdfs:range p2p:PurchaseOrder ; rdfs:label "converted to"@en .
+p2p:orderedFrom     a owl:ObjectProperty ; rdfs:domain p2p:PurchaseOrder ; rdfs:range p2p:Supplier ; rdfs:label "ordered from"@en .
+p2p:hasLine         a owl:ObjectProperty ; rdfs:domain p2p:BusinessDocument ; rdfs:range p2p:DocumentLine ; rdfs:label "has line"@en .
+p2p:forItem         a owl:ObjectProperty ; rdfs:domain p2p:DocumentLine ; rdfs:range p2p:Item ; rdfs:label "for item"@en .
+p2p:chargedTo       a owl:ObjectProperty ; rdfs:domain p2p:POLine ; rdfs:range p2p:CostCentre ; rdfs:label "charged to"@en .
+p2p:postedTo        a owl:ObjectProperty ; rdfs:domain p2p:POLine ; rdfs:range p2p:GLAccount ; rdfs:label "posted to"@en .
+p2p:governedBy      a owl:ObjectProperty ; rdfs:domain p2p:POLine ; rdfs:range p2p:Contract ; rdfs:label "governed by"@en .
+p2p:receivedAgainst a owl:ObjectProperty ; rdfs:domain p2p:GRNLine ; rdfs:range p2p:POLine ; rdfs:label "received against"@en .
+p2p:invoicedAgainst a owl:ObjectProperty ; rdfs:domain p2p:InvoiceLine ; rdfs:range p2p:POLine ; rdfs:label "invoiced against"@en .
+p2p:issuedBy        a owl:ObjectProperty ; rdfs:domain p2p:SupplierInvoice ; rdfs:range p2p:Supplier ; rdfs:label "issued by"@en .
+p2p:creditsInvoice  a owl:ObjectProperty ; rdfs:domain p2p:CreditNote ; rdfs:range p2p:SupplierInvoice ; rdfs:label "credits invoice"@en .
+p2p:holdsBankAccount a owl:ObjectProperty ; rdfs:domain p2p:Supplier ; rdfs:range p2p:BankAccount ; rdfs:label "holds bank account"@en .
+p2p:resolvesTo      a owl:ObjectProperty , owl:FunctionalProperty ; rdfs:domain p2p:Supplier ; rdfs:range p2p:GoldenSupplier ; rdfs:label "resolves to"@en ;
+    skos:definition "Links a source supplier record to its golden record. Deliberately not owl:sameAs, which would merge all statements."@en .
+p2p:assesses        a owl:ObjectProperty ; rdfs:domain p2p:MatchResult ; rdfs:range p2p:InvoiceLine ; rdfs:label "assesses"@en .
+p2p:raises          a owl:ObjectProperty ; rdfs:domain p2p:MatchResult ; rdfs:range p2p:ReconException ; rdfs:label "raises"@en .
+p2p:hasMatchStatus  a owl:ObjectProperty ; rdfs:domain p2p:MatchResult ; rdfs:range skos:Concept ; rdfs:label "has match status"@en .
+p2p:hasReason       a owl:ObjectProperty ; rdfs:domain p2p:ReconException ; rdfs:range skos:Concept ; rdfs:label "has reason"@en .
+
+######## Datatype properties ########
+
+p2p:companyCode    a owl:DatatypeProperty ; rdfs:domain p2p:LegalEntity ; rdfs:range xsd:string .
+p2p:sourceSystem   a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "source system"@en .
+p2p:sourceKey      a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "source key"@en .
+p2p:documentNumber a owl:DatatypeProperty ; rdfs:range xsd:string .
+p2p:documentDate   a owl:DatatypeProperty ; rdfs:range xsd:date .
+p2p:lineNumber     a owl:DatatypeProperty ; rdfs:domain p2p:DocumentLine ; rdfs:range xsd:integer .
+p2p:quantity       a owl:DatatypeProperty ; rdfs:domain p2p:DocumentLine ; rdfs:range xsd:decimal .
+p2p:unitPrice      a owl:DatatypeProperty ; rdfs:domain p2p:DocumentLine ; rdfs:range xsd:decimal .
+p2p:amount         a owl:DatatypeProperty ; rdfs:range xsd:decimal ; skos:definition "Net amount in the document currency, exact decimal."@en .
+p2p:currencyCode   a owl:DatatypeProperty ; rdfs:range xsd:string ; skos:definition "ISO 4217 currency code."@en .
+p2p:approvalLimit  a owl:DatatypeProperty ; rdfs:domain p2p:Employee ; rdfs:range xsd:decimal .
+p2p:approvedAt     a owl:DatatypeProperty ; rdfs:domain p2p:Approval ; rdfs:range xsd:dateTime .
+p2p:approvalStep   a owl:DatatypeProperty ; rdfs:domain p2p:Approval ; rdfs:range xsd:integer .
+p2p:agreedPrice    a owl:DatatypeProperty ; rdfs:domain p2p:Contract ; rdfs:range xsd:decimal .
+# No rdfs:domain: golden suppliers carry a VAT number too, and a domain of Supplier would make RDFS inference
+# classify every golden record as a source Supplier. Validating real data through SHACL is what exposed this.
+p2p:vatNumber      a owl:DatatypeProperty ; rdfs:range xsd:string .
+p2p:validFrom      a owl:DatatypeProperty ; rdfs:range xsd:date .
+p2p:validTo        a owl:DatatypeProperty ; rdfs:range xsd:date .
+p2p:priceTolerancePct    a owl:DatatypeProperty ; rdfs:domain p2p:Contract ; rdfs:range xsd:decimal .
+p2p:accountNumberMasked  a owl:DatatypeProperty ; rdfs:domain p2p:BankAccount ; rdfs:range xsd:string .
+p2p:postsToAccount a owl:ObjectProperty ; rdfs:domain p2p:JournalEntry ; rdfs:range p2p:GLAccount ; rdfs:label "posts to account"@en .
+p2p:partyName      a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "party name"@en .
+p2p:countryCode    a owl:DatatypeProperty ; rdfs:range xsd:string ; skos:definition "ISO 3166-1 alpha-2 country code."@en .
+p2p:goldenId       a owl:DatatypeProperty ; rdfs:domain p2p:GoldenSupplier ; rdfs:range xsd:string .
+p2p:memberCount    a owl:DatatypeProperty ; rdfs:domain p2p:GoldenSupplier ; rdfs:range xsd:integer .
+p2p:accountCode    a owl:DatatypeProperty ; rdfs:range xsd:string ; skos:definition "Code of a cost centre or general ledger account within a company."@en .
+p2p:description    a owl:DatatypeProperty ; rdfs:range xsd:string .
+p2p:itemType       a owl:DatatypeProperty ; rdfs:domain p2p:Item ; rdfs:range xsd:string .
+p2p:unitOfMeasure  a owl:DatatypeProperty ; rdfs:domain p2p:Item ; rdfs:range xsd:string .
+p2p:limitAtApproval a owl:DatatypeProperty ; rdfs:domain p2p:Approval ; rdfs:range xsd:decimal ;
+    skos:definition "The approver's limit on the approval date, which may differ from their current limit."@en .
+p2p:documentTypeCode a owl:DatatypeProperty ; rdfs:domain p2p:SupplierInvoice ; rdfs:range xsd:string .
+p2p:matchType      a owl:DatatypeProperty ; rdfs:range xsd:string ; skos:definition "Three-way, two-way, credit or none; see the glossary."@en .
+p2p:amountVariance a owl:DatatypeProperty ; rdfs:domain p2p:MatchResult ; rdfs:range xsd:decimal .
+p2p:tolerancePct   a owl:DatatypeProperty ; rdfs:domain p2p:MatchResult ; rdfs:range xsd:decimal .

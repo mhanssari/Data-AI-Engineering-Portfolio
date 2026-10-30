@@ -1,0 +1,49 @@
+# Synthetic procure-to-pay policy for the fictional group in case 06.
+# Single source of truth: the generator renders the policy document from this file and delivers
+# every parameter in the group reference data, which reaches core.policy_parameter for the SQL controls.
+# Values are illustrative, not taken from any real organisation.
+policy_version: "2026.1"
+valid_from: "2026-01-01"
+title: "Group procure-to-pay policy (synthetic)"
+
+parameters:
+  price_tolerance_pct_default:
+    value: 2.0
+    unit: percent
+    rule: "An invoiced line amount may exceed invoiced quantity x purchase order price by at most this percentage, unless the supplier contract governing the line sets its own tolerance."
+  quantity_tolerance_pct:
+    value: 0.0
+    unit: percent
+    rule: "Cumulative invoiced quantity on a goods line may not exceed cumulative received quantity. For services (two-way match) the comparison is against the ordered quantity."
+  rounding_tolerance_amount:
+    value: 0.01
+    unit: currency
+    rule: "Differences of one minor unit or less are rounding and count as an exact match."
+  bank_change_window_days:
+    value: 30
+    unit: days
+    rule: "An invoice is held for verification if the supplier's bank account changed in the 30 days up to and including the invoice date."
+  duplicate_window_days:
+    value: 30
+    unit: days
+    rule: "Two invoices from the same resolved supplier with the same normalised invoice number, currency and amount, dated within 30 days, are treated as a possible duplicate; the later one is held."
+  split_window_days:
+    value: 7
+    unit: days
+    rule: "Requisitions by the same requester for the same supplier within 7 days are assessed together for splitting below an approval tier."
+  approval_tier_1:
+    value: 5000
+    unit: company currency
+    rule: "Approval tier 1. Line managers approve up to this amount."
+  approval_tier_2:
+    value: 25000
+    unit: company currency
+    rule: "Approval tier 2. Heads of department approve up to this amount."
+  approval_tier_3:
+    value: 100000
+    unit: company currency
+    rule: "Approval tier 3. Directors approve up to this amount; above it the finance director approves."
+
+segregation_of_duties: "The requester of a purchase requisition may not approve it. Every requisition converted to a purchase order must carry at least one approval by an employee whose approval limit, valid on the approval date, covers the requisition amount."
+retrospective_po: "A purchase order must be dated on or before the invoice it supports. A purchase order raised after the invoice is a retrospective PO and the invoice is held."
+grni: "Goods received not invoiced is measured at each month-end cut-off as received quantity less invoiced quantity, valued at the purchase order price, for goods lines only. The accrual is posted to the expense or inventory account of the purchase order line and credited to the company's GRNI clearing account."

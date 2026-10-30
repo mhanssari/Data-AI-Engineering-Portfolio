@@ -1,0 +1,54 @@
+@prefix p2p: <https://example.org/p2p#> .
+@prefix voc: <https://example.org/p2p/vocab#> .
+@prefix ex:  <https://example.org/p2p/data/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Synthetic example: one complete, compliant chain (scenario S01) plus a supplier resolved across both ERPs (S13).
+
+ex:GB01 a p2p:LegalEntity ; p2p:companyCode "GB01" .
+ex:DE01 a p2p:LegalEntity ; p2p:companyCode "DE01" .
+
+ex:emp-alice a p2p:Employee ; p2p:approvalLimit 0.00 .
+ex:emp-bob   a p2p:Employee ; p2p:approvalLimit 10000.00 .
+
+ex:golden-G001 a p2p:GoldenSupplier .
+ex:sup-SAP-100045 a p2p:Supplier ; p2p:sourceSystem "SAP_LIKE" ; p2p:sourceKey "100045" ;
+    p2p:vatNumber "GB123456789" ; p2p:resolvesTo ex:golden-G001 .
+ex:sup-ORA-5001 a p2p:Supplier ; p2p:sourceSystem "ORACLE_LIKE" ; p2p:sourceKey "5001" ;
+    p2p:vatNumber "GB123456789" ; p2p:resolvesTo ex:golden-G001 .
+
+ex:item-PKG-10 a p2p:Item .
+ex:cc-UK-OPS a p2p:CostCentre .
+ex:gl-510000 a p2p:GLAccount .
+
+ex:pr-1001 a p2p:PurchaseRequisition ;
+    p2p:documentNumber "1001" ; p2p:documentDate "2026-09-01"^^xsd:date ;
+    p2p:belongsToEntity ex:GB01 ; p2p:sourceSystem "SAP_LIKE" ;
+    p2p:requestedBy ex:emp-alice ; p2p:amount 1200.00 ; p2p:currencyCode "GBP" ;
+    p2p:hasApproval ex:apr-1001-1 ; p2p:convertedTo ex:po-4500001 .
+
+ex:apr-1001-1 a p2p:Approval ; p2p:approvedBy ex:emp-bob ; p2p:approvedAt "2026-09-02T10:15:00"^^xsd:dateTime .
+
+ex:po-4500001 a p2p:PurchaseOrder ;
+    p2p:documentNumber "4500001" ; p2p:documentDate "2026-09-03"^^xsd:date ;
+    p2p:belongsToEntity ex:GB01 ; p2p:sourceSystem "SAP_LIKE" ;
+    p2p:orderedFrom ex:sup-SAP-100045 ; p2p:currencyCode "GBP" ; p2p:hasLine ex:po-4500001-10 .
+
+ex:po-4500001-10 a p2p:POLine ; p2p:lineNumber 10 ; p2p:quantity 10.0 ; p2p:unitPrice 120.00 ;
+    p2p:forItem ex:item-PKG-10 ; p2p:chargedTo ex:cc-UK-OPS ; p2p:postedTo ex:gl-510000 .
+
+ex:grn-5000001 a p2p:GoodsReceipt ;
+    p2p:documentNumber "5000001" ; p2p:documentDate "2026-09-10"^^xsd:date ;
+    p2p:belongsToEntity ex:GB01 ; p2p:sourceSystem "SAP_LIKE" ; p2p:hasLine ex:grn-5000001-1 .
+
+ex:grn-5000001-1 a p2p:GRNLine ; p2p:receivedAgainst ex:po-4500001-10 ; p2p:quantity 10.0 .
+
+ex:inv-INV-9001 a p2p:SupplierInvoice ;
+    p2p:documentNumber "INV-9001" ; p2p:documentDate "2026-09-12"^^xsd:date ;
+    p2p:belongsToEntity ex:GB01 ; p2p:sourceSystem "SAP_LIKE" ;
+    p2p:issuedBy ex:sup-SAP-100045 ; p2p:amount 1200.00 ; p2p:currencyCode "GBP" ;
+    p2p:hasLine ex:inv-INV-9001-1 .
+
+ex:inv-INV-9001-1 a p2p:InvoiceLine ; p2p:invoicedAgainst ex:po-4500001-10 ; p2p:quantity 10.0 ; p2p:unitPrice 120.00 .
+
+ex:mr-INV-9001-1 a p2p:MatchResult ; p2p:assesses ex:inv-INV-9001-1 ; p2p:hasMatchStatus voc:Matched .

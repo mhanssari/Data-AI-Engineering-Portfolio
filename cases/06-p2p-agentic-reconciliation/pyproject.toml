@@ -1,1 +1,51 @@
-# Placeholder. The case 06 Python project is on its development branch.
+[project]
+name = "p2p-recon"
+version = "0.1.0"
+description = "Case 06: procure-to-pay reconciliation over two synthetic ERPs, with an ontology-mapped model and a Neo4j projection."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+# Ranges bound the major version; uv.lock holds the exact, verified versions.
+dependencies = [
+    "psycopg[binary]>=3.3.6,<4",
+    "pgvector>=0.5.1,<0.6",
+    "neo4j>=6.4.1,<7",
+    "rdflib>=7.6.0,<8",
+    "pyshacl>=0.40.2,<0.41",
+    "pydantic>=2.14.2,<3",
+    "pydantic-settings>=2.16.2,<3",
+    "typer>=0.27.3,<0.28",
+    "pyyaml>=6.0.3,<7",
+    "rapidfuzz>=3.14.6,<4",
+]
+
+[project.scripts]
+p2p = "p2p_recon.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0,<10",
+    "ruff>=0.17.3,<0.18",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/p2p_recon"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: needs the PostgreSQL and Neo4j containers from infra/docker-compose.yml",
+]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+# The formatter owns line length; what remains over the limit is SQL text and data tables, clearer unbroken.
+ignore = ["E501"]
+select = ["E", "F", "I", "B", "UP", "SIM"]

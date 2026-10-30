@@ -1,0 +1,123 @@
+# Ontology-to-relational mapping. The single source for the Neo4j projection and the RDF export:
+# node labels, relationship types and property names all come from here, so a name changed in the ontology and here
+# changes both projections. tests/test_ontology.py checks every class and property against p2p.ttl and every table
+# and column against the live database.
+#
+# classes: table, key, the properties to project (ontology property -> column) and concepts (ontology property ->
+# column holding a SKOS concept's local name). Only listed columns leave PostgreSQL, so the bank account number is
+# never projected: an allowlist cannot leak a column added later.
+# relationships: join = from-column -> to-column. from_table is used when the link is held on another table.
+version: 0.2.0
+namespace: https://example.org/p2p#
+vocabulary_namespace: https://example.org/p2p/vocab#
+
+classes:
+  LegalEntity:
+    table: core.legal_entity
+    key: [company_code]
+    properties: { companyCode: company_code, partyName: entity_name, currencyCode: currency_code, countryCode: country_code }
+  Supplier:
+    table: core.supplier
+    key: [source_system, source_supplier_id]
+    properties: { sourceSystem: source_system, sourceKey: source_supplier_id, partyName: supplier_name, vatNumber: vat_number, countryCode: country_code }
+  GoldenSupplier:
+    table: mdm.supplier_golden
+    key: [supplier_gid]
+    properties: { goldenId: supplier_gid, partyName: golden_name, vatNumber: vat_number, memberCount: member_count }
+  BankAccount:
+    table: core.supplier_bank_account
+    key: [source_system, source_supplier_id, valid_from]
+    properties: { sourceSystem: source_system, validFrom: valid_from }
+  Employee:
+    table: core.v_employee_current
+    key: [source_system, employee_id]
+    properties: { sourceSystem: source_system, sourceKey: employee_id, partyName: full_name, approvalLimit: approval_limit, currencyCode: currency_code }
+  CostCentre:
+    table: core.cost_centre
+    key: [company_code, cost_centre_code]
+    properties: { accountCode: cost_centre_code, description: description }
+  GLAccount:
+    table: core.gl_account
+    key: [company_code, gl_account_code]
+    properties: { accountCode: gl_account_code, description: description }
+  Item:
+    table: core.item
+    key: [item_id]
+    properties: { sourceKey: item_id, description: description, itemType: item_type, unitOfMeasure: uom }
+  Contract:
+    table: core.contract
+    key: [contract_id, valid_from]
+    properties: { documentNumber: contract_id, validFrom: valid_from, validTo: valid_to, agreedPrice: agreed_price, currencyCode: currency_code, priceTolerancePct: price_tolerance_pct }
+  PurchaseRequisition:
+    table: core.purchase_requisition
+    key: [source_system, pr_number]
+    properties: { sourceSystem: source_system, documentNumber: pr_number, documentDate: created_date, amount: total_amount, currencyCode: currency_code }
+  Approval:
+    table: core.v_approval
+    key: [source_system, pr_number, step]
+    properties: { approvalStep: step, approvedAt: approved_at, limitAtApproval: limit_at_approval, currencyCode: limit_currency }
+  PurchaseOrder:
+    table: core.purchase_order
+    key: [source_system, po_number]
+    properties: { sourceSystem: source_system, documentNumber: po_number, documentDate: po_date, currencyCode: currency_code }
+  POLine:
+    table: core.po_line
+    key: [source_system, po_number, line_number]
+    properties: { lineNumber: line_number, quantity: quantity, unitPrice: unit_price, matchType: match_type }
+  GoodsReceipt:
+    table: core.goods_receipt
+    key: [source_system, grn_number]
+    properties: { sourceSystem: source_system, documentNumber: grn_number, documentDate: receipt_date }
+  GRNLine:
+    table: core.grn_line
+    key: [source_system, grn_number, line_number]
+    properties: { lineNumber: line_number, quantity: received_quantity }
+  SupplierInvoice:
+    table: core.supplier_invoice
+    key: [source_system, invoice_id]
+    properties: { sourceSystem: source_system, sourceKey: invoice_id, documentNumber: supplier_invoice_number, documentDate: invoice_date, amount: net_amount, currencyCode: currency_code, documentTypeCode: document_type }
+  InvoiceLine:
+    table: core.invoice_line
+    key: [source_system, invoice_id, line_number]
+    properties: { lineNumber: line_number, quantity: invoiced_quantity, unitPrice: unit_price, amount: net_amount }
+  MatchResult:
+    table: recon.current_match_result
+    key: [source_system, invoice_id, line_number]
+    properties: { matchType: match_type, amount: net_amount, amountVariance: amount_variance, tolerancePct: tolerance_pct }
+    concepts: { hasMatchStatus: status_code }
+  ReconException:
+    table: recon.current_exception
+    key: [source_system, invoice_id, line_number, reason_code]
+    properties: {}
+    concepts: { hasReason: reason_code }
+
+relationships:
+  - { property: belongsToEntity, from: PurchaseRequisition, to: LegalEntity, join: { company_code: company_code }, type: BELONGS_TO }
+  - { property: belongsToEntity, from: PurchaseOrder, to: LegalEntity, join: { company_code: company_code }, type: BELONGS_TO }
+  - { property: belongsToEntity, from: GoodsReceipt, to: LegalEntity, join: { company_code: company_code }, type: BELONGS_TO }
+  - { property: belongsToEntity, from: SupplierInvoice, to: LegalEntity, join: { company_code: company_code }, type: BELONGS_TO }
+  - { property: requestedBy, from: PurchaseRequisition, to: Employee, join: { source_system: source_system, requester_id: employee_id }, type: REQUESTED_BY }
+  - { property: hasApproval, from: PurchaseRequisition, to: Approval, join: { source_system: source_system, pr_number: pr_number }, type: HAS_APPROVAL }
+  - { property: approvedBy, from: Approval, to: Employee, join: { source_system: source_system, approver_id: employee_id }, type: APPROVED_BY }
+  # A PO can consolidate several requisitions, so the link is held on the PO line.
+  - { property: convertedTo, from: PurchaseRequisition, from_table: core.po_line, to: PurchaseOrder, join: { source_system: source_system, po_number: po_number }, type: CONVERTED_TO }
+  - { property: orderedFrom, from: PurchaseOrder, to: Supplier, join: { source_system: source_system, source_supplier_id: source_supplier_id }, type: ORDERED_FROM }
+  - { property: hasLine, from: PurchaseOrder, to: POLine, join: { source_system: source_system, po_number: po_number }, type: HAS_LINE }
+  - { property: hasLine, from: GoodsReceipt, to: GRNLine, join: { source_system: source_system, grn_number: grn_number }, type: HAS_LINE }
+  - { property: hasLine, from: SupplierInvoice, to: InvoiceLine, join: { source_system: source_system, invoice_id: invoice_id }, type: HAS_LINE }
+  - { property: forItem, from: POLine, to: Item, join: { item_id: item_id }, type: FOR_ITEM }
+  - { property: chargedTo, from: POLine, to: CostCentre, join: { company_code: company_code, cost_centre_code: cost_centre_code }, type: CHARGED_TO }
+  - { property: postedTo, from: POLine, to: GLAccount, join: { company_code: company_code, gl_account_code: gl_account_code }, type: POSTED_TO }
+  - { property: governedBy, from: POLine, to: Contract, join: { contract_id: contract_id }, type: GOVERNED_BY }
+  - { property: receivedAgainst, from: GRNLine, to: POLine, join: { source_system: source_system, po_number: po_number, po_line_number: line_number }, type: RECEIVED_AGAINST }
+  - { property: invoicedAgainst, from: InvoiceLine, to: POLine, join: { source_system: source_system, po_number: po_number, po_line_number: line_number }, type: INVOICED_AGAINST }
+  - { property: issuedBy, from: SupplierInvoice, to: Supplier, join: { source_system: source_system, source_supplier_id: source_supplier_id }, type: ISSUED_BY }
+  - { property: creditsInvoice, from: SupplierInvoice, to: SupplierInvoice, join: { source_system: source_system, credited_invoice_id: invoice_id }, type: CREDITS_INVOICE }
+  - { property: holdsBankAccount, from: Supplier, to: BankAccount, join: { source_system: source_system, source_supplier_id: source_supplier_id }, type: HOLDS_BANK_ACCOUNT }
+  - { property: resolvesTo, from: Supplier, from_table: mdm.supplier_xref, to: GoldenSupplier, join: { supplier_gid: supplier_gid }, type: RESOLVES_TO }
+  - { property: assesses, from: MatchResult, to: InvoiceLine, join: { source_system: source_system, invoice_id: invoice_id, line_number: line_number }, type: ASSESSES }
+  - { property: raises, from: MatchResult, to: ReconException, join: { source_system: source_system, invoice_id: invoice_id, line_number: line_number }, type: RAISES }
+
+vocabularies:
+  match_status: { column: recon.match_result.status_code, scheme: MatchStatus }
+  exception_reason: { column: recon.exception.reason_code, scheme: ExceptionReason }

@@ -1,0 +1,44 @@
+@prefix p2p: <https://example.org/p2p#> .
+@prefix voc: <https://example.org/p2p/vocab#> .
+@prefix ex:  <https://example.org/p2p/data/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Synthetic example with deliberate defects. Expected SHACL violations:
+#  1. pr-2001: requester approved own requisition (segregation of duties, S12).
+#  2. pr-2001: amount 25000 above approver limit 5000 (S11).
+#  3. po-4500002-10: quantity 0 (must be greater than 0).
+#  4. inv-INV-7001: missing issuedBy supplier.
+#  5. exc-1: reason not in the ExceptionReason scheme.
+
+ex:DE01 a p2p:LegalEntity ; p2p:companyCode "DE01" .
+ex:emp-carol a p2p:Employee ; p2p:approvalLimit 5000.00 .
+ex:sup-ORA-5002 a p2p:Supplier ; p2p:sourceSystem "ORACLE_LIKE" ; p2p:sourceKey "5002" .
+ex:item-SVC-01 a p2p:Item .
+ex:cc-DE-MKT a p2p:CostCentre .
+ex:gl-620000 a p2p:GLAccount .
+
+ex:pr-2001 a p2p:PurchaseRequisition ;
+    p2p:documentNumber "2001" ; p2p:documentDate "2026-09-05"^^xsd:date ;
+    p2p:belongsToEntity ex:DE01 ; p2p:sourceSystem "ORACLE_LIKE" ;
+    p2p:requestedBy ex:emp-carol ; p2p:amount 25000.00 ; p2p:currencyCode "EUR" ;
+    p2p:hasApproval ex:apr-2001-1 .
+
+ex:apr-2001-1 a p2p:Approval ; p2p:approvedBy ex:emp-carol ; p2p:approvedAt "2026-09-05T16:40:00"^^xsd:dateTime .
+
+ex:po-4500002 a p2p:PurchaseOrder ;
+    p2p:documentNumber "4500002" ; p2p:documentDate "2026-09-06"^^xsd:date ;
+    p2p:belongsToEntity ex:DE01 ; p2p:sourceSystem "ORACLE_LIKE" ;
+    p2p:orderedFrom ex:sup-ORA-5002 ; p2p:currencyCode "EUR" ; p2p:hasLine ex:po-4500002-10 .
+
+ex:po-4500002-10 a p2p:POLine ; p2p:lineNumber 10 ; p2p:quantity 0.0 ; p2p:unitPrice 25000.00 ;
+    p2p:forItem ex:item-SVC-01 ; p2p:chargedTo ex:cc-DE-MKT ; p2p:postedTo ex:gl-620000 .
+
+ex:inv-INV-7001 a p2p:SupplierInvoice ;
+    p2p:documentNumber "INV-7001" ; p2p:documentDate "2026-09-08"^^xsd:date ;
+    p2p:belongsToEntity ex:DE01 ; p2p:sourceSystem "ORACLE_LIKE" ;
+    p2p:amount 25000.00 ; p2p:currencyCode "EUR" ; p2p:hasLine ex:inv-INV-7001-1 .
+
+ex:inv-INV-7001-1 a p2p:InvoiceLine ; p2p:invoicedAgainst ex:po-4500002-10 ; p2p:quantity 1.0 ; p2p:unitPrice 25000.00 .
+
+ex:mr-INV-7001-1 a p2p:MatchResult ; p2p:assesses ex:inv-INV-7001-1 ; p2p:hasMatchStatus voc:Exception ; p2p:raises ex:exc-1 .
+ex:exc-1 a p2p:ReconException ; p2p:hasReason voc:Matched .

@@ -1,3 +1,7 @@
 # Evidence
 
-Status: reserved. Case 06 is developed on the branch `case-06-p2p-reconciliation`; this file holds no content on `main` until that branch is merged.
+Actual validation reports and measured results, with dataset, configuration and versions. Measured results are kept apart from targets.
+
+- [Milestone 1 run record](milestone-1-run.md): commands, volumes, results, mutation check and failure tests.
+
+No retrieval, agent or security evidence exists yet.
