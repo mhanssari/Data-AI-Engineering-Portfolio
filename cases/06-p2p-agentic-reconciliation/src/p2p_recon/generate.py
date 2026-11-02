@@ -20,6 +20,7 @@ from pathlib import Path
 import yaml
 
 from p2p_recon.config import REFERENCE_DIR
+from p2p_recon.corpus import build_documents, document_manifest
 
 DEFAULT_SEED = 6042
 PR_TARGET = 400
@@ -211,7 +212,13 @@ class World:
         self.pr_count = 0
         self.requester_supplier_days: dict[tuple[str, str], list[date]] = {}
         self.documents: dict[str, str] = {}
+        self.document_meta: dict[str, dict] = {}
         self.contracts: list[dict] = []
+        self.planted_invoices: list[tuple[str, Invoice, str, str, str]] = []
+
+    def add_document(self, name: str, text: str, **meta: object) -> None:
+        self.documents[name] = text
+        self.document_meta[name] = meta
 
     # ---------------------------------------------------------------- output helpers
     def emit(self, batch: int, table: str, row: dict, cdc: str | None = None) -> None:
@@ -264,6 +271,7 @@ class World:
         phase: str = "all",
         detail: str = "",
     ) -> None:
+        self.planted_invoices.append((sid, inv, status, reasons, phase))
         for line in range(1, inv.lines + 1):
             self.expect(
                 sid,
@@ -1411,10 +1419,14 @@ def build_scenarios(world: World, pairs: dict[str, tuple[Supplier, Supplier]]) -
     w.expect_invoice(
         "S14", "Bank details changed 10 days before the invoice", after, "Exception", "BankDetailChange"
     )
-    w.documents["email_S14_bank_change.md"] = (
+    w.add_document(
+        "email_S14_bank_change.md",
         f"# Supplier email (synthetic)\n\nFrom: accounts@{target.prefix.lower()}.example\nDate: 9 May 2026\nSubject: New bank details\n\n"
         f"Please update our bank account with immediate effect for all open invoices. Supplier reference {target.source_id}. "
-        "We are unable to take calls this week, so please reply by email only.\n"
+        "We are unable to take calls this week, so please reply by email only.\n",
+        doc_type="email",
+        supplier=target,
+        invoice_number=after.number,
     )
 
     pr, po, line = w.chain(DE, de_sup[7], goods[12], q("100.000"), q("10.000000"), d("2026-04-21"))
@@ -1442,9 +1454,13 @@ def build_scenarios(world: World, pairs: dict[str, tuple[Supplier, Supplier]]) -
         "",
         detail="grni_quantity=20.000;grni_amount=200.00",
     )
-    w.documents["note_S16_credit.md"] = (
+    w.add_document(
+        "note_S16_credit.md",
         f"# Supplier remittance note (synthetic)\n\nCredit note {credit.number} reduces invoice {original.number} by {GB.currency} 200.00: "
-        "20 units were returned as damaged.\n"
+        "20 units were returned as damaged.\n",
+        doc_type="note",
+        supplier=gb_sup[7],
+        invoice_number=credit.number,
     )
 
     # S17: the receipt was keyed short; a correction arrives in the next change log.
@@ -1930,40 +1946,6 @@ def build_background(world: World) -> None:
             )
 
 
-def build_documents(world: World, policy: dict) -> None:
-    lines = [
-        f"# {policy['title']}",
-        "",
-        f"Version {policy['policy_version']}, effective {policy['valid_from']}. Fictional and illustrative.",
-        "",
-    ]
-    lines += ["## Tolerances, windows and approval tiers", ""]
-    for code, parameter in policy["parameters"].items():
-        lines.append(f"- **{code}** ({parameter['value']} {parameter['unit']}): {parameter['rule']}")
-    for heading, key in (
-        ("Segregation of duties", "segregation_of_duties"),
-        ("Retrospective purchase orders", "retrospective_po"),
-        ("Goods received not invoiced", "grni"),
-    ):
-        lines += ["", f"## {heading}", "", policy[key]]
-    world.documents["policy_p2p.md"] = "\n".join(lines) + "\n"
-    for contract in world.contracts:
-        supplier = contract["supplier"]
-        world.documents[f"contract_{contract['id']}_{contract['start'].isoformat()}.md"] = (
-            f"# Price agreement {contract['id']} (synthetic)\n\n"
-            f"Between {contract['company'].name} and {supplier.name} (supplier reference {supplier.source_id}).\n\n"
-            f"Valid from {contract['start'].isoformat()} to {contract['end'].isoformat()}.\n\n"
-            f"## Clause 3: Pricing\n\nItem {contract['item'].item_id} ({contract['item'].description}) at "
-            f"{contract['company'].currency} {contract['price']:.2f} per {contract['item'].uom}.\n\n"
-            f"## Clause 4: Invoice tolerance\n\nAn invoiced line may exceed the agreed amount by up to {contract['tolerance']:.1f} percent "
-            "without further approval. Above this, the invoice is held pending a corrected invoice or credit note.\n"
-        )
-    world.documents["email_S17_receipt_query.md"] = (
-        "# Supplier email (synthetic)\n\nDate: 28 September 2026\nSubject: Unpaid invoice\n\n"
-        "Our delivery note shows 100 units delivered on 18 August, but you have queried only 80. Please check your receipt.\n"
-    )
-
-
 def _render(value: object) -> str:
     return "" if value is None else str(value)
 
@@ -2016,7 +1998,7 @@ def generate(out: Path, seed: int = DEFAULT_SEED, samples_dir: Path | None = Non
     pairs = build_suppliers(world)
     build_scenarios(world, pairs)
     build_background(world)
-    build_documents(world, policy)
+    build_documents(world, policy, seed)
 
     out.mkdir(parents=True, exist_ok=True)
     _write_batch(world, 1, out, BATCH_1_EXTRACTED)
@@ -2026,6 +2008,9 @@ def generate(out: Path, seed: int = DEFAULT_SEED, samples_dir: Path | None = Non
     documents.mkdir(exist_ok=True)
     for name, text in sorted(world.documents.items()):
         (documents / name).write_text(text, encoding="utf-8", newline="\n")
+    (documents / "manifest.json").write_text(
+        json.dumps(document_manifest(world), indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
 
     fields = [
         "scenario_id",

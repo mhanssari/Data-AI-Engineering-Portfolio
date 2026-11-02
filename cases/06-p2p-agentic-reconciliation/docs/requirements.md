@@ -1,6 +1,6 @@
 # Requirements
 
-Status: requirements 1–8 and the milestone 1 part of 11 are implemented and tested. Requirements 9, 10 and the agent part of 11 are for milestone 2.
+Status: requirements 1–11 are implemented and tested locally. Requirement 10 is evaluated with an offline provider only, not a live model.
 
 ## Stakeholders and decisions
 

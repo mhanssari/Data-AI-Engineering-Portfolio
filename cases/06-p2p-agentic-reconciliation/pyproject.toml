@@ -16,6 +16,9 @@ dependencies = [
     "typer>=0.27.3,<0.28",
     "pyyaml>=6.0.3,<7",
     "rapidfuzz>=3.14.6,<4",
+    "fastembed>=0.9.1,<0.10",
+    "langgraph>=1.2.19,<2",
+    "anthropic>=2.3.0,<3",
 ]
 
 [project.scripts]

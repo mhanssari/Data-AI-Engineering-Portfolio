@@ -19,4 +19,4 @@ Option 2. All matching, tolerances, controls and amounts are computed in SQL wit
 
 ## Consequences and validation
 
-Agent value is measured on explanation quality and investigation speed, not on matching itself. Verified at milestone 1: all matching tests pass with no LLM in the system, because none exists yet. To verify at milestone 2: the agent evaluation shows zero false auto-approvals; every proposal carries citations to rows or chunks.
+Agent value is measured on explanation quality and investigation speed, not on matching itself. Verified at milestone 1: all matching tests pass with no LLM in the system, because none exists yet. Verified at milestone 2, with an offline provider and a hostile one, not yet a live model: the agent evaluation shows zero false auto-approvals, and every proposal carries citations to rows or chunks. Explanation quality has not been measured.

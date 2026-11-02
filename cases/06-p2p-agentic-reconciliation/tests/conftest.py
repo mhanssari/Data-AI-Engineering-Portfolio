@@ -15,7 +15,7 @@ os.environ["POSTGRES_DB"] = "p2p_test"
 import psycopg
 import pytest
 
-from p2p_recon import conform, dq, generate, ingest, mdm, migrate, recon
+from p2p_recon import conform, documents, dq, generate, graph, ingest, mdm, migrate, recon
 from p2p_recon.config import get_settings
 from p2p_recon.db import connect
 
@@ -104,6 +104,16 @@ def pipeline(database, tmp_path_factory) -> Pipeline:
         _raw_row_count(),
         dq_batch_1,
     )
+
+
+@pytest.fixture(scope="session")
+def loaded_documents(pipeline) -> dict:
+    return documents.load_documents(pipeline.data_dir / "documents")
+
+
+@pytest.fixture(scope="session")
+def graph_synced(pipeline, loaded_documents) -> dict:
+    return graph.sync_graph()
 
 
 @pytest.fixture

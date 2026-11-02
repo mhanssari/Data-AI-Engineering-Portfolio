@@ -12,6 +12,8 @@ GRAPH_DIR = CASE_DIR / "graph"
 REFERENCE_DIR = CASE_DIR / "data" / "reference"
 GENERATED_DIR = CASE_DIR / "data" / "generated"
 SAMPLES_DIR = CASE_DIR / "data" / "samples"
+EVALUATION_DIR = CASE_DIR / "evaluation"
+EVIDENCE_DIR = CASE_DIR / "evidence"
 
 
 class Settings(BaseSettings):
@@ -27,6 +29,14 @@ class Settings(BaseSettings):
     neo4j_uri: str = "bolt://127.0.0.1:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = ""
+
+    # offline needs no key or network; anthropic and ollama are opt-in.
+    llm_provider: str = "offline"
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-opus-5-5"
+    anthropic_effort: str = "medium"
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "llama3.2"
 
     def conninfo(self, dbname: str | None = None) -> str:
         return (

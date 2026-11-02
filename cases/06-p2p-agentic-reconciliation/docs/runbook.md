@@ -1,6 +1,6 @@
 # Operational runbook
 
-Verified on Windows 11 with Docker Desktop, in PowerShell, on 30 October 2026. Run everything from the case folder. Agents and embeddings are milestone 2.
+Verified on Windows 11 with Docker Desktop, in PowerShell, on 2 November 2026. Run everything from the case folder. The default path needs no API key. The first document load downloads the embedding model to `data/models` (64 MB, ignored by Git).
 
 ## Prerequisites
 
@@ -30,6 +30,13 @@ uv sync
 | `uv run p2p graph-sync` | Rebuilds Neo4j; exit 1 if counts differ | Full rebuild |
 | `uv run p2p graph-query <name>` | Runs a query from `graph/queries`; `--param key=value` | Read-only |
 | `uv run p2p validate-ontology` | Validates the ontology examples against SHACL | Read-only |
+| `uv run p2p load-documents` | Chunks and embeds `data/generated/documents` into `docs` | Embeds only changed text; removes chunks of removed documents |
+| `uv run p2p search "<question>" --as <user>` | Searches as a user. `--method keyword, vector, hybrid or hybrid_graph`; `--invoice SOURCE_SYSTEM:id` for the graph | Read-only |
+| `uv run p2p eval-retrieval` | Recall@k and MRR per method; writes `evidence/retrieval-evaluation.md` | Overwrites the report |
+| `uv run p2p agent-run --as <user>` | Investigates the user's held lines. `--provider`, `--limit` | New run; a later proposal supersedes an earlier one in the queue |
+| `uv run p2p agent-eval` | Runs the planted scenarios plus hostile, outage and access runs; writes `evidence/agent-evaluation-<provider>.md`; exit 1 on any false approval. `--provider`, `--all-lines` | New runs, excluded from the review queue |
+| `uv run p2p review-list --as <user>` | Open proposals for the user's companies | Read-only |
+| `uv run p2p review-decide <id> ACCEPT --as <user>` | Records `ACCEPT`, `OVERRIDE` or `QUERY`, with an optional `--note`. Posts and pays nothing | Appends |
 | `uv run p2p status` | Summary of current results | Read-only |
 
 ## Common tasks
@@ -56,6 +63,27 @@ uv run p2p resolve-suppliers
 uv run p2p match
 ```
 
+## Use a live model
+
+Off by default. **Live calls cost money with Anthropic; neither provider has been run against a live model yet, so treat the first run as a test.**
+
+- **Claude:** in `.env`, set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`. The default model is `claude-opus-5-5` at `medium` effort (`ANTHROPIC_MODEL`, `ANTHROPIC_EFFORT`). If a safety classifier declines a request, the API can re-run it on a fallback model.
+- **Ollama:** install it, pull a model, and set `LLM_PROVIDER=ollama` and `OLLAMA_MODEL`.
+
+Try one line first with `uv run p2p agent-run --as ap_gb01 --limit 1`. Then `uv run p2p agent-eval` writes a report per provider. That runs 22 lines through two to four model calls each. Tokens, latency and cost are logged in `agent.step`, and costs for models missing from `PRICES` in `agents/providers.py` show as unknown.
+
+Follow one proposal back to its evidence:
+
+```sql
+select * from agent.proposal where proposal_id = 1;
+select * from agent.citation where proposal_id = 1;
+select s.agent_name, s.outcome, t.tool_name, t.arguments, t.result, t.status
+from agent.step s left join agent.tool_call t using (step_id)
+where s.agent_run_id = (select agent_run_id from agent.proposal where proposal_id = 1)
+  and s.invoice_id = (select invoice_id from agent.proposal where proposal_id = 1)
+order by s.step_id, t.tool_call_id;
+```
+
 ## When something fails
 
 | Symptom | Meaning | Action |
@@ -66,6 +94,8 @@ uv run p2p match
 | `row_count.*` fails | A source key is in neither core nor quarantine. Most often a row older than the 24-hour lookback | Widen `ops.watermark.lookback` for that entity or set its `high_watermark` back, then run `conform` |
 | `control_total.*` fails | Core differs from raw, for example after a manual change | Do not patch. Investigate, then `reset` and rebuild if core was altered |
 | `graph.*` fails | Neo4j differs from PostgreSQL | Rerun `graph-sync` |
+| A proposal says `NEEDS_HUMAN_REVIEW` with `provider_failure` | The model was unreachable, refused or gave an unusable reply. The error is in `agent.step.error` | Fix the provider and run again; a new proposal supersedes this one |
+| Agents find no graph context | Neo4j is empty or stale | Run `graph-sync`. After `pytest` the graph holds test data until you do |
 | Connection stalls on `localhost` | Windows tries IPv6 first; containers bind IPv4 only | Keep `127.0.0.1` in `.env`, as in `.env.example` |
 | `changed after it was applied` from `migrate` | A migration file was edited after being applied | Add a new migration. During development: `p2p reset --yes` |
 

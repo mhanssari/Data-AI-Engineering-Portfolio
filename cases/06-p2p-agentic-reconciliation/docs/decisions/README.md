@@ -8,7 +8,7 @@
 | [0004](0004-supplier-resolution.md) | Supplier resolution: rules, rapidfuzz score and a steward band | Accepted |
 | [0005](0005-recompute-and-snapshots.md) | Full recompute with a snapshot per run | Accepted |
 | [0006](0006-incremental-ingestion.md) | Append-only raw, watermark with lookback, upsert if newer | Accepted |
+| [0007](0007-retrieval.md) | Structure-based chunks, local embeddings, exact scan, rank fusion, graph as a third list | Accepted |
+| [0008](0008-agent-orchestration.md) | LangGraph, one model-calling agent, and enforcement by role, guard and append-only trail | Accepted |
 
 Copy [the template](TEMPLATE.md) to a numbered descriptive file when a material choice is made. Record context, alternatives, chosen approach, rationale and consequences. Status values: proposed, accepted or superseded. A rejected alternative is useful evidence when its trade-off is explained.
-
-Expected further decisions: agent orchestration (LangGraph or plain state machine), embedding model and dimension.

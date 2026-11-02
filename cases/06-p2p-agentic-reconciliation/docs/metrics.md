@@ -1,6 +1,6 @@
 # Metric catalogue
 
-Status: definitions. GRNI and value on hold are calculated today (`recon.current_grni_line`, `p2p status`). Exception counts by reason are available from `recon.current_exception`. The rest are not calculated yet; agent and retrieval metrics need milestone 2. Tolerances and windows are in [`p2p_policy.yaml`](../data/reference/p2p_policy.yaml).
+Status: definitions. GRNI and value on hold are calculated today (`recon.current_grni_line`, `p2p status`). Exception counts by reason are available from `recon.current_exception`. Agent and retrieval metrics are calculated by `p2p agent-eval` and `p2p eval-retrieval`, with results in [evidence](../evidence/README.md). The rest are not calculated yet. Tolerances and windows are in [`p2p_policy.yaml`](../data/reference/p2p_policy.yaml).
 
 | Metric | Business question | Owner | Formula | Grain / time basis | Unit | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -11,6 +11,12 @@ Status: definitions. GRNI and value on hold are calculated today (`recon.current
 | GRNI | What has been received but not invoiced at cut-off? | Controller | Sum over goods PO lines of (received qty − invoiced qty) × PO unit price, where positive; receipts and invoices dated on or before the cut-off | PO line; cut-off date | Currency, per currency | Held duplicates and rejected credit notes are ignored. A valid credit note raises GRNI until a return is posted; returns are not modelled. Document dates, not knowledge time |
 | Control breaches | How often are approval controls broken? | Internal audit | Count of exceptions with reasons ApprovalLimitExceeded, SegregationOfDuties, SplitRequisition, RetrospectivePO | Requisition / PO; period | Count | |
 | PR-to-PO cycle time | How fast do requests become orders? | Procurement lead | Median days from PR creation to PO creation | PO; PO date | Days | Excludes cancelled PRs |
-| Agent outcome accuracy | Do agents reach the right conclusion? | Case owner | Proposals whose status and reason match expected outcomes ÷ evaluated scenarios | Scenario; evaluation run | % | From the evaluation harness |
-| False auto-approvals | Did any agent approve what it should not? | Case owner | Count of proposals recommending release where expected status is Exception | Scenario; evaluation run | Count | Target 0 |
+| Agent outcome accuracy | Do agents report the right facts? | Case owner | Proposals whose status and reasons match expected outcomes ÷ planted invoice lines | Invoice line; evaluation run | % | Read from SQL, so it tests the plumbing, not reasoning |
+| Agent action accuracy | Do agents propose the right next step? | Case owner | Proposals whose action matches `evaluation/expected_actions.yaml` ÷ planted invoice lines | Invoice line; evaluation run | % | One author's labels. Means little for the offline provider, which is a rule table |
+| Citation validity | Is cited evidence real and readable? | Case owner | Citations that resolve to an existing row or chunk the acting user may read ÷ all citations | Citation; evaluation run | % | A test proves it can fail |
+| Evidence hit rate | Does a proposal cite the rule that applies? | Case owner | Held lines citing a labelled chunk ÷ held lines with a label | Invoice line; evaluation run | % | |
+| False auto-approvals | Did any agent approve what it should not? | Case owner | Count of AUTO_APPROVE proposals where the expected status is not Matched or MatchedWithinTolerance | Invoice line; evaluation run | Count | Target 0. Also measured with a hostile provider, and a test proves it moves when the guard is removed |
+| Latency per invoice | How long does an investigation take? | Case owner | Wall-clock of all lines of an invoice; median and p95 | Invoice; evaluation run | Seconds | Single pass on one machine; not a benchmark |
+| Cost per invoice | What does an investigation cost? | Case owner | Sum of `agent.step.cost_usd` ÷ invoices | Invoice; evaluation run | USD | Zero for offline; unknown if a model has no listed price |
 | Retrieval recall@k | Is the right evidence found? | Case owner | Questions with at least one expected chunk in top k ÷ questions | Question; evaluation run | % | Compared across retrieval methods |
+| Retrieval MRR | How high does it rank? | Case owner | Mean over questions of 1 ÷ rank of the first expected chunk; 0 if absent | Question; evaluation run | 0 to 1 | Compared across retrieval methods |

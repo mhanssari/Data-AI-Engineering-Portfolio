@@ -15,3 +15,4 @@ Run with `uv run p2p graph-query <name> --param key=value`, or paste into Neo4j 
 | `approval_path` | Approvals compared with each approver's limit then and today | `source_system`, `pr_number` |
 | `supplier_duplicates` | Suppliers held under several source ids | none |
 | `golden_invoices` | All invoices for a golden supplier across source ids | `supplier_gid` |
+| `invoice_neighbourhood` | What surrounds an invoice, filtered to what a user may see; used by retrieval and the investigator | `source_system`, `invoice_id`, `companies`, `systems` |

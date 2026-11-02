@@ -9,7 +9,9 @@ import psycopg
 import typer
 
 from p2p_recon import conform as conform_step
+from p2p_recon import documents as documents_step
 from p2p_recon import dq as dq_step
+from p2p_recon import evaluation as evaluation_step
 from p2p_recon import generate as generate_step
 from p2p_recon import graph as graph_step
 from p2p_recon import ingest as ingest_step
@@ -17,6 +19,9 @@ from p2p_recon import mdm as mdm_step
 from p2p_recon import migrate as migrate_step
 from p2p_recon import ontology as ontology_step
 from p2p_recon import recon as recon_step
+from p2p_recon import retrieval as retrieval_step
+from p2p_recon.agents import workflow
+from p2p_recon.agents.providers import get_provider
 from p2p_recon.config import GENERATED_DIR, ONTOLOGY_DIR, SAMPLES_DIR
 from p2p_recon.db import connect
 
@@ -145,8 +150,110 @@ def run_all(
         resolve_suppliers()
         match(cutoff)
         dq()
+    load_documents(GENERATED_DIR / "documents")
     if with_graph:
         graph_sync()
+
+
+@app.command("load-documents")
+def load_documents(documents_dir: Path = GENERATED_DIR / "documents") -> None:
+    """Chunk and embed the generated documents into docs. The first run downloads the embedding model."""
+    _show(documents_step.load_documents(documents_dir))
+
+
+@app.command()
+def search(
+    query: Annotated[str, typer.Argument(help="What to search for.")],
+    acting_user: Annotated[str, typer.Option("--as", help="ap_gb01, ap_de01 or auditor.")] = "ap_gb01",
+    method: Annotated[str, typer.Option(help="keyword, vector, hybrid or hybrid_graph.")] = "hybrid",
+    invoice: Annotated[str | None, typer.Option(help="SOURCE_SYSTEM:invoice_id, for hybrid_graph.")] = None,
+    k: int = 5,
+) -> None:
+    """Search the documents as a given user, and show what that user may cite."""
+    anchor = tuple(invoice.split(":", 1)) if invoice else None
+    with connect() as conn, graph_step.driver() as db:
+        user = retrieval_step.load_user(conn, acting_user)
+        hits = retrieval_step.search(conn, user, query, method, k, db, anchor)
+    _show([{"citation": h.citation, "header": h.context_header, "content": h.content} for h in hits])
+
+
+@app.command("eval-retrieval")
+def eval_retrieval() -> None:
+    """Measure recall@k and MRR per retrieval method and write the report to evidence."""
+    _show(evaluation_step.evaluate_retrieval())
+
+
+@app.command("agent-run")
+def agent_run(
+    acting_user: Annotated[str, typer.Option("--as", help="ap_gb01, ap_de01 or auditor.")] = "ap_gb01",
+    provider: Annotated[
+        str | None, typer.Option(help="offline, anthropic or ollama. Default: LLM_PROVIDER.")
+    ] = None,
+    limit: Annotated[int | None, typer.Option(help="Investigate at most this many held lines.")] = None,
+) -> None:
+    """Investigate the held lines this user may see, writing proposals to the review queue. Nothing else changes."""
+    with workflow.agent_connection() as conn, graph_step.driver() as db:
+        run = workflow.AgentRun(conn, db, get_provider(provider), acting_user, {"limit": limit})
+        lines = workflow.open_lines(conn, run.user.company_codes, limit)
+        outcomes = [run.investigate(line) for line in lines]
+        run.finish()
+    _show(
+        {"agent_run_id": run.run_id, "lines": len(outcomes), "proposals": [o.proposal_id for o in outcomes]}
+    )
+
+
+@app.command("agent-eval")
+def agent_eval(
+    provider: Annotated[
+        str | None, typer.Option(help="offline, anthropic or ollama. Default: LLM_PROVIDER.")
+    ] = None,
+    all_lines: Annotated[
+        bool, typer.Option(help="Also run every background line, not only the planted ones.")
+    ] = False,
+) -> None:
+    """Run the planted scenarios through the agents, measure them and write the report to evidence."""
+    result = evaluation_step.evaluate_agents(provider, all_lines)
+    _show(result["summary"])
+    if result["summary"]["false_auto_approvals"] or result["hostile"]["false_auto_approvals"]:
+        raise typer.Exit(1)
+
+
+@app.command("review-list")
+def review_list(
+    acting_user: Annotated[str, typer.Option("--as", help="ap_gb01, ap_de01 or auditor.")] = "ap_gb01",
+) -> None:
+    """Show open proposals for the companies this user may see."""
+    with connect() as conn:
+        user = retrieval_step.load_user(conn, acting_user)
+        _show(
+            conn.execute(
+                "select proposal_id, company_code, invoice_id, line_number, sql_status, sql_reasons, proposed_action, explanation "
+                "from agent.review_queue where company_code = any(%s) order by proposal_id",
+                (user.company_codes,),
+            ).fetchall()
+        )
+
+
+@app.command("review-decide")
+def review_decide(
+    proposal_id: Annotated[int, typer.Argument()],
+    decision: Annotated[str, typer.Argument(help="ACCEPT, OVERRIDE or QUERY.")],
+    decided_by: Annotated[str, typer.Option("--as", help="ap_gb01, ap_de01 or auditor.")],
+    note: str | None = None,
+) -> None:
+    """Record a person's decision on a proposal. It records only: nothing is posted or paid."""
+    with connect() as conn:
+        user = retrieval_step.load_user(conn, decided_by)
+        company = conn.execute(
+            "select company_code from agent.proposal where proposal_id = %s", (proposal_id,)
+        ).fetchone()
+        if company is None or company["company_code"] not in user.company_codes:
+            raise typer.BadParameter(f"{decided_by} has no proposal {proposal_id} to decide")
+        conn.execute(
+            "insert into agent.human_decision (proposal_id, decision, decided_by, note) values (%s, %s, %s, %s)",
+            (proposal_id, decision, decided_by, note),
+        )
+    typer.echo("Recorded.")
 
 
 @app.command()

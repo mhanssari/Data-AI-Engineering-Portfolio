@@ -1,0 +1,51 @@
+# Hand-labelled retrieval questions for the default seed. evaluate_retrieval stops if a label names a chunk that no
+# longer exists, so a change to the corpus cannot silently invalidate these.
+#
+# Questions are phrased as a clerk would ask them, and avoid repeating the wording of the chunk they should find.
+# kind:
+#   rule        a group policy rule
+#   supplier    a named supplier's contract; the clauses are nearly identical, so the name has to decide it
+#   procedure   a company's local procedure, or an audit memo
+#   email       what a supplier or clerk wrote, found from what it is about
+#   anchored    about "this invoice": the question names no supplier, and only the graph connects the two
+questions:
+  - { id: rule-01, kind: rule, user: ap_gb01, question: "How far over the order price can an invoice go before we stop it?", expected: [policy_p2p:price-tolerance-pct-default] }
+  - { id: rule-02, kind: rule, user: ap_de01, question: "Is a one penny difference treated as a mismatch?", expected: [policy_p2p:rounding-tolerance-amount] }
+  - { id: rule-03, kind: rule, user: ap_gb01, question: "Can somebody sign off their own purchase request?", expected: [policy_p2p:segregation-of-duties] }
+  - { id: rule-04, kind: rule, user: ap_de01, question: "How long after new bank details do we keep holding a supplier's invoices?", expected: [policy_p2p:bank-change-window-days] }
+  - { id: rule-05, kind: rule, user: ap_gb01, question: "What counts as the same invoice submitted twice?", expected: [policy_p2p:duplicate-window-days] }
+  - { id: rule-06, kind: rule, user: ap_de01, question: "Several small requests in the same week to one vendor: when is that a problem?", expected: [policy_p2p:split-window-days] }
+  - { id: rule-07, kind: rule, user: ap_gb01, question: "Who may approve a request of 20,000?", expected: [policy_p2p:approval-tier-2] }
+  - { id: rule-08, kind: rule, user: ap_de01, question: "An order was raised after the bill arrived. What happens?", expected: [policy_p2p:retrospective-purchase-orders] }
+  - { id: rule-09, kind: rule, user: ap_gb01, question: "A supplier billed us in dollars but ordered in pounds.", expected: [policy_p2p:invoice-currency] }
+  - { id: rule-10, kind: rule, user: ap_de01, question: "Can a supplier's credit be worth more than the bill it refers to?", expected: [policy_p2p:credit-notes] }
+  - { id: rule-11, kind: rule, user: ap_gb01, question: "How is the month-end accrual for undelivered paperwork valued?", expected: [policy_p2p:goods-received-not-invoiced] }
+  - { id: rule-12, kind: rule, user: ap_de01, question: "We were billed but nobody quoted an order number.", expected: [policy_p2p:missing-purchase-order-or-requisition] }
+
+  - { id: supplier-01, kind: supplier, user: ap_gb01, question: "What is the price tolerance for Kelso Glass?", expected: ["contract_CT-2026-108_2026-01-01:clause-4-invoice-tolerance"] }
+  - { id: supplier-02, kind: supplier, user: ap_gb01, question: "What is the price tolerance for Otley Labels?", expected: ["contract_CT-2026-112_2026-01-01:clause-4-invoice-tolerance"] }
+  - { id: supplier-03, kind: supplier, user: ap_de01, question: "How much over the agreed amount may Jena Textil invoice?", expected: ["contract_CT-2026-210_2026-01-01:clause-4-invoice-tolerance"] }
+  - { id: supplier-04, kind: supplier, user: ap_de01, question: "When do we have to pay Detmold Nahrung?", expected: ["contract_CT-2026-204_2026-01-01:clause-5-payment-terms"] }
+  - { id: supplier-05, kind: supplier, user: ap_gb01, question: "When do we have to pay Hexley Print?", expected: ["contract_CT-2026-106_2026-01-01:clause-5-payment-terms"] }
+  - { id: supplier-06, kind: supplier, user: ap_gb01, question: "What price did we agree with Nairn Metals?", expected: ["contract_CT-2026-111_2026-01-01:clause-3-pricing"] }
+  - { id: supplier-07, kind: supplier, user: ap_de01, question: "How quickly must Hameln Technik deliver?", expected: ["contract_CT-2026-208_2026-01-01:clause-6-delivery"] }
+  - { id: supplier-08, kind: supplier, user: ap_gb01, question: "How much notice to end the agreement with Malvern Pallets?", expected: ["contract_CT-2026-110_2026-01-01:clause-7-termination"] }
+
+  - { id: procedure-01, kind: procedure, user: ap_gb01, question: "Who countersigns the call when a supplier changes bank account?", expected: [procedure_GB01:verifying-a-bank-change] }
+  - { id: procedure-02, kind: procedure, user: ap_de01, question: "Who countersigns the call when a supplier changes bank account?", expected: [procedure_DE01:verifying-a-bank-change] }
+  - { id: procedure-03, kind: procedure, user: ap_gb01, question: "Which working day do we review the accrual?", expected: [procedure_GB01:month-end-timetable] }
+  - { id: procedure-04, kind: procedure, user: auditor, question: "What is internal audit sampling this year?", expected: [audit_memo_GB01:planned-control-testing, audit_memo_DE01:planned-control-testing] }
+
+  - { id: email-01, kind: email, user: ap_gb01, question: "A supplier says it will not accept a short payment because it told our buyer about an increase.", expected: [email_S03_PriceVariance:overview] }
+  - { id: email-02, kind: email, user: ap_de01, question: "Which supplier has a signed driver's sheet for the full load?", expected: [email_S04_QuantityVariance:overview] }
+  - { id: email-03, kind: email, user: ap_gb01, question: "Somebody asked us to pay into a new account and will only reply by email.", expected: [email_S14_bank_change:overview] }
+  - { id: email-04, kind: email, user: ap_de01, question: "Work was requested by telephone, with no reference on the bill.", expected: [email_S08_NoPurchaseOrder:overview] }
+
+  - { id: anchored-01, kind: anchored, user: ap_gb01, invoice: { source_system: SAP_LIKE, invoice_id: "5100000014" }, question: "What tolerance applies to this invoice under its contract in February?", expected: ["contract_CT-2026-001_2026-01-01:clause-4-invoice-tolerance"] }
+  - { id: anchored-02, kind: anchored, user: ap_gb01, invoice: { source_system: SAP_LIKE, invoice_id: "5100000015" }, question: "What tolerance applies to this invoice under its contract in May?", expected: ["contract_CT-2026-001_2026-04-01:clause-4-invoice-tolerance"] }
+  - { id: anchored-03, kind: anchored, user: ap_de01, invoice: { source_system: ORACLE_LIKE, invoice_id: "90002" }, question: "What has the supplier said about this invoice?", expected: [email_S04_QuantityVariance:overview] }
+  - { id: anchored-04, kind: anchored, user: ap_gb01, invoice: { source_system: SAP_LIKE, invoice_id: "5100000009" }, question: "What has the supplier said about this invoice?", expected: [email_S14_bank_change:overview] }
+  - { id: anchored-05, kind: anchored, user: ap_gb01, invoice: { source_system: SAP_LIKE, invoice_id: "5100000012" }, question: "What are the payment terms with this supplier?", expected: ["contract_CT-2026-108_2026-01-01:clause-5-payment-terms"] }
+  - { id: anchored-06, kind: anchored, user: ap_de01, invoice: { source_system: ORACLE_LIKE, invoice_id: "90009" }, question: "What is the delivery commitment from this supplier?", expected: ["contract_CT-2026-208_2026-01-01:clause-6-delivery"] }
+  - { id: anchored-07, kind: anchored, user: ap_de01, invoice: { source_system: ORACLE_LIKE, invoice_id: "90008" }, question: "Has anybody in accounts payable left a note about this invoice?", expected: [note_S12_SegregationOfDuties:overview] }
+  - { id: anchored-08, kind: anchored, user: ap_gb01, invoice: { source_system: SAP_LIKE, invoice_id: "5100000002" }, question: "What has the supplier said about this invoice?", expected: [email_S03_PriceVariance:overview] }

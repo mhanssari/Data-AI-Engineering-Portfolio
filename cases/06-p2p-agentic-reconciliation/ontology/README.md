@@ -19,13 +19,13 @@ Status: v0.2.0, version recorded in `p2p.ttl` and `mapping.yaml`. Used by the Ne
 2. **Validation:** tests export real chains from PostgreSQL to RDF through the mapping and validate them with SHACL. A clean chain conforms. S11 and S12 are flagged by the SHACL constraints as well as by the SQL controls, so two independent implementations agree.
 3. **Graph projection:** `mapping.yaml` drives the Neo4j loader, so node labels, relationship types and property names follow the ontology. The mapping is an allowlist, so bank account numbers cannot leak into the graph by a column being added.
 4. **Controlled codes:** a data-quality check confirms that every status and reason written to `recon` is a concept in the vocabulary.
-5. **Agent grounding (milestone 2):** agents receive definitions and allowed reason codes from the vocabulary rather than inventing labels.
+5. **Agent grounding (not built):** agents read reason codes from SQL, where the vocabulary constrains them, but the prompt does not yet include their definitions. Proposed actions are not yet in the vocabulary.
 
 Design note: `p2p:resolvesTo` links a source supplier to its golden record instead of `owl:sameAs`, because `owl:sameAs` would merge every statement about the two source records, including conflicting bank details that must stay separate for fraud checks.
 
 Design note: rdfs:domain is an inference rule, not a constraint. Validating real data exposed that a domain of `Supplier` on `vatNumber` classified every golden supplier as a source supplier, so properties shared by several classes have no domain.
 
-Defined but not yet projected: `CreditNote` (a supplier invoice with `creditsInvoice`, typed through inference), `JournalEntry` (the accrual sits in `recon.accrual_journal_line`), `PaymentProposal` (the `recon.current_payment_readiness` view today; agent proposals in milestone 2). Oracle's supplier sites are flattened onto `Supplier`: only the primary pay site is modelled.
+Defined but not yet projected: `CreditNote` (a supplier invoice with `creditsInvoice`, typed through inference), `JournalEntry` (the accrual sits in `recon.accrual_journal_line`), `PaymentProposal` (the `recon.current_payment_readiness` view; agent proposals are in `agent.proposal` and not mapped to the ontology). Oracle's supplier sites are flattened onto `Supplier`: only the primary pay site is modelled.
 
 ## Versioning
 

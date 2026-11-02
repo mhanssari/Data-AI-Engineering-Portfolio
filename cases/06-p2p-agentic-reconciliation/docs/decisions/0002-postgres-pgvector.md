@@ -19,4 +19,4 @@ Option 2. The case's volumes are small, and the main risk is governance rather t
 
 ## Consequences and validation
 
-The extension is installed (`pgvector/pgvector:0.8.7-pg18-trixie`) but no vectors exist until milestone 2. Index choice (HNSW or IVFFlat) and embedding dimension are recorded at implementation. Validation: a user from one company cannot retrieve the other company's chunks; retrieval evaluation compares vector-only and hybrid. At much larger volumes a dedicated vector store could be reconsidered, with permissions synchronised from the system of record.
+The extension runs on `pgvector/pgvector:0.8.7-pg18-trixie`. Embedding dimension and the choice of no vector index are in [decision 0007](0007-retrieval.md). Validated: a user from one company cannot retrieve the other company's chunks; the retrieval evaluation compares vector-only and hybrid. At much larger volumes a dedicated vector store could be reconsidered, with permissions synchronised from the system of record.

@@ -46,4 +46,8 @@ parameters:
 
 segregation_of_duties: "The requester of a purchase requisition may not approve it. Every requisition converted to a purchase order must carry at least one approval by an employee whose approval limit, valid on the approval date, covers the requisition amount."
 retrospective_po: "A purchase order must be dated on or before the invoice it supports. A purchase order raised after the invoice is a retrospective PO and the invoice is held."
+invoice_before_receipt: "A goods invoice dated before the first goods receipt on its purchase order line is held until the receipt date has been checked with the warehouse. An invoice for goods with no receipt at all waits for the receipt; it is not treated as a variance."
+no_purchase_order: "Every supplier invoice must quote a purchase order. An invoice with no purchase order is held until the requester supplies one. A purchase order line must itself trace to a requisition; a line without one is held and referred to procurement."
+currency: "An invoice must be in the currency of its purchase order. An invoice in another currency is held and its price is not assessed, because amounts in two currencies cannot be compared; the supplier is asked to reissue it."
+credit_notes: "A credit note must reference an invoice from the same resolved supplier and, cumulatively, may not exceed the value of that invoice. A credit note that fails either test is held and reviewed by accounts payable."
 grni: "Goods received not invoiced is measured at each month-end cut-off as received quantity less invoiced quantity, valued at the purchase order price, for goods lines only. The accrual is posted to the expense or inventory account of the purchase order line and credited to the company's GRNI clearing account."

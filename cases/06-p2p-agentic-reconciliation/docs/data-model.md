@@ -1,6 +1,6 @@
 # Data model
 
-Status: implemented for `raw`, `stg`, `core`, `mdm`, `recon` and `ops`. `docs` and `agent` exist empty until milestone 2.
+Status: implemented for all schemas.
 
 Canonical tables in `core` are named after ontology classes (see [ontology](../ontology/README.md) and [`ontology/mapping.yaml`](../ontology/mapping.yaml)). DDL with grain comments: [`sql/migrations`](../sql/migrations).
 
@@ -71,7 +71,16 @@ erDiagram
 | ops.quarantine | One raw row blocked by a missing parent | quarantine_id, unique (entity, raw_id) | Retried each run |
 | ops.dq_result | One check × scope × run | (run_id, check_name, scope) | |
 | ops.lineage_edge | One dataset movement × run | (run_id, source_dataset, target_dataset) | Run-level; row-level lineage is core.source_raw_id |
-| docs.chunk, agent.* | Milestone 2 | | Not created yet |
+| docs.document | One source document | document_id | `company_code` `GROUP` is visible to all; links to supplier, contract and invoice |
+| docs.chunk | One clause, section or policy parameter | chunk_id | Stable id; 384-dimension vector; exact scan by design |
+| agent.acting_user | One person agents can act for | user_name | Synthetic; stands in for an identity provider |
+| agent.run | One execution for one user | agent_run_id | Provider, model and the recon run it read |
+| agent.step | One node, or one model call | step_id | Tokens, whether estimated, cost, latency, outcome |
+| agent.tool_call | One tool invocation | tool_call_id | Denied calls are recorded |
+| agent.proposal | One invoice line × agent run | proposal_id, unique (agent_run_id, source_system, invoice_id, line_number) | Append-only. No column can move money |
+| agent.citation | One thing a proposal cites | citation_id | A chunk, or a table and primary key |
+| agent.human_decision | One decision on a proposal | decision_id | Append-only; the latest wins; agents have no privilege here |
+| agent.review_queue | One line with an open proposal (view) | (source_system, invoice_id, line_number) | Excludes evaluation runs and clean lines |
 
 ## Handling rules
 
