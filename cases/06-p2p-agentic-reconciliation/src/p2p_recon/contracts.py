@@ -4,7 +4,7 @@ A contract is a YAML file in contracts/. contracts/released/ holds the last rele
 without a new major version fails, so a consumer can trust that a 1.x contract still means what it did at 1.0.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import psycopg
@@ -16,6 +16,9 @@ from p2p_recon.config import CASE_DIR
 CONTRACTS_DIR = CASE_DIR / "contracts"
 RELEASED_DIR = CONTRACTS_DIR / "released"
 SENSITIVITIES = ("internal", "confidential")
+# The synthetic batches have fixed dates, so freshness is judged against this clock, shortly after batch 2, and never
+# against the wall clock, which would make the data stale for ever. Every freshness check in the case uses it.
+REFERENCE_CLOCK = datetime(2026, 10, 3, 6, 0, tzinfo=UTC)
 
 
 def load_contract(path: Path) -> dict:

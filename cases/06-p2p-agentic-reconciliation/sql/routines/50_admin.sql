@@ -22,6 +22,8 @@ grant select on core.v_supplier_bank_account_masked to admin_reviewer;
 grant insert (object_type, object_id, category, note, follow_up, follows_up) on agent.admin_review_note to admin_reviewer;
 grant usage on sequence agent.admin_review_note_note_id_seq to admin_reviewer;
 grant execute on function ops.log_admin_view(text, text, text) to admin_reviewer;
+-- Where a raw row came from, never its values (migration 008), for the proposal trace.
+grant execute on function ops.raw_origin(bigint[]) to admin_reviewer;
 
 -- agent.visible_companies() runs as its caller and reads agent.reviewer, so every role that meets a policy needs to read
 -- it, exactly as for agent.acting_user. It holds role names and scopes, nothing else.

@@ -278,7 +278,7 @@ def contracts_check(
         typer.Option(
             help="Clock for the freshness SLA. The synthetic data has fixed dates, so the default is shortly after batch 2."
         ),
-    ] = "2026-10-03T06:00:00+00:00",
+    ] = contracts_step.REFERENCE_CLOCK.isoformat(),
 ) -> None:
     """Check every data contract against the database and its last release. Exit 1 on any problem."""
     with connect() as conn:

@@ -1,7 +1,7 @@
 """Trace one agent proposal back to what it rests on: tool calls, cited rows and chunks, core rows, raw rows and source files.
 
-Row-level lineage comes from core.source_raw_id; dataset-level lineage comes from ops.lineage_edge. A trace reads raw and
-ops, so it runs on the pipeline's own login and is an administrator's or auditor's tool. It reports where a raw row came
+Row-level lineage comes from core.source_raw_id; dataset-level lineage comes from ops.lineage_edge. A trace reads ops and
+raw landing metadata, so it runs on the pipeline's own login or as the governance reviewer. It reports where a raw row came
 from and never its values, so bank numbers and other source fields cannot leak through it.
 """
 
@@ -67,26 +67,9 @@ def fetch_cited_row(conn: psycopg.Connection, citation: dict) -> dict | None:
 
 
 def _raw_origins(conn: psycopg.Connection, raw_ids: list[int]) -> dict[int, dict]:
-    """raw_id is unique across the raw schema, so each row is found by looking in every raw table's primary key."""
-    tables = [
-        row["table_name"]
-        for row in conn.execute(
-            "select table_name from information_schema.tables where table_schema = 'raw' and table_name <> 'meta_template'"
-        )
-    ]
-    origins: dict[int, dict] = {}
-    for table in tables:
-        query = sql.SQL(
-            """
-            select r.raw_id, r.source_system, r.batch_id, r.source_file, r.file_row, r.extracted_at, r.cdc_op, f.checksum
-            from {} r
-            left join ops.ingest_file f on f.source_system = r.source_system and f.file_name = r.batch_id || '/' || r.source_file and f.run_id = r.run_id
-            where r.raw_id = any(%s)
-            """
-        ).format(sql.Identifier("raw", table))
-        for row in conn.execute(query, (raw_ids,)):
-            origins[row["raw_id"]] = {"raw_table": f"raw.{table}", **row}
-    return origins
+    """Landing metadata only, through ops.raw_origin, so a role that may not read raw gets the same trace."""
+    rows = conn.execute("select * from ops.raw_origin(%s::bigint[])", (raw_ids,)).fetchall()
+    return {row["raw_id"]: row for row in rows}
 
 
 def dataset_path(conn: psycopg.Connection, targets: list[str]) -> list[dict]:
