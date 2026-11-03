@@ -20,7 +20,7 @@ def db(graph_synced):
 
 @pytest.fixture
 def users(conn):
-    return {name: retrieval.load_user(conn, name) for name in ("ap_gb01", "ap_de01", "auditor")}
+    return {name: retrieval.load_user(conn, name) for name in ("ap_analyst_uk", "ap_analyst_de", "auditor")}
 
 
 @pytest.mark.parametrize("method", retrieval.METHODS)
@@ -30,7 +30,9 @@ def test_clerk_never_receives_the_other_companys_chunks(conn, users, db, method)
         "Who countersigns the call when a supplier changes bank account?",
         "credit note",
     ):
-        ids = retrieval.ranked_ids(conn, users["ap_gb01"], query, method, db, ("SAP_LIKE", "5100000012"))
+        ids = retrieval.ranked_ids(
+            conn, users["ap_analyst_uk"], query, method, db, ("SAP_LIKE", "5100000012")
+        )
         companies = conn.execute(
             "select distinct company_code from docs.chunk where chunk_id = any(%s)", (ids,)
         ).fetchall()
@@ -40,8 +42,8 @@ def test_clerk_never_receives_the_other_companys_chunks(conn, users, db, method)
 @pytest.mark.parametrize("method", retrieval.METHODS)
 def test_each_company_finds_its_own_procedure_for_the_same_question(conn, users, db, method):
     question = "Who countersigns the call when a supplier changes bank account?"
-    gb = retrieval.search(conn, users["ap_gb01"], question, method, 5, db)
-    de = retrieval.search(conn, users["ap_de01"], question, method, 5, db)
+    gb = retrieval.search(conn, users["ap_analyst_uk"], question, method, 5, db)
+    de = retrieval.search(conn, users["ap_analyst_de"], question, method, 5, db)
     assert "chunk:procedure_GB01:verifying-a-bank-change" in [h.citation for h in gb]
     assert "chunk:procedure_DE01:verifying-a-bank-change" in [h.citation for h in de]
 
@@ -49,7 +51,7 @@ def test_each_company_finds_its_own_procedure_for_the_same_question(conn, users,
 @pytest.mark.parametrize("method", retrieval.METHODS)
 def test_audit_memo_is_visible_to_the_auditor_alone(conn, users, db, method):
     question = "What is internal audit sampling this year?"
-    for name in ("ap_gb01", "ap_de01"):
+    for name in ("ap_analyst_uk", "ap_analyst_de"):
         cited = {h.document_id for h in retrieval.search(conn, users[name], question, method, 20, db)}
         assert not {"audit_memo_GB01", "audit_memo_DE01"} & cited
     cited = {h.document_id for h in retrieval.search(conn, users["auditor"], question, method, 5, db)}
@@ -59,7 +61,7 @@ def test_audit_memo_is_visible_to_the_auditor_alone(conn, users, db, method):
 def test_filtering_happens_before_ranking(conn, users):
     """Filtering after ranking would leave a GB01 clerk with few results for a query dominated by DE01 contracts."""
     query = "Altona Bergedorf Celle Detmold Emden Flensburg Goslar Hameln Itzehoe Jena Kassel Lingen GmbH tolerance"
-    hits = retrieval.search(conn, users["ap_gb01"], query, "vector", 20)
+    hits = retrieval.search(conn, users["ap_analyst_uk"], query, "vector", 20)
     assert len(hits) == 20
     assert all(h.company_code in ("GB01", "GROUP") for h in hits)
 
@@ -71,7 +73,7 @@ def test_group_policy_is_visible_to_everyone(conn, users):
 
 
 def test_hits_carry_a_citation_and_their_source(conn, users):
-    hit = retrieval.search(conn, users["ap_gb01"], GB_SUPPLIER_QUERY, "vector", 1)[0]
+    hit = retrieval.search(conn, users["ap_analyst_uk"], GB_SUPPLIER_QUERY, "vector", 1)[0]
     assert hit.citation == "chunk:contract_CT-2026-108_2026-01-01:clause-4-invoice-tolerance"
     assert "Kelso Glass" in hit.context_header
     assert "percent" in hit.content
@@ -89,31 +91,33 @@ def test_rrf_scores_match_the_formula():
 
 
 def test_blank_keyword_query_returns_nothing_rather_than_failing(conn, users):
-    assert retrieval.keyword_ids(conn, users["ap_gb01"], "the and of") == []
+    assert retrieval.keyword_ids(conn, users["ap_analyst_uk"], "the and of") == []
 
 
 def test_unknown_user_and_method_are_refused(conn, users):
     with pytest.raises(ValueError):
         retrieval.load_user(conn, "nobody")
     with pytest.raises(ValueError):
-        retrieval.ranked_ids(conn, users["ap_gb01"], "tolerance", "psychic")
+        retrieval.ranked_ids(conn, users["ap_analyst_uk"], "tolerance", "psychic")
 
 
 # ---------------------------------------------------------------- graph
 
 
 def test_neighbourhood_of_another_companys_invoice_looks_absent(users, db):
-    assert retrieval.invoice_neighbourhood(db, users["ap_gb01"], "ORACLE_LIKE", "90002") is None
+    assert retrieval.invoice_neighbourhood(db, users["ap_analyst_uk"], "ORACLE_LIKE", "90002") is None
     assert (
-        retrieval.invoice_neighbourhood(db, users["ap_de01"], "ORACLE_LIKE", "90002")["invoice_number"]
+        retrieval.invoice_neighbourhood(db, users["ap_analyst_de"], "ORACLE_LIKE", "90002")["invoice_number"]
         == "BEG-2026-0001"
     )
-    assert retrieval.invoice_neighbourhood(db, users["ap_de01"], "ORACLE_LIKE", "no-such-invoice") is None
+    assert (
+        retrieval.invoice_neighbourhood(db, users["ap_analyst_de"], "ORACLE_LIKE", "no-such-invoice") is None
+    )
 
 
 def test_golden_supplier_does_not_lead_into_the_other_erp(users, db):
     """S21: Brightwell exists in both ERPs under one golden record. A clerk learns that a sibling exists, not who it is."""
-    clerk = retrieval.invoice_neighbourhood(db, users["ap_de01"], "ORACLE_LIKE", "90012")
+    clerk = retrieval.invoice_neighbourhood(db, users["ap_analyst_de"], "ORACLE_LIKE", "90012")
     assert clerk["visible_siblings"] == []
     assert clerk["hidden_siblings"] == 1
     auditor = retrieval.invoice_neighbourhood(db, users["auditor"], "ORACLE_LIKE", "90012")
@@ -123,7 +127,7 @@ def test_golden_supplier_does_not_lead_into_the_other_erp(users, db):
 
 def test_graph_links_reach_only_permitted_documents(conn, users, db):
     neighbourhood = retrieval.invoice_neighbourhood(db, users["auditor"], "ORACLE_LIKE", "90012")
-    for name, allowed in (("ap_de01", {"DE01"}), ("auditor", {"GB01", "DE01"})):
+    for name, allowed in (("ap_analyst_de", {"DE01"}), ("auditor", {"GB01", "DE01"})):
         documents = retrieval.linked_document_ids(conn, users[name], neighbourhood)
         companies = conn.execute(
             "select distinct company_code from docs.document where document_id = any(%s)", (documents,)
@@ -140,7 +144,7 @@ def test_link_lookup_refuses_keys_from_another_company(conn, users):
         "contract_ids": ["CT-2026-001"],
         "invoice_number": "LTL-2026-0001",
     }
-    assert retrieval.linked_document_ids(conn, users["ap_de01"], gb01_keys) == []
+    assert retrieval.linked_document_ids(conn, users["ap_analyst_de"], gb01_keys) == []
     assert "contract_CT-2026-001_2026-01-01" in retrieval.linked_document_ids(
         conn, users["auditor"], gb01_keys
     )
@@ -151,18 +155,20 @@ def test_graph_connects_a_question_that_names_no_supplier(conn, users, db):
     question = "What are the payment terms with this supplier?"
     expected = "contract_CT-2026-108_2026-01-01:clause-5-payment-terms"
     with_graph = retrieval.ranked_ids(
-        conn, users["ap_gb01"], question, "hybrid_graph", db, ("SAP_LIKE", "5100000012")
+        conn, users["ap_analyst_uk"], question, "hybrid_graph", db, ("SAP_LIKE", "5100000012")
     )
-    without = retrieval.ranked_ids(conn, users["ap_gb01"], question, "hybrid", db, ("SAP_LIKE", "5100000012"))
+    without = retrieval.ranked_ids(
+        conn, users["ap_analyst_uk"], question, "hybrid", db, ("SAP_LIKE", "5100000012")
+    )
     assert with_graph.index(expected) < 5
     assert expected not in without[:5]
 
 
 def test_graph_context_does_not_change_an_unanchored_search(conn, users, db):
     query = "price tolerance"
-    assert retrieval.ranked_ids(conn, users["ap_gb01"], query, "hybrid_graph", db) == retrieval.ranked_ids(
-        conn, users["ap_gb01"], query, "hybrid", db
-    )
+    assert retrieval.ranked_ids(
+        conn, users["ap_analyst_uk"], query, "hybrid_graph", db
+    ) == retrieval.ranked_ids(conn, users["ap_analyst_uk"], query, "hybrid", db)
 
 
 # ---------------------------------------------------------------- evaluation
@@ -196,7 +202,7 @@ def test_stale_label_stops_the_evaluation(graph_synced, tmp_path):
                     {
                         "id": "x",
                         "kind": "rule",
-                        "user": "ap_gb01",
+                        "user": "ap_analyst_uk",
                         "question": "q",
                         "expected": ["no:such-chunk"],
                     }

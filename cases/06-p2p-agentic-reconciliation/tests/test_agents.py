@@ -47,7 +47,7 @@ def db(graph_synced):
         yield driver
 
 
-def investigate(agent_conn, db, key, provider=None, user="ap_gb01", parameters=None):
+def investigate(agent_conn, db, key, provider=None, user="ap_analyst_uk", parameters=None):
     run = AgentRun(agent_conn, db, provider or OfflineProvider(), user, parameters)
     outcome = run.investigate(key)
     run.finish()
@@ -84,14 +84,6 @@ def proposal(conn, outcome):
 def test_agent_role_is_refused(agent_conn, statement):
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
         agent_conn.execute(statement)
-
-
-def test_agent_role_can_read_what_its_tools_need(agent_conn):
-    assert agent_conn.execute("select count(*) as n from recon.current_match_result").fetchone()["n"] > 0
-    row = agent_conn.execute(
-        "select source_supplier_id, valid_from from core.supplier_bank_account limit 1"
-    ).fetchone()
-    assert row is not None
 
 
 def test_agent_tables_listed_in_the_check_match_the_code(conn):
@@ -282,7 +274,7 @@ def test_clean_line_is_auto_approved_without_a_model_call(agent_conn, db, conn):
 
 
 def test_clerk_cannot_investigate_the_other_company(agent_conn, db, conn):
-    run, outcome = investigate(agent_conn, db, CROSS_ERP_DUPLICATE, user="ap_gb01")
+    run, outcome = investigate(agent_conn, db, CROSS_ERP_DUPLICATE, user="ap_analyst_uk")
     assert outcome.denied
     assert outcome.proposal_id is None
     conn.rollback()
@@ -301,7 +293,7 @@ def test_clerk_cannot_investigate_the_other_company(agent_conn, db, conn):
 
 def test_cross_company_duplicate_is_explained_without_naming_the_original(agent_conn, db, conn):
     """S21: the DE01 clerk must learn that the invoice is a duplicate, not which GB01 invoice it duplicates."""
-    run, outcome = investigate(agent_conn, db, CROSS_ERP_DUPLICATE, user="ap_de01")
+    run, outcome = investigate(agent_conn, db, CROSS_ERP_DUPLICATE, user="ap_analyst_de")
     assert outcome.action == "REJECT_DUPLICATE"
     stored = proposal(conn, outcome)
     assert "withheld" in stored["explanation"]
@@ -339,7 +331,7 @@ def test_agents_change_nothing_in_core_or_recon(agent_conn, db, conn):
 
     before = fingerprint()
     run = AgentRun(agent_conn, db, HostileProvider(), "auditor", {"evaluation": "test"})
-    for line in open_lines(agent_conn, ["GB01", "DE01"], limit=10):
+    for line in open_lines(agent_conn, "auditor", limit=10):
         run.investigate(line)
     run.finish()
     assert fingerprint() == before
@@ -351,7 +343,7 @@ def test_agents_change_nothing_in_core_or_recon(agent_conn, db, conn):
 def test_hostile_provider_never_gets_an_approval_through(agent_conn, db, conn):
     provider = HostileProvider()
     run = AgentRun(agent_conn, db, provider, "auditor", {"evaluation": "test"})
-    lines = open_lines(agent_conn, ["GB01", "DE01"])
+    lines = open_lines(agent_conn, "auditor")
     assert len(lines) >= len(provider.ATTACKS)
     actions = [run.investigate(line).action for line in lines]
     run.finish()
@@ -466,10 +458,13 @@ def test_review_queue_lifecycle(agent_conn, db, conn):
     assert [q["proposal_id"] for q in queued] == [outcome.proposal_id]
 
     runner = CliRunner()
-    refused = runner.invoke(cli.app, ["review-decide", str(outcome.proposal_id), "ACCEPT", "--as", "ap_de01"])
+    refused = runner.invoke(
+        cli.app, ["review-decide", str(outcome.proposal_id), "ACCEPT", "--as", "ap_analyst_de"]
+    )
     assert refused.exit_code != 0
     accepted = runner.invoke(
-        cli.app, ["review-decide", str(outcome.proposal_id), "ACCEPT", "--as", "ap_gb01", "--note", "Agreed"]
+        cli.app,
+        ["review-decide", str(outcome.proposal_id), "ACCEPT", "--as", "ap_analyst_uk", "--note", "Agreed"],
     )
     assert accepted.exit_code == 0, accepted.output
     conn.rollback()
@@ -497,7 +492,7 @@ def test_a_clean_line_never_reaches_the_queue(agent_conn, db, conn):
 
 def test_evaluation_runs_stay_out_of_the_queue(agent_conn, db, conn):
     line = LineKey("ORACLE_LIKE", "90002", 1)
-    _, outcome = investigate(agent_conn, db, line, HostileProvider(), "ap_de01", {"evaluation": "test"})
+    _, outcome = investigate(agent_conn, db, line, HostileProvider(), "ap_analyst_de", {"evaluation": "test"})
     conn.rollback()
     assert (
         conn.execute(
@@ -676,7 +671,7 @@ def test_invalid_citations_are_detected(conn, loaded_documents):
     """The citation check can fail: otherwise citation validity would be a number that only ever reads 100%."""
     from p2p_recon.retrieval import load_user
 
-    clerk = load_user(conn, "ap_gb01")
+    clerk = load_user(conn, "ap_analyst_uk")
     good = {"kind": "chunk", "chunk_id": "policy_p2p:credit-notes"}
     assert evaluation._citation_valid(conn, good, clerk)
     assert not evaluation._citation_valid(conn, {"kind": "chunk", "chunk_id": "no:such"}, clerk)

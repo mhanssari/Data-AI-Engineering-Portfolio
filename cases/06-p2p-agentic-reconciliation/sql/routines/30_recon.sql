@@ -330,26 +330,27 @@ end;
 $$;
 
 ------------------------------------------------------------------ Current-state views
-create or replace view recon.latest_run as
+-- security_invoker: a view otherwise reads as its owner, which would walk straight past row-level security.
+create or replace view recon.latest_run with (security_invoker = true) as
 select run_id, cutoff_date from recon.match_run order by run_id desc limit 1;
 
-create or replace view recon.current_match_result as
+create or replace view recon.current_match_result with (security_invoker = true) as
 select m.* from recon.match_result m join recon.latest_run r using (run_id);
 
-create or replace view recon.current_exception as
+create or replace view recon.current_exception with (security_invoker = true) as
 select e.* from recon.exception e join recon.latest_run r using (run_id);
 
-create or replace view recon.current_control_breach as
+create or replace view recon.current_control_breach with (security_invoker = true) as
 select b.* from recon.control_breach b join recon.latest_run r using (run_id);
 
-create or replace view recon.current_grni_line as
+create or replace view recon.current_grni_line with (security_invoker = true) as
 select g.* from recon.grni_line g join recon.latest_run r using (run_id);
 
-create or replace view recon.current_accrual_journal_line as
+create or replace view recon.current_accrual_journal_line with (security_invoker = true) as
 select j.* from recon.accrual_journal_line j join recon.latest_run r using (run_id);
 
 -- Grain: one invoice. Payment readiness is a release proposal for a person to approve, never a payment.
-create or replace view recon.current_payment_readiness as
+create or replace view recon.current_payment_readiness with (security_invoker = true) as
 select m.source_system, m.invoice_id, m.company_code, m.currency_code, sum(m.net_amount) as net_amount,
        case when bool_and(m.status_code in ('Matched', 'MatchedWithinTolerance')) then 'ReadyForApproval' else 'Held' end as readiness,
        count(*) filter (where m.status_code not in ('Matched', 'MatchedWithinTolerance')) as lines_blocking

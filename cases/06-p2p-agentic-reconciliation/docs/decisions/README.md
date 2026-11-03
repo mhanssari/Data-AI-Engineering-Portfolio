@@ -10,5 +10,6 @@
 | [0006](0006-incremental-ingestion.md) | Append-only raw, watermark with lookback, upsert if newer | Accepted |
 | [0007](0007-retrieval.md) | Structure-based chunks, local embeddings, exact scan, rank fusion, graph as a third list | Accepted |
 | [0008](0008-agent-orchestration.md) | LangGraph, one model-calling agent, and enforcement by role, guard and append-only trail | Accepted |
+| [0009](0009-security-model.md) | Agents act with a person's database role, under row-level security | Accepted |
 
 Copy [the template](TEMPLATE.md) to a numbered descriptive file when a material choice is made. Record context, alternatives, chosen approach, rationale and consequences. Status values: proposed, accepted or superseded. A rejected alternative is useful evidence when its trade-off is explained.

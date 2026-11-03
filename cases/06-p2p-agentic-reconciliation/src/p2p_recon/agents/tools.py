@@ -1,8 +1,11 @@
 """The only way agents reach data. Every tool checks the acting user's companies and logs its call to agent.tool_call.
 
-Read-only by construction: the connection runs as the p2p_agent role, which can select from core, mdm, recon and docs
-and insert only into the agent trail. Neo4j sessions are opened in read mode. Matching is read from the current results
-rather than re-run, because recon.run_matching writes a new snapshot and an agent may not write to recon.
+On behalf of a person: each tool body runs under SET LOCAL ROLE as the acting user, so row-level security and that role's
+grants decide what it can read, exactly as if the person ran the query. The role reverts to agent_service when the
+transaction ends, and only agent_service can write the trail. Company filters stay in the queries too, as a second layer
+and so that a denial can be told apart from a missing row. Neo4j has no row-level security, so its sessions are opened in
+read mode with the filter in the query. Matching is read from current results rather than re-run, because
+recon.run_matching writes a new snapshot and an agent may not write to recon.
 """
 
 import json
@@ -12,6 +15,7 @@ from dataclasses import dataclass
 
 import psycopg
 from neo4j import Driver
+from psycopg import sql
 
 from p2p_recon import retrieval
 from p2p_recon.retrieval import ActingUser
@@ -66,7 +70,9 @@ class ToolBox:
         started = time.perf_counter()
         status, result = "ok", None
         try:
-            result = body()
+            with self.conn.transaction():
+                self.conn.execute(sql.SQL("set local role {}").format(sql.Identifier(self.user.user_name)))
+                result = body()
             return result
         except AccessDenied as exc:
             status, result = "denied", {"error": str(exc)}

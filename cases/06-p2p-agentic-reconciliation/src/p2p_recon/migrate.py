@@ -9,8 +9,9 @@ functions) are then re-applied in name order.
 import hashlib
 
 import psycopg
+from psycopg import sql
 
-from p2p_recon.config import SQL_DIR
+from p2p_recon.config import SQL_DIR, get_settings
 from p2p_recon.db import connect
 
 MIGRATIONS_DIR = SQL_DIR / "migrations"
@@ -54,6 +55,15 @@ def migrate(conn: psycopg.Connection | None = None) -> list[str]:
         # Views and functions hold no data, so they are re-applied on every run rather than versioned.
         for path in sorted(ROUTINES_DIR.glob("*.sql")):
             conn.execute(path.read_text(encoding="utf-8"))
+        # The password lives in the environment, never in a migration file.
+        settings = get_settings()
+        if not settings.app_db_password:
+            raise RuntimeError("Set APP_DB_PASSWORD in the case .env (see .env.example)")
+        conn.execute(
+            sql.SQL("alter role {} login password {}").format(
+                sql.Identifier(settings.app_db_user), sql.Literal(settings.app_db_password)
+            )
+        )
         conn.commit()
         return done
     finally:

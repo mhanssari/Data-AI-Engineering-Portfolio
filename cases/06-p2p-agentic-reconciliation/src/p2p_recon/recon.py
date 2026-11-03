@@ -13,7 +13,31 @@ def run_matching(cutoff: date) -> dict:
             (run.run_id,),
         ).fetchall()
         lines = sum(row["lines"] for row in statuses)
-        run.lineage(conn, "core.invoice_line", "recon.match_result", lines)
+        # Everything recon.run_matching reads, so that a trace from a result reaches every source.
+        for source in (
+            "core.invoice_line", "core.supplier_invoice", "core.po_line", "core.purchase_order", "core.grn_line",
+            "core.goods_receipt", "core.purchase_requisition", "core.approval", "core.employee", "core.contract",
+            "core.supplier_bank_account", "core.policy_parameter", "core.fx_rate", "mdm.supplier_xref",
+        ):  # fmt: skip
+            run.lineage(conn, source, "recon.match_result", lines)
+        for target, table in (
+            ("recon.exception", "exception"),
+            ("recon.control_breach", "control_breach"),
+            ("recon.grni_line", "grni_line"),
+        ):
+            count = conn.execute(
+                f"select count(*) as n from recon.{table} where run_id = %s", (run.run_id,)
+            ).fetchone()["n"]
+            run.lineage(
+                conn,
+                "recon.match_result"
+                if table == "exception"
+                else "core.purchase_requisition"
+                if table == "control_breach"
+                else "core.po_line",
+                target,
+                count,
+            )
         run.counts = {
             "recon_run_id": run.run_id,
             "cutoff": cutoff.isoformat(),

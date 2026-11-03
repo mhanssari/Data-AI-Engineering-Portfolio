@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     postgres_user: str = "p2p_admin"
     postgres_password: str = ""
 
+    # The login people and agents connect through. It holds no privileges until it assumes a role.
+    app_db_user: str = "p2p_app"
+    app_db_password: str = ""
+
     neo4j_uri: str = "bolt://127.0.0.1:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = ""
@@ -37,6 +41,12 @@ class Settings(BaseSettings):
     anthropic_effort: str = "medium"
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "llama3.2"
+
+    def app_conninfo(self) -> str:
+        return (
+            f"host={self.postgres_host} port={self.postgres_port} dbname={self.postgres_db} "
+            f"user={self.app_db_user} password={self.app_db_password} connect_timeout=10"
+        )
 
     def conninfo(self, dbname: str | None = None) -> str:
         return (

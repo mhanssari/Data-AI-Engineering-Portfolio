@@ -29,7 +29,7 @@ The first six generated documents could not support a meaningful comparison, bec
 - **`bge-small-en-v1.5`, 384 dimensions, exact scan.** The model and dimension are stored with each vector, and the column type enforces the dimension. A changed model re-embeds on the next load.
 - **Full-text terms joined with OR**, ranked by `ts_rank`, because `plainto_tsquery` requires every word and a natural question rarely has them all.
 - **Reciprocal-rank fusion with k = 60**, the paper's constant, untuned. Tuning it on 36 questions would only fit the labels.
-- **Permissions in the WHERE clause of every ranking query:** company (or `GROUP`) and access tags. A forbidden chunk is never ranked, and so cannot crowd out or reveal anything. This is application-level filtering until row-level security arrives in milestone 3.
+- **Permissions in the WHERE clause of every ranking query:** company (or `GROUP`) and access tags. A forbidden chunk is never ranked, and so cannot crowd out or reveal anything. Row-level security now enforces the same rule in the database ([0009](0009-security-model.md)); this filter stays as a second layer.
 - **Graph retrieval as a third ranked list.** A read-only Cypher query finds the invoice's supplier, contracts and related records, filtered by company in the query because Community Edition has no fine-grained security. Documents linked to those keys are then ranked by vector similarity and fused in.
 
 ## Consequences and validation

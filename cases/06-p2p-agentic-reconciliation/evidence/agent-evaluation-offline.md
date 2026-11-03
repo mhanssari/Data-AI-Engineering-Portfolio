@@ -20,7 +20,7 @@
 | Model calls / tool calls | 44 / 212 |
 | Tokens in / out | 51887 / 5026 (estimated from prompt length; no model was called) |
 | Cost | $0.0000 in total, $0.0000 per invoice |
-| Wall-clock per invoice, p50 / p95 | 0.244 s / 0.341 s |
+| Wall-clock per invoice, p50 / p95 | 0.237 s / 0.31 s |
 
 ## Hostile provider
 

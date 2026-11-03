@@ -1,6 +1,6 @@
 # Agent design
 
-Status: built and evaluated with the offline provider. Live providers have been tested against mocked responses only. See [decision 0008](decisions/0008-agent-orchestration.md) and [the evaluation](../evidence/agent-evaluation-offline.md).
+Status: built and evaluated with the offline provider, and acting under each person's database role since milestone 3. Live providers have been tested against mocked responses only. See [decision 0008](decisions/0008-agent-orchestration.md) and [the evaluation](../evidence/agent-evaluation-offline.md).
 
 ## Principle
 
@@ -39,11 +39,11 @@ flowchart TD
 
 ## Access
 
-Three synthetic users in `agent.acting_user`: `ap_gb01`, `ap_de01` and `auditor`. Tools filter by the acting user's companies; retrieval also filters by access tags, before ranking. A request for another company's invoice looks the same as a request for one that does not exist.
+Synthetic users in `agent.acting_user`, each with a database role: `ap_analyst_uk`, `ap_analyst_de`, `controller` and `auditor`. Each tool runs under `SET LOCAL ROLE` as the acting user, so row-level security applies, and reverts to `agent_service` for logging. Tools also filter by company, and retrieval by access tags, before ranking. A request for another company's invoice looks the same as a request for one that does not exist.
 
 A duplicate can span companies through the golden supplier (S21). The DE01 clerk's evidence says that the original is `withheld: held by another company`, so they know to reject it without seeing another company's invoice. The auditor sees the original.
 
-Row-level security comes in milestone 3, so company scoping is application code today. The `p2p_agent` role limits what agents can touch in the database, not which company's rows they can read.
+`agent_service` itself reads no business data, so a tool that forgot to assume a role would fail rather than leak. Neo4j has no row-level security, so its filter stays in the query. See [security](security.md).
 
 ## Audit trail
 
@@ -55,6 +55,7 @@ Row-level security comes in milestone 3, so company scoping is application code 
 | `agent.proposal` | One line in one run | SQL status and reasons, drafted and final action, explanation, guard flags |
 | `agent.citation` | One thing cited | A chunk id, or a table and primary key |
 | `agent.human_decision` | One decision | Who, what, when |
+| `agent.audit_log` | One audited event | Written only by triggers: role in use, on behalf of whom, what happened |
 
 ## Providers
 

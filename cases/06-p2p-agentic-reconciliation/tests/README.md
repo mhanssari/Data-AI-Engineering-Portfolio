@@ -13,5 +13,8 @@ Run with `uv run pytest` from the case folder; containers must be up. Results: [
 | `test_documents.py` | Chunks follow structure with stable ids; contract clauses state what `core.contract` holds; added contracts change no match; a reload embeds only what changed and applies permission changes |
 | `test_retrieval.py` (marked `integration`) | Allowed and denied examples for two companies and an auditor, on every method; filtering before ranking; the golden supplier does not lead into the other ERP; the graph connects questions that name no supplier; metrics on a hand-worked example |
 | `test_agents.py` (marked `integration`) | The database refuses every forbidden write and read; the guard's rules; a held line's full trail; denials; redaction across companies; core and recon unchanged after a hostile run; outage, step limit, token limit and invented tools; review-queue lifecycle; request shape and parsing for live providers, against mocks; the false-approval metric moves when the guard is removed |
+| `test_security.py` (marked `integration`) | Through the real login and roles: allowed and denied rows on every table and view, catalogue checks that nothing added later slips past, bank numbers, on-behalf-of, decision rights, audit log, append-only trail |
+| `test_contracts.py` (marked `integration`) | Contracts are complete; the database honours them; live drift and quality breaches are detected; freshness on an injected clock; each breaking change fails without a major version |
+| `test_review_and_lineage.py` (marked `integration`) | A proposal traces to source files and documents; a late correction shows the corrected row; the page's queue, citations, graph and decisions for each role, through Streamlit's `AppTest` |
 
-Live providers are tested against mocks only, so nothing here calls a real model. Not yet tested, because not yet built: row-level security.
+Live providers are tested against mocks only, so nothing here calls a real model.

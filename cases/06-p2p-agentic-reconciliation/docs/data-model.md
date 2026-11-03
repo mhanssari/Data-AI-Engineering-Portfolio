@@ -42,7 +42,7 @@ erDiagram
 | core.item | One group item | item_id | Shared master in this synthetic group |
 | core.cost_centre, core.gl_account | One code in one company | (company_code, code) | |
 | core.supplier | One supplier per source system | (source_system, source_supplier_id) | Primary pay site flattened on |
-| core.supplier_bank_account | One account version | (source_system, source_supplier_id, valid_from) | Unmasked until milestone 3; never projected to the graph |
+| core.supplier_bank_account | One account version | (source_system, source_supplier_id, valid_from) | No role can read the number; see core.v_supplier_bank_account_masked. Not projected to the graph |
 | core.employee | One limit version of one employee | (source_system, employee_id, valid_from) | Value at the approval date is used |
 | core.contract | One version of a price agreement | (contract_id, valid_from) | Tolerance at the invoice date is used |
 | core.purchase_requisition | One requisition (single line in both shapes) | (source_system, pr_number) | total_amount = round(quantity × price, 2) |
@@ -73,7 +73,7 @@ erDiagram
 | ops.lineage_edge | One dataset movement × run | (run_id, source_dataset, target_dataset) | Run-level; row-level lineage is core.source_raw_id |
 | docs.document | One source document | document_id | `company_code` `GROUP` is visible to all; links to supplier, contract and invoice |
 | docs.chunk | One clause, section or policy parameter | chunk_id | Stable id; 384-dimension vector; exact scan by design |
-| agent.acting_user | One person agents can act for | user_name | Synthetic; stands in for an identity provider |
+| agent.acting_user | One person agents can act for | user_name | Synthetic; user_name is also their database role |
 | agent.run | One execution for one user | agent_run_id | Provider, model and the recon run it read |
 | agent.step | One node, or one model call | step_id | Tokens, whether estimated, cost, latency, outcome |
 | agent.tool_call | One tool invocation | tool_call_id | Denied calls are recorded |
@@ -81,6 +81,8 @@ erDiagram
 | agent.citation | One thing a proposal cites | citation_id | A chunk, or a table and primary key |
 | agent.human_decision | One decision on a proposal | decision_id | Append-only; the latest wins; agents have no privilege here |
 | agent.review_queue | One line with an open proposal (view) | (source_system, invoice_id, line_number) | Excludes evaluation runs and clean lines |
+| agent.audit_log | One audited event | audit_id | Append-only; written only by triggers |
+| core.v_supplier_bank_account_masked | One bank account version (view) | (source_system, source_supplier_id, valid_from) | The only route to bank details for any role; last four characters |
 
 ## Handling rules
 

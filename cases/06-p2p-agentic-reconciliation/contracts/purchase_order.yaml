@@ -1,0 +1,148 @@
+# Data contract: purchase_order. Checked by tests/test_contracts.py and `uv run p2p contracts-check`.
+name: purchase_order
+version: 1.0.0
+description: What was ordered, from whom, at what price, and on which requisition.
+owner: Procurement lead
+consumers:
+- Matching engine
+- GRNI
+- Neo4j projection
+sensitivity: confidential
+tables:
+  core.purchase_order:
+    grain: One purchase order header
+    key:
+    - source_system
+    - po_number
+    columns:
+      source_system:
+        type: text
+        nullable: false
+      po_number:
+        type: text
+        nullable: false
+      company_code:
+        type: text
+        nullable: false
+      source_supplier_id:
+        type: text
+        nullable: false
+      po_date:
+        type: date
+        nullable: false
+      currency_code:
+        type: character
+        nullable: false
+      source_raw_id:
+        type: bigint
+        nullable: false
+      source_changed_at:
+        type: timestamp with time zone
+        nullable: false
+      last_run_id:
+        type: bigint
+        nullable: false
+      is_deleted:
+        type: boolean
+        nullable: false
+  core.po_line:
+    grain: One purchase order line
+    key:
+    - source_system
+    - po_number
+    - line_number
+    columns:
+      source_system:
+        type: text
+        nullable: false
+      po_number:
+        type: text
+        nullable: false
+      line_number:
+        type: integer
+        nullable: false
+      company_code:
+        type: text
+        nullable: false
+      pr_number:
+        type: text
+        nullable: true
+      item_id:
+        type: text
+        nullable: false
+      quantity:
+        type: numeric
+        nullable: false
+      uom:
+        type: text
+        nullable: false
+      unit_price:
+        type: numeric
+        nullable: false
+      cost_centre_code:
+        type: text
+        nullable: false
+      gl_account_code:
+        type: text
+        nullable: false
+      contract_id:
+        type: text
+        nullable: true
+      match_type:
+        type: text
+        nullable: false
+      source_raw_id:
+        type: bigint
+        nullable: false
+      source_changed_at:
+        type: timestamp with time zone
+        nullable: false
+      last_run_id:
+        type: bigint
+        nullable: false
+      is_deleted:
+        type: boolean
+        nullable: false
+quality:
+- table: core.purchase_order
+  check: min_rows
+  min: 300
+- table: core.purchase_order
+  check: max_null_rate
+  column: currency_code
+  max: 0.0
+- table: core.po_line
+  check: min_rows
+  min: 300
+- table: core.po_line
+  check: non_negative
+  column: quantity
+- table: core.po_line
+  check: non_negative
+  column: unit_price
+- table: core.po_line
+  check: accepted_values
+  column: match_type
+  values:
+  - THREE_WAY
+  - TWO_WAY
+freshness:
+  sla_hours: 48
+  status: proposed; checked against an injected clock, because the synthetic data has fixed dates
+  source_systems:
+  - SAP_LIKE
+  - ORACLE_LIKE
+access:
+  roles_may_read:
+  - ap_analyst_uk
+  - ap_analyst_de
+  - controller
+  - auditor
+  roles_may_not_read:
+  - agent_service
+  row_level_security:
+  - core.purchase_order
+  - core.po_line
+  notes: Agents read this product only by assuming the acting person's role.
+change_policy: Removing or retyping a column, changing a key or grain, or weakening a promise needs a new major
+  version and notice to the consumers above.

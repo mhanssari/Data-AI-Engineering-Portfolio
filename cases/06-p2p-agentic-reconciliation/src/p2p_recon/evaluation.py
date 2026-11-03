@@ -15,7 +15,6 @@ from pathlib import Path
 
 import psycopg
 import yaml
-from psycopg import sql
 
 from p2p_recon import graph, retrieval
 from p2p_recon.agents import workflow
@@ -23,19 +22,13 @@ from p2p_recon.agents.guard import CLEAN_STATUSES
 from p2p_recon.agents.providers import FailingProvider, HostileProvider, get_provider
 from p2p_recon.agents.tools import LineKey
 from p2p_recon.config import EVALUATION_DIR, EVIDENCE_DIR, GENERATED_DIR
-from p2p_recon.db import connect
+from p2p_recon.db import assume_role, connect, connect_app, pipeline_run
 from p2p_recon.documents import EMBEDDING_DIMENSION, EMBEDDING_MODEL
+from p2p_recon.lineage import fetch_cited_row
 
 K_VALUES = (1, 3, 5)
-AP_USER = {"GB01": "ap_gb01", "DE01": "ap_de01"}
-OTHER_USER = {"GB01": "ap_de01", "DE01": "ap_gb01"}
-# Tables a row citation may point at, with the columns that form each key.
-CITABLE = {
-    "recon.match_result": ("run_id", "source_system", "invoice_id", "line_number"),
-    "recon.exception": ("run_id", "source_system", "invoice_id", "line_number", "reason_code"),
-    "recon.control_breach": ("run_id", "source_system", "pr_number", "reason_code"),
-    "core.contract": ("contract_id", "valid_from"),
-}
+AP_USER = {"GB01": "ap_analyst_uk", "DE01": "ap_analyst_de"}
+OTHER_USER = {"GB01": "ap_analyst_de", "DE01": "ap_analyst_uk"}
 
 
 def _percentile(values: list[float], fraction: float) -> float:
@@ -79,6 +72,10 @@ def evaluate_retrieval(
         if stale:
             raise ValueError(f"Labels name chunks that do not exist: {stale}")
         users = {name: retrieval.load_user(conn, name) for name in {q["user"] for q in questions}}
+        # Each question runs as its user's role, so that row-level security is in the path being measured.
+        role_connections = {name: connect_app() for name in users}
+        for name, role_connection in role_connections.items():
+            assume_role(role_connection, name)
         chunks = conn.execute(
             "select count(*) as n, count(distinct document_id) as d from docs.chunk"
         ).fetchone()
@@ -90,7 +87,12 @@ def evaluate_retrieval(
                 invoice = (anchor["source_system"], anchor["invoice_id"]) if anchor else None
                 started = time.perf_counter()
                 rankings[question["id"]] = retrieval.ranked_ids(
-                    conn, users[question["user"]], question["question"], method, db, invoice
+                    role_connections[question["user"]],
+                    users[question["user"]],
+                    question["question"],
+                    method,
+                    db,
+                    invoice,
                 )
                 latencies.append((time.perf_counter() - started) * 1000)
                 positions = [
@@ -110,6 +112,8 @@ def evaluate_retrieval(
                 "latency_ms_p50": round(statistics.median(latencies), 1),
                 "latency_ms_p95": round(_percentile(latencies, 0.95), 1),
             }
+        for role_connection in role_connections.values():
+            role_connection.close()
     outcome = {
         "methods": results,
         "chunks": chunks["n"],
@@ -197,16 +201,7 @@ def _citation_valid(conn: psycopg.Connection, citation: dict, user: retrieval.Ac
             {"id": citation["chunk_id"], "companies": user.company_codes, "tags": user.access_tags},
         ).fetchone()
         return row is not None
-    columns = CITABLE.get(citation["cited_table"])
-    key = citation["cited_key"]
-    if columns is None or set(key) != set(columns):
-        return False
-    schema, table = citation["cited_table"].split(".")
-    query = sql.SQL("select 1 from {} where {}").format(
-        sql.Identifier(schema, table),
-        sql.SQL(" and ").join(sql.SQL("{}::text = %s").format(sql.Identifier(column)) for column in columns),
-    )
-    return conn.execute(query, [str(key[column]) for column in columns]).fetchone() is not None
+    return fetch_cited_row(conn, citation) is not None
 
 
 def _run_provider(
@@ -264,7 +259,9 @@ def evaluate_agents(
     lines = planted_lines(expected_path)
     provider = get_provider(provider_name)
 
-    outcomes, run_ids, durations = _run_provider(provider, lines, {"evaluation": "planted"})
+    with pipeline_run("agent_eval", {"provider": provider.name}) as run, connect() as log:
+        outcomes, run_ids, durations = _run_provider(provider, lines, {"evaluation": "planted"})
+        workflow.record_lineage(log, run, len(outcomes))
     failures: list[dict] = []
     with connect() as conn:
         users = {name: retrieval.load_user(conn, name) for name in AP_USER.values()}

@@ -43,7 +43,8 @@ create table docs.chunk (
 create index chunk_search on docs.chunk using gin (search_vector);
 create index chunk_document on docs.chunk (document_id);
 
--- Grain: one person agents can act for. Synthetic, standing in for an identity provider until milestone 3.
+-- Grain: one person agents can act for. user_name is also that person's database role. Synthetic: it stands in for an
+-- identity provider.
 create table agent.acting_user (
     user_name      text primary key,
     display_name   text not null,
@@ -51,8 +52,9 @@ create table agent.acting_user (
     access_tags    text[] not null
 );
 insert into agent.acting_user (user_name, display_name, company_codes, access_tags) values
-    ('ap_gb01', 'Accounts payable clerk, GB01', '{GB01}', '{ap}'),
-    ('ap_de01', 'Accounts payable clerk, DE01', '{DE01}', '{ap}'),
+    ('ap_analyst_uk', 'Accounts payable analyst, GB01', '{GB01}', '{ap}'),
+    ('ap_analyst_de', 'Accounts payable analyst, DE01', '{DE01}', '{ap}'),
+    ('controller', 'Group financial controller', '{GB01,DE01}', '{ap}'),
     ('auditor', 'Group internal auditor', '{GB01,DE01}', '{ap,audit}');
 
 -- Grain: one execution of the agent graph over a set of invoice lines, for one acting user.
@@ -157,12 +159,3 @@ create trigger citation_append_only before update or delete on agent.citation
     for each row execute function agent.forbid_change();
 create trigger decision_append_only before update or delete on agent.human_decision
     for each row execute function agent.forbid_change();
-
--- The role agent tools run under. NOLOGIN: there is no new credential, the application assumes it with SET ROLE.
-do $$
-begin
-    if not exists (select 1 from pg_roles where rolname = 'p2p_agent') then
-        create role p2p_agent nologin;
-    end if;
-end;
-$$;

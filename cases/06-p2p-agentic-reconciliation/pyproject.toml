@@ -19,6 +19,7 @@ dependencies = [
     "fastembed>=0.9.1,<0.10",
     "langgraph>=1.2.19,<2",
     "anthropic>=2.3.0,<3",
+    "streamlit>=1.66.1,<2",
 ]
 
 [project.scripts]

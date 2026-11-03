@@ -19,11 +19,12 @@ os.environ["LANGCHAIN_TRACING_V2"] = "false"
 import psycopg
 from langgraph.graph import END, START, StateGraph
 from neo4j import Driver
+from psycopg import sql
 
 from p2p_recon.agents.guard import CLEAN_STATUSES, FALLBACK_ACTION, apply_guard
 from p2p_recon.agents.providers import TOOLS, DecisionRequest, Provider, ProviderFailure
 from p2p_recon.agents.tools import AccessDenied, LineKey, ToolBox, row_citation
-from p2p_recon.db import connect
+from p2p_recon.db import Run, assume_role, connect_app
 from p2p_recon.retrieval import load_user
 
 MAX_MODEL_STEPS = 4
@@ -383,22 +384,37 @@ class AgentRun:
 
 
 def agent_connection() -> psycopg.Connection:
-    """Autocommit, so the trail survives a failure, and under the restricted role, so that a bug cannot write elsewhere."""
-    conn = connect(autocommit=True)
-    conn.execute("set role p2p_agent")
+    """Autocommit, so the trail survives a failure. agent_service can write the trail and read no business data."""
+    conn = connect_app()
+    assume_role(conn, "agent_service")
     return conn
 
 
-def open_lines(conn: psycopg.Connection, company_codes: list[str], limit: int | None = None) -> list[LineKey]:
-    """Every held line for these companies. Clean lines are evaluated separately, since they need no investigation."""
-    rows = conn.execute(
-        """
-        select source_system, invoice_id, line_number from recon.current_match_result
-        where company_code = any(%s) and status_code not in ('Matched', 'MatchedWithinTolerance')
-        order by source_system, invoice_id, line_number limit %s
-        """,
-        (company_codes, limit),
-    ).fetchall()
+def record_lineage(conn: psycopg.Connection, run: Run, proposals: int) -> None:
+    """Dataset edges for an agent run. On the pipeline's own connection, because agent_service cannot write to ops."""
+    for source in (
+        "recon.match_result",
+        "recon.exception",
+        "recon.control_breach",
+        "core.contract",
+        "docs.chunk",
+        "neo4j",
+    ):
+        run.lineage(conn, source, "agent.proposal", proposals)
+
+
+def open_lines(conn: psycopg.Connection, role: str, limit: int | None = None) -> list[LineKey]:
+    """Every held line that this person can see. Clean lines are evaluated separately, since they need no investigation."""
+    with conn.transaction():
+        conn.execute(sql.SQL("set local role {}").format(sql.Identifier(role)))
+        rows = conn.execute(
+            """
+            select source_system, invoice_id, line_number from recon.current_match_result
+            where status_code not in ('Matched', 'MatchedWithinTolerance')
+            order by source_system, invoice_id, line_number limit %s
+            """,
+            (limit,),
+        ).fetchall()
     return [LineKey(r["source_system"], r["invoice_id"], r["line_number"]) for r in rows]
 
 

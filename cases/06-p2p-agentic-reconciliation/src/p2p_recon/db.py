@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import psycopg
+from psycopg import sql
 from psycopg.rows import dict_row
 
 from p2p_recon.config import get_settings
@@ -18,6 +19,24 @@ from p2p_recon.config import get_settings
 
 def connect(autocommit: bool = False) -> psycopg.Connection:
     return psycopg.connect(get_settings().conninfo(), autocommit=autocommit, row_factory=dict_row)
+
+
+def connect_app(autocommit: bool = True) -> psycopg.Connection:
+    """The login for people and agents. Not a superuser, so row-level security applies to everything it does."""
+    return psycopg.connect(get_settings().app_conninfo(), autocommit=autocommit, row_factory=dict_row)
+
+
+def assume_role(conn: psycopg.Connection, role: str) -> None:
+    """Unknown names and roles this login may not assume, such as the superuser, are refused by PostgreSQL."""
+    conn.execute(sql.SQL("set role {}").format(sql.Identifier(role)))
+
+
+@contextmanager
+def connect_as(role: str) -> Iterator[psycopg.Connection]:
+    """A connection acting as one person's role. Simulated sign-in: nothing here checks who is at the keyboard."""
+    with connect_app() as conn:
+        assume_role(conn, role)
+        yield conn
 
 
 def read_sql(path: Path) -> str:

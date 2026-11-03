@@ -9,21 +9,24 @@ import psycopg
 import typer
 
 from p2p_recon import conform as conform_step
+from p2p_recon import contracts as contracts_step
 from p2p_recon import documents as documents_step
 from p2p_recon import dq as dq_step
 from p2p_recon import evaluation as evaluation_step
 from p2p_recon import generate as generate_step
 from p2p_recon import graph as graph_step
 from p2p_recon import ingest as ingest_step
+from p2p_recon import lineage as lineage_step
 from p2p_recon import mdm as mdm_step
 from p2p_recon import migrate as migrate_step
 from p2p_recon import ontology as ontology_step
 from p2p_recon import recon as recon_step
 from p2p_recon import retrieval as retrieval_step
+from p2p_recon import review as review_step
 from p2p_recon.agents import workflow
 from p2p_recon.agents.providers import get_provider
 from p2p_recon.config import GENERATED_DIR, ONTOLOGY_DIR, SAMPLES_DIR
-from p2p_recon.db import connect
+from p2p_recon.db import connect, connect_as, pipeline_run
 
 app = typer.Typer(
     no_args_is_help=True, add_completion=False, help="Case 06: procure-to-pay reconciliation pipeline."
@@ -164,14 +167,16 @@ def load_documents(documents_dir: Path = GENERATED_DIR / "documents") -> None:
 @app.command()
 def search(
     query: Annotated[str, typer.Argument(help="What to search for.")],
-    acting_user: Annotated[str, typer.Option("--as", help="ap_gb01, ap_de01 or auditor.")] = "ap_gb01",
+    acting_user: Annotated[
+        str, typer.Option("--as", help="ap_analyst_uk, ap_analyst_de, controller or auditor.")
+    ] = "ap_analyst_uk",
     method: Annotated[str, typer.Option(help="keyword, vector, hybrid or hybrid_graph.")] = "hybrid",
     invoice: Annotated[str | None, typer.Option(help="SOURCE_SYSTEM:invoice_id, for hybrid_graph.")] = None,
     k: int = 5,
 ) -> None:
     """Search the documents as a given user, and show what that user may cite."""
     anchor = tuple(invoice.split(":", 1)) if invoice else None
-    with connect() as conn, graph_step.driver() as db:
+    with connect_as(acting_user) as conn, graph_step.driver() as db:
         user = retrieval_step.load_user(conn, acting_user)
         hits = retrieval_step.search(conn, user, query, method, k, db, anchor)
     _show([{"citation": h.citation, "header": h.context_header, "content": h.content} for h in hits])
@@ -185,18 +190,26 @@ def eval_retrieval() -> None:
 
 @app.command("agent-run")
 def agent_run(
-    acting_user: Annotated[str, typer.Option("--as", help="ap_gb01, ap_de01 or auditor.")] = "ap_gb01",
+    acting_user: Annotated[
+        str, typer.Option("--as", help="ap_analyst_uk, ap_analyst_de, controller or auditor.")
+    ] = "ap_analyst_uk",
     provider: Annotated[
         str | None, typer.Option(help="offline, anthropic or ollama. Default: LLM_PROVIDER.")
     ] = None,
     limit: Annotated[int | None, typer.Option(help="Investigate at most this many held lines.")] = None,
 ) -> None:
     """Investigate the held lines this user may see, writing proposals to the review queue. Nothing else changes."""
-    with workflow.agent_connection() as conn, graph_step.driver() as db:
+    with (
+        pipeline_run("agent_run", {"acting_user": acting_user}) as pipeline,
+        connect() as log,
+        workflow.agent_connection() as conn,
+        graph_step.driver() as db,
+    ):
         run = workflow.AgentRun(conn, db, get_provider(provider), acting_user, {"limit": limit})
-        lines = workflow.open_lines(conn, run.user.company_codes, limit)
+        lines = workflow.open_lines(conn, acting_user, limit)
         outcomes = [run.investigate(line) for line in lines]
         run.finish()
+        workflow.record_lineage(log, pipeline, len(outcomes))
     _show(
         {"agent_run_id": run.run_id, "lines": len(outcomes), "proposals": [o.proposal_id for o in outcomes]}
     )
@@ -220,40 +233,59 @@ def agent_eval(
 
 @app.command("review-list")
 def review_list(
-    acting_user: Annotated[str, typer.Option("--as", help="ap_gb01, ap_de01 or auditor.")] = "ap_gb01",
+    acting_user: Annotated[
+        str, typer.Option("--as", help="ap_analyst_uk, ap_analyst_de, controller or auditor.")
+    ] = "ap_analyst_uk",
 ) -> None:
-    """Show open proposals for the companies this user may see."""
-    with connect() as conn:
-        user = retrieval_step.load_user(conn, acting_user)
-        _show(
-            conn.execute(
-                "select proposal_id, company_code, invoice_id, line_number, sql_status, sql_reasons, proposed_action, explanation "
-                "from agent.review_queue where company_code = any(%s) order by proposal_id",
-                (user.company_codes,),
-            ).fetchall()
-        )
+    """Show the open proposals this person can see."""
+    with connect_as(acting_user) as conn:
+        _show(review_step.queue(conn))
 
 
 @app.command("review-decide")
 def review_decide(
     proposal_id: Annotated[int, typer.Argument()],
     decision: Annotated[str, typer.Argument(help="ACCEPT, OVERRIDE or QUERY.")],
-    decided_by: Annotated[str, typer.Option("--as", help="ap_gb01, ap_de01 or auditor.")],
+    decided_by: Annotated[str, typer.Option("--as", help="ap_analyst_uk, ap_analyst_de or controller.")],
     note: str | None = None,
 ) -> None:
     """Record a person's decision on a proposal. It records only: nothing is posted or paid."""
-    with connect() as conn:
-        user = retrieval_step.load_user(conn, decided_by)
-        company = conn.execute(
-            "select company_code from agent.proposal where proposal_id = %s", (proposal_id,)
-        ).fetchone()
-        if company is None or company["company_code"] not in user.company_codes:
-            raise typer.BadParameter(f"{decided_by} has no proposal {proposal_id} to decide")
-        conn.execute(
-            "insert into agent.human_decision (proposal_id, decision, decided_by, note) values (%s, %s, %s, %s)",
-            (proposal_id, decision, decided_by, note),
-        )
+    with connect_as(decided_by) as conn:
+        try:
+            review_step.decide(conn, proposal_id, decision, note)
+        except review_step.DecisionRefused as exc:
+            raise typer.BadParameter(str(exc)) from exc
     typer.echo("Recorded.")
+
+
+@app.command()
+def trace(
+    proposal_id: Annotated[int, typer.Argument()],
+    out: Annotated[Path | None, typer.Option(help="Write the markdown here instead of printing it.")] = None,
+) -> None:
+    """Trace a proposal back to its tool calls, citations, source rows, files and datasets. Uses the pipeline's login."""
+    text = lineage_step.render_markdown(lineage_step.trace_proposal(proposal_id))
+    if out:
+        out.write_text(text, encoding="utf-8", newline="\n")
+    else:
+        typer.echo(text)
+
+
+@app.command("contracts-check")
+def contracts_check(
+    as_of: Annotated[
+        str,
+        typer.Option(
+            help="Clock for the freshness SLA. The synthetic data has fixed dates, so the default is shortly after batch 2."
+        ),
+    ] = "2026-10-03T06:00:00+00:00",
+) -> None:
+    """Check every data contract against the database and its last release. Exit 1 on any problem."""
+    with connect() as conn:
+        results = contracts_step.check_all(conn, datetime.fromisoformat(as_of))
+    _show(results)
+    if any(result["problems"] for result in results.values()):
+        raise typer.Exit(1)
 
 
 @app.command()

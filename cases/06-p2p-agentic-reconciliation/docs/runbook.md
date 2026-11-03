@@ -36,6 +36,9 @@ uv sync
 | `uv run p2p agent-run --as <user>` | Investigates the user's held lines. `--provider`, `--limit` | New run; a later proposal supersedes an earlier one in the queue |
 | `uv run p2p agent-eval` | Runs the planted scenarios plus hostile, outage and access runs; writes `evidence/agent-evaluation-<provider>.md`; exit 1 on any false approval. `--provider`, `--all-lines` | New runs, excluded from the review queue |
 | `uv run p2p review-list --as <user>` | Open proposals for the user's companies | Read-only |
+| `uv run streamlit run src/p2p_recon/review_app.py --server.address 127.0.0.1` | The review page: queue, explanation, citations, graph path, decision | Decisions append |
+| `uv run p2p trace <id>` | From a proposal back to tool calls, citations, source files and datasets. `--out file.md`. Uses the pipeline's login | Read-only |
+| `uv run p2p contracts-check` | Checks every contract against the database and its last release; exit 1 on a problem. `--as-of` sets the freshness clock | Read-only |
 | `uv run p2p review-decide <id> ACCEPT --as <user>` | Records `ACCEPT`, `OVERRIDE` or `QUERY`, with an optional `--note`. Posts and pays nothing | Appends |
 | `uv run p2p status` | Summary of current results | Read-only |
 
@@ -70,7 +73,7 @@ Off by default. **Live calls cost money with Anthropic; neither provider has bee
 - **Claude:** in `.env`, set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`. The default model is `claude-opus-5-5` at `medium` effort (`ANTHROPIC_MODEL`, `ANTHROPIC_EFFORT`). If a safety classifier declines a request, the API can re-run it on a fallback model.
 - **Ollama:** install it, pull a model, and set `LLM_PROVIDER=ollama` and `OLLAMA_MODEL`.
 
-Try one line first with `uv run p2p agent-run --as ap_gb01 --limit 1`. Then `uv run p2p agent-eval` writes a report per provider. That runs 22 lines through two to four model calls each. Tokens, latency and cost are logged in `agent.step`, and costs for models missing from `PRICES` in `agents/providers.py` show as unknown.
+Try one line first with `uv run p2p agent-run --as ap_analyst_uk --limit 1`. Then `uv run p2p agent-eval` writes a report per provider. That runs 22 lines through two to four model calls each. Tokens, latency and cost are logged in `agent.step`, and costs for models missing from `PRICES` in `agents/providers.py` show as unknown.
 
 Follow one proposal back to its evidence:
 
@@ -97,7 +100,11 @@ order by s.step_id, t.tool_call_id;
 | A proposal says `NEEDS_HUMAN_REVIEW` with `provider_failure` | The model was unreachable, refused or gave an unusable reply. The error is in `agent.step.error` | Fix the provider and run again; a new proposal supersedes this one |
 | Agents find no graph context | Neo4j is empty or stale | Run `graph-sync`. After `pytest` the graph holds test data until you do |
 | Connection stalls on `localhost` | Windows tries IPv6 first; containers bind IPv4 only | Keep `127.0.0.1` in `.env`, as in `.env.example` |
-| `changed after it was applied` from `migrate` | A migration file was edited after being applied | Add a new migration. During development: `p2p reset --yes` |
+| `changed after it was applied` from `migrate` | A migration file was edited after being applied | Add a new migration. During development: `p2p reset --yes`. A database built before milestone 3 needs this once, because migration 005 changed |
+| `Set APP_DB_PASSWORD` from `migrate` | An older `.env` | Add `APP_DB_PASSWORD` from `.env.example` |
+| `password authentication failed for user "p2p_app"` | `migrate` has not run since the password was set or changed | Run `uv run p2p migrate` |
+| `contracts-check` reports a problem | The database or a contract changed | Fix the drift, or update the contract with the right version bump, and copy it to `contracts/released/` when released |
+| `permission denied` from a person's command or the page | Row-level security or a grant refused it, as designed | See [security](security.md) for what each role may do |
 
 Every step records itself in `ops.pipeline_run`, with counts or the error. No alerts are sent anywhere; failure is a non-zero exit and a recorded row.
 

@@ -237,4 +237,11 @@ def _conform_entity(conn: psycopg.Connection, run: Run, entity: Entity) -> dict[
 def conform() -> dict:
     with pipeline_run("conform") as run, connect() as conn:
         run.counts = {entity.name: _conform_entity(conn, run, entity) for entity in ENTITIES}
+        # The step from raw to the staging views is defined by the views, so it is read from the catalogue.
+        for edge in conn.execute(
+            "select distinct table_name, view_name from information_schema.view_table_usage "
+            "where view_schema = 'stg' and table_schema = 'raw'"
+        ).fetchall():
+            count = conn.execute(f"select count(*) as n from raw.{edge['table_name']}").fetchone()["n"]
+            run.lineage(conn, f"raw.{edge['table_name']}", f"stg.{edge['view_name']}", count)
         return run.counts

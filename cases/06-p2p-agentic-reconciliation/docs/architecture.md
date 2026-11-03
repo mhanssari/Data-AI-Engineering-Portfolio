@@ -44,7 +44,7 @@ flowchart LR
 4. **Controls and matching:** one SQL function, `recon.run_matching`, writes requisition-level breaches, line-level results and exceptions, GRNI and the proposed accrual to `recon`, as a snapshot per run, using tolerances from the policy and contracts as of the document date.
 5. **Graph:** a loader projects `core`, `mdm` and current `recon` into Neo4j using `ontology/mapping.yaml`, and reconciles the counts; the graph is rebuildable at any time.
 6. **Retrieval:** documents are chunked, embedded locally and stored in `docs` with access tags; hybrid search (full-text plus vector, fused by rank) and graph neighbourhoods return citations, filtered by the acting user before ranking. See [decision 0007](decisions/0007-retrieval.md).
-7. **Agents:** investigate held lines through read-only tools, and write proposals to `agent.proposal` after a guard re-checks them; people accept, override or query them through the review queue (CLI). See [agent design](agent-design.md).
+7. **Agents:** investigate held lines through read-only tools, and write proposals to `agent.proposal` after a guard re-checks them; people accept, override or query them on the review page or the CLI. See [agent design](agent-design.md).
 8. **Operations:** every step records status, counts and lineage edges in `ops`; checks and reconciliations go to `ops.dq_result`.
 
 ## Boundaries and controls
@@ -53,10 +53,11 @@ flowchart LR
 | --- | --- |
 | Source of truth | PostgreSQL. Neo4j and embeddings are derived and rebuildable. |
 | Money and matching | SQL only, NUMERIC with currency. The LLM explains and proposes; it never calculates or decides. |
-| Agent write access | Enforced by the `p2p_agent` database role: insert into the agent trail only, nothing on `human_decision`, no write anywhere else. |
-| Access control | Today: tools and retrieval filter by the acting user's companies and access tags in application code; agents run on behalf of a user. Milestone 3: Postgres roles and row-level security on company code. |
-| Sensitive data | Today, bank account numbers are excluded from the graph by the mapping allowlist and from the agents' role by a column grant, but unmasked in `core`. Milestone 3: masked in views; full value only for a restricted role. |
-| Audit | Every agent step, tool call, citation and token count is logged. Proposals, citations and human decisions are append-only, enforced by triggers. |
+| Agent write access | Enforced by the `agent_service` role: insert into the agent trail only, nothing on `human_decision`, no write anywhere else. |
+| Access control | Postgres roles and row-level security on company code, with tools running under the acting person's role. Application filters remain as a second layer. Sign-in is simulated. See [security](security.md). |
+| Sensitive data | Bank account numbers are excluded from the graph by the mapping allowlist. No role can read them; a masked view shows the last four characters. They remain in the clear in `raw` and `core` for the pipeline's own login. |
+| Audit | Every agent step, tool call, citation and token count is logged. Proposals, citations, human decisions and a trigger-fed audit log are append-only, enforced by triggers. |
+| Change control | Versioned [data contracts](../contracts/README.md), and a [CI workflow](../../../.github/workflows/case-06-ci.yml) limited to this case. |
 | Offline default | LLM provider `offline` returns deterministic outputs for tests and demos. Live providers are opt-in. |
 
 ## Demonstration versus production
