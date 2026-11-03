@@ -1,0 +1,143 @@
+# Data contract: invoice. Checked by tests/test_contracts.py and `uv run p2p contracts-check`.
+name: invoice
+version: 1.0.0
+description: What suppliers have billed, including credit notes as negative amounts.
+owner: Accounts payable manager
+consumers:
+- Matching engine
+- Exception investigator
+- Neo4j projection
+sensitivity: confidential
+tables:
+  core.supplier_invoice:
+    grain: One supplier invoice or credit note
+    key:
+    - source_system
+    - invoice_id
+    columns:
+      source_system:
+        type: text
+        nullable: false
+      invoice_id:
+        type: text
+        nullable: false
+      company_code:
+        type: text
+        nullable: false
+      source_supplier_id:
+        type: text
+        nullable: false
+      supplier_invoice_number:
+        type: text
+        nullable: false
+      invoice_date:
+        type: date
+        nullable: false
+      currency_code:
+        type: character
+        nullable: false
+      net_amount:
+        type: numeric
+        nullable: false
+      document_type:
+        type: text
+        nullable: false
+      credited_invoice_id:
+        type: text
+        nullable: true
+      source_raw_id:
+        type: bigint
+        nullable: false
+      source_changed_at:
+        type: timestamp with time zone
+        nullable: false
+      last_run_id:
+        type: bigint
+        nullable: false
+      is_deleted:
+        type: boolean
+        nullable: false
+  core.invoice_line:
+    grain: One invoice or credit note line
+    key:
+    - source_system
+    - invoice_id
+    - line_number
+    columns:
+      source_system:
+        type: text
+        nullable: false
+      invoice_id:
+        type: text
+        nullable: false
+      line_number:
+        type: integer
+        nullable: false
+      po_number:
+        type: text
+        nullable: true
+      po_line_number:
+        type: integer
+        nullable: true
+      invoiced_quantity:
+        type: numeric
+        nullable: false
+      unit_price:
+        type: numeric
+        nullable: false
+      net_amount:
+        type: numeric
+        nullable: false
+      source_raw_id:
+        type: bigint
+        nullable: false
+      source_changed_at:
+        type: timestamp with time zone
+        nullable: false
+      last_run_id:
+        type: bigint
+        nullable: false
+      is_deleted:
+        type: boolean
+        nullable: false
+quality:
+- table: core.supplier_invoice
+  check: min_rows
+  min: 300
+- table: core.supplier_invoice
+  check: max_null_rate
+  column: currency_code
+  max: 0.0
+- table: core.supplier_invoice
+  check: accepted_values
+  column: document_type
+  values:
+  - INV
+  - CRN
+- table: core.invoice_line
+  check: min_rows
+  min: 300
+- table: core.invoice_line
+  check: max_null_rate
+  column: net_amount
+  max: 0.0
+freshness:
+  sla_hours: 48
+  status: proposed; checked against an injected clock, because the synthetic data has fixed dates
+  source_systems:
+  - SAP_LIKE
+  - ORACLE_LIKE
+access:
+  roles_may_read:
+  - ap_analyst_uk
+  - ap_analyst_de
+  - controller
+  - auditor
+  roles_may_not_read:
+  - agent_service
+  row_level_security:
+  - core.supplier_invoice
+  - core.invoice_line
+  notes: Agents read this product only by assuming the acting person's role.
+change_policy: Removing or retyping a column, changing a key or grain, or weakening a promise needs a new major
+  version and notice to the consumers above.

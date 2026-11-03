@@ -1,0 +1,36 @@
+# Alert thresholds for the admin Overview. Deterministic: each alert is a comparison of a stored figure with a value
+# here. The levels are chosen for this synthetic case, not taken from any standard; change them here, not in page code.
+version: 1
+alerts:
+  dq_failures:
+    description: Any data-quality check failed in the latest dq run
+    severity: error
+    max: 0
+  dq_warnings:
+    description: Data-quality warnings in the latest dq run
+    severity: warning
+    max: 0
+  graph_mismatches:
+    description: Node or relationship counts in Neo4j differ from PostgreSQL in the latest graph sync
+    severity: error
+    max: 0
+  stale_sources:
+    description: A source's latest extract is older than its contract's freshness SLA at the reference clock
+    severity: error
+    max: 0
+  open_quarantine:
+    description: Raw rows still held in quarantine
+    severity: warning
+    max: 0
+  citation_validity:
+    description: Share of citations, in non-evaluation agent runs, that resolve and that the acting user may read
+    severity: error
+    min: 1.0
+  guard_intervention_rate:
+    description: Share of non-evaluation proposals where the guard flagged or changed the draft
+    severity: warning
+    max: 0.05
+  auto_approved_with_reasons:
+    description: Proposals stored as AUTO_APPROVE although SQL recorded a reason or a breach. Should be impossible
+    severity: error
+    max: 0

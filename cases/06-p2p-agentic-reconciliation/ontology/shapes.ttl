@@ -1,0 +1,119 @@
+@prefix p2p:  <https://example.org/p2p#> .
+@prefix voc:  <https://example.org/p2p/vocab#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix p2psh: <https://example.org/p2p/shapes#> .
+
+# SHACL shapes, ontology version 0.2.0: structural rules plus two finance controls expressed as SPARQL constraints.
+
+p2psh: sh:declare [ sh:prefix "p2p" ; sh:namespace "https://example.org/p2p#"^^xsd:anyURI ] ,
+                  [ sh:prefix "voc" ; sh:namespace "https://example.org/p2p/vocab#"^^xsd:anyURI ] ,
+                  [ sh:prefix "skos" ; sh:namespace "http://www.w3.org/2004/02/skos/core#"^^xsd:anyURI ] .
+
+p2psh:BusinessDocumentShape a sh:NodeShape ;
+    sh:targetClass p2p:PurchaseRequisition , p2p:PurchaseOrder , p2p:GoodsReceipt , p2p:SupplierInvoice ;
+    sh:property [ sh:path p2p:documentNumber ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path p2p:documentDate ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:date ] ;
+    sh:property [ sh:path p2p:belongsToEntity ; sh:minCount 1 ; sh:maxCount 1 ; sh:class p2p:LegalEntity ] ;
+    sh:property [ sh:path p2p:sourceSystem ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ( "SAP_LIKE" "ORACLE_LIKE" ) ] .
+
+p2psh:PurchaseRequisitionShape a sh:NodeShape ;
+    sh:targetClass p2p:PurchaseRequisition ;
+    sh:property [ sh:path p2p:requestedBy ; sh:minCount 1 ; sh:maxCount 1 ; sh:class p2p:Employee ] ;
+    sh:property [ sh:path p2p:amount ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:decimal ; sh:minInclusive 0 ] ;
+    sh:property [ sh:path p2p:currencyCode ; sh:minCount 1 ; sh:pattern "^[A-Z]{3}$" ] ;
+    sh:property [ sh:path p2p:hasApproval ; sh:class p2p:Approval ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:prefixes p2psh: ;
+        sh:message "Segregation of duties: the requester approved their own requisition." ;
+        sh:select """
+            SELECT $this ?value WHERE {
+                $this p2p:requestedBy ?value ;
+                      p2p:hasApproval ?approval .
+                ?approval p2p:approvedBy ?value .
+            }""" ;
+    ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:prefixes p2psh: ;
+        sh:message "Approval limit exceeded: requisition amount is above the approver's limit." ;
+        sh:select """
+            SELECT $this ?value WHERE {
+                $this p2p:amount ?amount ;
+                      p2p:hasApproval ?approval .
+                ?approval p2p:approvedBy ?value .
+                ?value p2p:approvalLimit ?limit .
+                FILTER (?amount > ?limit)
+            }""" ;
+    ] .
+
+p2psh:ApprovalShape a sh:NodeShape ;
+    sh:targetClass p2p:Approval ;
+    sh:property [ sh:path p2p:approvedBy ; sh:minCount 1 ; sh:maxCount 1 ; sh:class p2p:Employee ] ;
+    sh:property [ sh:path p2p:approvedAt ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:dateTime ] .
+
+p2psh:EmployeeShape a sh:NodeShape ;
+    sh:targetClass p2p:Employee ;
+    sh:property [ sh:path p2p:approvalLimit ; sh:maxCount 1 ; sh:datatype xsd:decimal ; sh:minInclusive 0 ] .
+
+p2psh:PurchaseOrderShape a sh:NodeShape ;
+    sh:targetClass p2p:PurchaseOrder ;
+    sh:property [ sh:path p2p:orderedFrom ; sh:minCount 1 ; sh:maxCount 1 ; sh:class p2p:Supplier ] ;
+    sh:property [ sh:path p2p:currencyCode ; sh:minCount 1 ; sh:maxCount 1 ; sh:pattern "^[A-Z]{3}$" ] ;
+    sh:property [ sh:path p2p:hasLine ; sh:minCount 1 ; sh:class p2p:POLine ] .
+
+p2psh:POLineShape a sh:NodeShape ;
+    sh:targetClass p2p:POLine ;
+    sh:property [ sh:path p2p:lineNumber ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ] ;
+    sh:property [ sh:path p2p:quantity ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:decimal ; sh:minExclusive 0 ] ;
+    sh:property [ sh:path p2p:unitPrice ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:decimal ; sh:minInclusive 0 ] ;
+    sh:property [ sh:path p2p:forItem ; sh:minCount 1 ; sh:maxCount 1 ; sh:class p2p:Item ] ;
+    sh:property [ sh:path p2p:chargedTo ; sh:minCount 1 ; sh:maxCount 1 ; sh:class p2p:CostCentre ] ;
+    sh:property [ sh:path p2p:postedTo ; sh:minCount 1 ; sh:maxCount 1 ; sh:class p2p:GLAccount ] .
+
+p2psh:GRNLineShape a sh:NodeShape ;
+    sh:targetClass p2p:GRNLine ;
+    sh:property [ sh:path p2p:receivedAgainst ; sh:minCount 1 ; sh:maxCount 1 ; sh:class p2p:POLine ] ;
+    sh:property [ sh:path p2p:quantity ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:decimal ; sh:minExclusive 0 ] .
+
+p2psh:SupplierInvoiceShape a sh:NodeShape ;
+    sh:targetClass p2p:SupplierInvoice ;
+    sh:property [ sh:path p2p:issuedBy ; sh:minCount 1 ; sh:maxCount 1 ; sh:class p2p:Supplier ] ;
+    sh:property [ sh:path p2p:amount ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:decimal ] ;
+    sh:property [ sh:path p2p:currencyCode ; sh:minCount 1 ; sh:maxCount 1 ; sh:pattern "^[A-Z]{3}$" ] ;
+    sh:property [ sh:path p2p:hasLine ; sh:minCount 1 ; sh:class p2p:InvoiceLine ] .
+
+# A non-PO invoice is valid data (minCount 0); matching flags it as voc:NoPurchaseOrder.
+p2psh:InvoiceLineShape a sh:NodeShape ;
+    sh:targetClass p2p:InvoiceLine ;
+    sh:property [ sh:path p2p:invoicedAgainst ; sh:maxCount 1 ; sh:class p2p:POLine ] ;
+    sh:property [ sh:path p2p:quantity ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:decimal ] ;
+    sh:property [ sh:path p2p:unitPrice ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:decimal ] .
+
+p2psh:SupplierShape a sh:NodeShape ;
+    sh:targetClass p2p:Supplier ;
+    sh:property [ sh:path p2p:sourceSystem ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ( "SAP_LIKE" "ORACLE_LIKE" ) ] ;
+    sh:property [ sh:path p2p:sourceKey ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path p2p:resolvesTo ; sh:maxCount 1 ; sh:class p2p:GoldenSupplier ] .
+
+p2psh:MatchResultShape a sh:NodeShape ;
+    sh:targetClass p2p:MatchResult ;
+    sh:property [ sh:path p2p:assesses ; sh:minCount 1 ; sh:maxCount 1 ; sh:class p2p:InvoiceLine ] ;
+    sh:property [ sh:path p2p:hasMatchStatus ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:in ( voc:Matched voc:MatchedWithinTolerance voc:Exception voc:PendingReceipt ) ] .
+
+p2psh:ReconExceptionShape a sh:NodeShape ;
+    sh:targetClass p2p:ReconException ;
+    sh:property [ sh:path p2p:hasReason ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:prefixes p2psh: ;
+        sh:message "Exception reason must be a concept in the ExceptionReason scheme." ;
+        sh:select """
+            SELECT $this ?value WHERE {
+                $this p2p:hasReason ?value .
+                FILTER NOT EXISTS { ?value skos:inScheme voc:ExceptionReason }
+            }""" ;
+    ] .

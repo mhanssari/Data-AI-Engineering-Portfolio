@@ -1,0 +1,136 @@
+# What each rule in routines/30_recon.sql does, in plain English, for the admin page "How the agents decide".
+# The SQL is the rule; this file describes it. tests/test_admin_rules.py fails if a reason code in the SQL has no entry
+# here, if an entry here has no rule in the SQL, or if the scenarios listed differ from the ones the generator plants.
+#
+# level: what the rule is evaluated on. A requisition rule holds every invoice line the requisition funds.
+# parameters: policy parameter codes (core.policy_parameter) the rule reads, at the version in force on the document date.
+# contract_tolerance: the rule uses a contract's price tolerance when a contract version is in force.
+# tables: what the rule reads, for the change-impact view on the Ontology page.
+# scenarios: planted scenarios in which the rule must fire (docs/scenarios.md).
+version: 1
+
+rules:
+  SegregationOfDuties:
+    level: requisition
+    description: >-
+      The requester of a requisition also approved it. Checked only on requisitions converted to a purchase order.
+    parameters: []
+    tables: [core.purchase_requisition, core.approval, core.po_line]
+    scenarios: [S12]
+  MissingApproval:
+    level: requisition
+    description: A requisition was converted to a purchase order without any approval.
+    parameters: []
+    tables: [core.purchase_requisition, core.approval, core.po_line]
+    scenarios: [S24]
+  ApprovalLimitExceeded:
+    level: requisition
+    description: >-
+      No approver's limit, as valid on the approval date, covers the requisition amount. The amount is converted into
+      the limit's currency at the rate valid on that date. A missing rate or employee version counts as not covered,
+      so the control fails safe.
+    parameters: []
+    tables: [core.purchase_requisition, core.approval, core.employee, core.fx_rate, core.po_line]
+    scenarios: [S11, S26]
+  SplitRequisition:
+    level: requisition
+    description: >-
+      Requisitions by the same requester for the same resolved supplier and currency, raised within the split window,
+      are each within an approval tier but together exceed it. Every requisition in the group is flagged.
+    parameters: [split_window_days, approval_tier_1, approval_tier_2, approval_tier_3]
+    tables: [core.purchase_requisition, core.policy_parameter, mdm.supplier_xref, core.po_line]
+    scenarios: [S10, S35]
+  NoPurchaseOrder:
+    level: invoice line
+    description: An invoice line quotes no purchase order.
+    parameters: []
+    tables: [core.invoice_line, core.supplier_invoice]
+    scenarios: [S08]
+  CurrencyMismatch:
+    level: invoice line
+    description: >-
+      The invoice is not in its purchase order's currency. Its price is not assessed, because amounts in two
+      currencies cannot be compared.
+    parameters: []
+    tables: [core.supplier_invoice, core.purchase_order]
+    scenarios: [S15]
+  PriceVariance:
+    level: invoice line
+    description: >-
+      The line amount exceeds invoiced quantity times the purchase order price by more than the tolerance, and by more
+      than the rounding tolerance. The tolerance is the contract's when a contract version is in force on the invoice
+      date, otherwise the policy default. Invoicing below the price is not a breach.
+    parameters: [price_tolerance_pct_default, rounding_tolerance_amount]
+    contract_tolerance: true
+    tables: [core.invoice_line, core.po_line, core.contract]
+    scenarios: [S03, S23]
+  QuantityVariance:
+    level: invoice line
+    description: >-
+      Cumulative invoiced quantity on the purchase order line exceeds the received quantity (ordered quantity for a
+      two-way match) beyond the quantity tolerance. Held duplicates do not count towards the cumulative quantity.
+    parameters: [quantity_tolerance_pct]
+    tables: [core.invoice_line, core.po_line, core.grn_line, core.goods_receipt]
+    scenarios: [S04, S17, S29]
+  InvoiceBeforeReceipt:
+    level: invoice line
+    description: A three-way goods line is invoiced before the first goods receipt on its purchase order line.
+    parameters: []
+    tables: [core.supplier_invoice, core.po_line, core.grn_line, core.goods_receipt]
+    scenarios: [S05]
+  RetrospectivePO:
+    level: invoice line
+    description: The purchase order is dated after the invoice it supports.
+    parameters: []
+    tables: [core.supplier_invoice, core.purchase_order]
+    scenarios: [S09]
+  MissingRequisition:
+    level: invoice line
+    description: The invoice's purchase order line traces to no requisition.
+    parameters: []
+    tables: [core.invoice_line, core.po_line]
+    scenarios: [S25]
+  DuplicateInvoice:
+    level: invoice line
+    description: >-
+      An earlier invoice from the same resolved supplier has the same normalised number, currency and amount within
+      the duplicate window. The later one is held. Matching on the golden supplier catches the same invoice sent to
+      both ERPs.
+    parameters: [duplicate_window_days]
+    tables: [core.supplier_invoice, mdm.supplier_xref]
+    scenarios: [S07, S21, S32, S33]
+  BankDetailChange:
+    level: invoice line
+    description: >-
+      The supplier's bank account changed within the window up to the invoice date. The first account on record is
+      onboarding, not a change.
+    parameters: [bank_change_window_days]
+    tables: [core.supplier_invoice, core.supplier_bank_account]
+    scenarios: [S14]
+  UnmatchedCreditNote:
+    level: invoice line
+    description: >-
+      A credit note references no invoice of the same resolved supplier, or cumulatively credits more than that
+      invoice.
+    parameters: []
+    tables: [core.supplier_invoice, mdm.supplier_xref]
+    scenarios: [S22]
+
+# Line status. The CASE in recon.run_matching tests, in order: any exception; a credit note; no receipt yet; within
+# rounding; anything else. The first that applies wins. Every run recomputes every line, so a status is a result, not a
+# state that anyone moves a line through.
+statuses:
+  Exception:
+    description: At least one rule above fired for the line.
+    parameters: []
+  Matched:
+    description: >-
+      A credit note with no exception; otherwise a line whose amount is within the rounding tolerance of quantity times
+      price.
+    parameters: [rounding_tolerance_amount]
+  PendingReceipt:
+    description: A three-way goods line with no goods receipt yet. Nothing has been received to disagree with.
+    parameters: []
+  MatchedWithinTolerance:
+    description: Any other line. A difference exists, but within the price and quantity tolerances.
+    parameters: []

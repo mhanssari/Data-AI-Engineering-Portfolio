@@ -1,0 +1,96 @@
+@prefix voc:  <https://example.org/p2p/vocab#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Controlled vocabularies and business glossary for case 06, ontology version 0.2.0.
+
+######## Match status ########
+
+voc:MatchStatus a skos:ConceptScheme ;
+    skos:prefLabel "Match status"@en .
+
+voc:Matched a skos:Concept ; skos:inScheme voc:MatchStatus ;
+    skos:prefLabel "Matched"@en ;
+    skos:definition "Invoice line agrees with the purchase order line and receipts on price and quantity."@en .
+
+voc:MatchedWithinTolerance a skos:Concept ; skos:inScheme voc:MatchStatus ;
+    skos:prefLabel "Matched within tolerance"@en ;
+    skos:definition "Differences exist but are within the tolerances in the policy or supplier contract."@en .
+
+voc:Exception a skos:Concept ; skos:inScheme voc:MatchStatus ;
+    skos:prefLabel "Exception"@en ;
+    skos:definition "At least one reason prevents release without investigation."@en .
+
+voc:PendingReceipt a skos:Concept ; skos:inScheme voc:MatchStatus ;
+    skos:prefLabel "Pending receipt"@en ;
+    skos:definition "Goods line invoiced but not yet received; held until receipt or investigation."@en .
+
+######## Exception reasons ########
+
+voc:ExceptionReason a skos:ConceptScheme ;
+    skos:prefLabel "Exception reason"@en .
+
+voc:MatchingException a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:topConceptOf voc:ExceptionReason ;
+    skos:prefLabel "Matching exception"@en .
+voc:ControlException a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:topConceptOf voc:ExceptionReason ;
+    skos:prefLabel "Control exception"@en .
+voc:RiskSignal a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:topConceptOf voc:ExceptionReason ;
+    skos:prefLabel "Risk signal"@en .
+
+voc:PriceVariance a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:MatchingException ;
+    skos:prefLabel "Price variance"@en ;
+    skos:definition "Invoiced unit price differs from the agreed price by more than the price tolerance."@en .
+voc:QuantityVariance a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:MatchingException ;
+    skos:prefLabel "Quantity variance"@en ;
+    skos:definition "Invoiced quantity exceeds received quantity beyond the quantity tolerance."@en .
+voc:InvoiceBeforeReceipt a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:MatchingException ;
+    skos:prefLabel "Invoice before receipt"@en .
+voc:NoPurchaseOrder a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:ControlException ;
+    skos:prefLabel "No purchase order"@en ; skos:altLabel "Non-PO invoice"@en .
+voc:RetrospectivePO a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:ControlException ;
+    skos:prefLabel "Retrospective purchase order"@en ; skos:altLabel "PO after invoice"@en .
+voc:SplitRequisition a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:ControlException ;
+    skos:prefLabel "Split requisition"@en ;
+    skos:definition "Related requisitions appear split to stay below an approval limit."@en .
+voc:ApprovalLimitExceeded a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:ControlException ;
+    skos:prefLabel "Approval limit exceeded"@en .
+voc:SegregationOfDuties a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:ControlException ;
+    skos:prefLabel "Segregation of duties breach"@en ;
+    skos:definition "The same person requested and approved the spend."@en .
+voc:DuplicateInvoice a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:RiskSignal ;
+    skos:prefLabel "Possible duplicate invoice"@en .
+voc:BankDetailChange a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:RiskSignal ;
+    skos:prefLabel "Recent bank detail change"@en .
+voc:CurrencyMismatch a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:MatchingException ;
+    skos:prefLabel "Currency mismatch"@en .
+voc:UnmatchedCreditNote a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:MatchingException ;
+    skos:prefLabel "Unmatched credit note"@en ;
+    skos:definition "A credit note that references no invoice of the same supplier, or cumulatively exceeds the invoice it credits."@en .
+voc:MissingApproval a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:ControlException ;
+    skos:prefLabel "Missing approval"@en ;
+    skos:definition "A requisition was converted to a purchase order without any approval."@en .
+voc:MissingRequisition a skos:Concept ; skos:inScheme voc:ExceptionReason ; skos:broader voc:ControlException ;
+    skos:prefLabel "Missing requisition"@en ;
+    skos:definition "A purchase order line has no originating requisition, so the spend was never requested or approved."@en .
+
+######## Document types ########
+
+voc:DocumentType a skos:ConceptScheme ; skos:prefLabel "Document type"@en .
+voc:PR  a skos:Concept ; skos:inScheme voc:DocumentType ; skos:prefLabel "Purchase requisition"@en ; skos:altLabel "PR"@en , "BANF"@de .
+voc:PO  a skos:Concept ; skos:inScheme voc:DocumentType ; skos:prefLabel "Purchase order"@en ; skos:altLabel "PO"@en , "Bestellung"@de .
+voc:GRN a skos:Concept ; skos:inScheme voc:DocumentType ; skos:prefLabel "Goods receipt"@en ; skos:altLabel "GRN"@en , "Goods received note"@en , "Wareneingang"@de .
+voc:INV a skos:Concept ; skos:inScheme voc:DocumentType ; skos:prefLabel "Supplier invoice"@en ; skos:altLabel "AP invoice"@en , "Eingangsrechnung"@de .
+voc:CRN a skos:Concept ; skos:inScheme voc:DocumentType ; skos:prefLabel "Credit note"@en ; skos:altLabel "Gutschrift"@de .
+
+######## Glossary ########
+
+voc:Glossary a skos:ConceptScheme ; skos:prefLabel "Procure-to-pay glossary"@en .
+voc:ThreeWayMatch a skos:Concept ; skos:inScheme voc:Glossary ;
+    skos:prefLabel "Three-way match"@en ;
+    skos:definition "Comparison of invoice, purchase order and goods receipt at line level before payment of goods."@en .
+voc:TwoWayMatch a skos:Concept ; skos:inScheme voc:Glossary ;
+    skos:prefLabel "Two-way match"@en ;
+    skos:definition "Comparison of invoice and purchase order, used for services without a goods receipt."@en .
+voc:GRNI a skos:Concept ; skos:inScheme voc:Glossary ;
+    skos:prefLabel "Goods received not invoiced"@en ; skos:altLabel "GRNI"@en ;
+    skos:definition "Value of goods received but not yet invoiced at a cut-off date, typically accrued at month end."@en .

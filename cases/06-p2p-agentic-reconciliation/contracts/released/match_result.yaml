@@ -1,0 +1,143 @@
+# Data contract: match_result. Checked by tests/test_contracts.py and `uv run p2p contracts-check`.
+name: match_result
+version: 1.0.0
+description: The SQL verdict on every invoice line, snapshotted per run. Consumers read the recon.current_* views.
+owner: Financial controller
+consumers:
+- Agents
+- Review page
+- Payment readiness
+- Neo4j projection
+sensitivity: confidential
+tables:
+  recon.match_result:
+    grain: One invoice line in one matching run
+    key:
+    - run_id
+    - source_system
+    - invoice_id
+    - line_number
+    columns:
+      run_id:
+        type: bigint
+        nullable: false
+      source_system:
+        type: text
+        nullable: false
+      invoice_id:
+        type: text
+        nullable: false
+      line_number:
+        type: integer
+        nullable: false
+      company_code:
+        type: text
+        nullable: false
+      currency_code:
+        type: character
+        nullable: false
+      document_type:
+        type: text
+        nullable: false
+      match_type:
+        type: text
+        nullable: false
+      status_code:
+        type: text
+        nullable: false
+      net_amount:
+        type: numeric
+        nullable: false
+      expected_amount:
+        type: numeric
+        nullable: true
+      amount_variance:
+        type: numeric
+        nullable: true
+      tolerance_pct:
+        type: numeric
+        nullable: true
+      tolerance_source:
+        type: text
+        nullable: true
+      cumulative_invoiced:
+        type: numeric
+        nullable: true
+      allowed_quantity:
+        type: numeric
+        nullable: true
+  recon.exception:
+    grain: One reason an invoice line is held, in one matching run
+    key:
+    - run_id
+    - source_system
+    - invoice_id
+    - line_number
+    - reason_code
+    columns:
+      run_id:
+        type: bigint
+        nullable: false
+      source_system:
+        type: text
+        nullable: false
+      invoice_id:
+        type: text
+        nullable: false
+      line_number:
+        type: integer
+        nullable: false
+      reason_code:
+        type: text
+        nullable: false
+      evidence:
+        type: jsonb
+        nullable: false
+quality:
+- table: recon.match_result
+  check: min_rows
+  min: 300
+- table: recon.match_result
+  check: accepted_values
+  column: status_code
+  values:
+  - Matched
+  - MatchedWithinTolerance
+  - Exception
+  - PendingReceipt
+- table: recon.match_result
+  check: accepted_values
+  column: match_type
+  values:
+  - THREE_WAY
+  - TWO_WAY
+  - CREDIT
+  - NONE
+- table: recon.match_result
+  check: max_null_rate
+  column: net_amount
+  max: 0.0
+- table: recon.exception
+  check: max_null_rate
+  column: reason_code
+  max: 0.0
+freshness:
+  sla_hours: 48
+  status: proposed; checked against an injected clock, because the synthetic data has fixed dates
+  source_systems:
+  - SAP_LIKE
+  - ORACLE_LIKE
+access:
+  roles_may_read:
+  - ap_analyst_uk
+  - ap_analyst_de
+  - controller
+  - auditor
+  roles_may_not_read:
+  - agent_service
+  row_level_security:
+  - recon.match_result
+  - recon.exception
+  notes: Agents read this product only by assuming the acting person's role.
+change_policy: Removing or retyping a column, changing a key or grain, or weakening a promise needs a new major
+  version and notice to the consumers above.

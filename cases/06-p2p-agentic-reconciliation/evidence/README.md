@@ -1,3 +1,14 @@
 # Evidence
 
-Status: reserved. Case 06 is developed on the branch `case-06-p2p-reconciliation`; this file holds no content on `main` until that branch is merged.
+Actual validation reports and measured results, with dataset, configuration and versions. Measured results are kept apart from targets.
+
+- [Milestone 1 run record](milestone-1-run.md): commands, volumes, results, mutation check and failure tests.
+- [Milestone 2 run record](milestone-2-run.md): commands, results, mutation check, problems found and what was not validated.
+- [Retrieval evaluation](retrieval-evaluation.md): recall@k and MRR per method, and the rank for every question.
+- [Agent evaluation, offline provider](agent-evaluation-offline.md): planted scenarios, hostile provider, outage and access.
+- [Milestone 3 run record](milestone-3-run.md): security, contracts, lineage, the review page, the Linux rehearsal of CI, and what was not validated.
+- [Trace of one proposal](trace-S14.md): scenario S14, from the proposal back to source files.
+- [Governance review run record](governance-review-run.md): the admin role and app, measured figures, mutation checks, problems found and what was not validated.
+- [Screenshots](screenshots/) of the review page per role, and of each admin page (`admin-*.png`).
+
+No live-model evidence exists yet, and CI has not yet run on GitHub.

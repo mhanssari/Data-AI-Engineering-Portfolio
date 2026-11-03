@@ -1,0 +1,47 @@
+# Local services for case 06. Run from the case folder:
+#   docker compose -f infra/docker-compose.yml --env-file .env up -d
+# Values come from the case .env (copy .env.example). Nothing here is exposed beyond localhost.
+name: p2p-case06
+
+services:
+  postgres:
+    # Official pgvector image: pgvector 0.8.7 on PostgreSQL 18 (Debian trixie). Tag verified 30 October 2026.
+    image: pgvector/pgvector:0.8.7-pg18-trixie
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-p2p}
+      POSTGRES_USER: ${POSTGRES_USER:-p2p_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the case .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      # PostgreSQL 18 images keep data under /var/lib/postgresql/<major>/docker, so mount the parent.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  neo4j:
+    # Neo4j Community, calendar-versioned series. Tag verified 30 October 2026.
+    image: neo4j:2026.09.0-community
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in the case .env}
+      # Small, explicit memory budget: the graph is a few thousand nodes.
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    ports:
+      - "127.0.0.1:${NEO4J_HTTP_PORT:-7474}:7474"
+      - "127.0.0.1:${NEO4J_BOLT_PORT:-7687}:7687"
+    volumes:
+      - neo4jdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
+  neo4jdata:

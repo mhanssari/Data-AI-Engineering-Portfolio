@@ -1,0 +1,55 @@
+# What a competent accounts payable clerk would propose for each planted outcome, and what they should cite.
+# Hand-written labels for the agent evaluation. Any cited chunk from the evidence list counts as a hit.
+by_status:
+  PendingReceipt: WAIT_FOR_RECEIPT
+
+evidence_by_status:
+  PendingReceipt: [policy_p2p:invoice-dated-before-receipt]
+
+by_reason:
+  PriceVariance:
+    action: REQUEST_CORRECTED_INVOICE
+    evidence: [policy_p2p:price-tolerance-pct-default]
+  QuantityVariance:
+    action: CHECK_RECEIPT
+    evidence: [policy_p2p:quantity-tolerance-pct]
+  InvoiceBeforeReceipt:
+    action: CHECK_RECEIPT
+    evidence: [policy_p2p:invoice-dated-before-receipt]
+  DuplicateInvoice:
+    action: REJECT_DUPLICATE
+    evidence: [policy_p2p:duplicate-window-days]
+  NoPurchaseOrder:
+    action: OBTAIN_PURCHASE_ORDER
+    evidence: [policy_p2p:missing-purchase-order-or-requisition]
+  MissingRequisition:
+    action: ESCALATE_CONTROL_BREACH
+    evidence: [policy_p2p:missing-purchase-order-or-requisition]
+  RetrospectivePO:
+    action: ESCALATE_CONTROL_BREACH
+    evidence: [policy_p2p:retrospective-purchase-orders]
+  SplitRequisition:
+    action: ESCALATE_CONTROL_BREACH
+    evidence: [policy_p2p:split-window-days]
+  ApprovalLimitExceeded:
+    action: ESCALATE_CONTROL_BREACH
+    evidence: [policy_p2p:segregation-of-duties]
+  SegregationOfDuties:
+    action: ESCALATE_CONTROL_BREACH
+    evidence: [policy_p2p:segregation-of-duties]
+  MissingApproval:
+    action: ESCALATE_CONTROL_BREACH
+    evidence: [policy_p2p:segregation-of-duties]
+  BankDetailChange:
+    action: VERIFY_BANK_DETAILS
+    evidence: [policy_p2p:bank-change-window-days, procedure_GB01:verifying-a-bank-change, procedure_DE01:verifying-a-bank-change]
+  CurrencyMismatch:
+    action: REQUEST_CORRECTED_INVOICE
+    evidence: [policy_p2p:invoice-currency]
+  UnmatchedCreditNote:
+    action: REVIEW_CREDIT_NOTE
+    evidence: [policy_p2p:credit-notes]
+
+# A contract governs this scenario's tolerance, so its clause is as good a citation as the group default.
+by_scenario:
+  S23: ["contract_CT-2026-001_2026-01-01:clause-4-invoice-tolerance"]

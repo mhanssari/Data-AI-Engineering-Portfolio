@@ -1,0 +1,148 @@
+# Data contract: supplier. Checked by tests/test_contracts.py and `uv run p2p contracts-check`.
+name: supplier
+version: 1.0.0
+description: Who the group buys from, in each ERP and as one resolved golden supplier.
+owner: Master data steward
+consumers:
+- Duplicate invoice control
+- Exception investigator
+- Neo4j projection
+sensitivity: confidential
+tables:
+  core.supplier:
+    grain: One supplier record in one source ERP
+    key:
+    - source_system
+    - source_supplier_id
+    columns:
+      source_system:
+        type: text
+        nullable: false
+      source_supplier_id:
+        type: text
+        nullable: false
+      company_code:
+        type: text
+        nullable: false
+      supplier_name:
+        type: text
+        nullable: false
+      address_line:
+        type: text
+        nullable: true
+      city:
+        type: text
+        nullable: true
+      postcode:
+        type: text
+        nullable: true
+      country_code:
+        type: character
+        nullable: true
+      vat_number:
+        type: text
+        nullable: true
+      source_raw_id:
+        type: bigint
+        nullable: false
+      source_changed_at:
+        type: timestamp with time zone
+        nullable: false
+      last_run_id:
+        type: bigint
+        nullable: false
+      is_deleted:
+        type: boolean
+        nullable: false
+  mdm.supplier_golden:
+    grain: One real-world supplier, rebuilt on every resolution run
+    key:
+    - supplier_gid
+    columns:
+      supplier_gid:
+        type: text
+        nullable: false
+      golden_name:
+        type: text
+        nullable: false
+      vat_number:
+        type: text
+        nullable: true
+      country_code:
+        type: character
+        nullable: true
+      member_count:
+        type: integer
+        nullable: false
+      run_id:
+        type: bigint
+        nullable: false
+  mdm.supplier_xref:
+    grain: One source supplier mapped to its golden record
+    key:
+    - source_system
+    - source_supplier_id
+    columns:
+      source_system:
+        type: text
+        nullable: false
+      source_supplier_id:
+        type: text
+        nullable: false
+      supplier_gid:
+        type: text
+        nullable: false
+      match_method:
+        type: text
+        nullable: false
+      match_score:
+        type: numeric
+        nullable: true
+      run_id:
+        type: bigint
+        nullable: false
+quality:
+- table: core.supplier
+  check: min_rows
+  min: 50
+- table: core.supplier
+  check: max_null_rate
+  column: supplier_name
+  max: 0.0
+- table: mdm.supplier_golden
+  check: min_rows
+  min: 50
+- table: mdm.supplier_golden
+  check: max_null_rate
+  column: golden_name
+  max: 0.0
+- table: mdm.supplier_xref
+  check: accepted_values
+  column: match_method
+  values:
+  - SINGLETON
+  - EXACT_VAT
+  - EXACT_BANK
+  - FUZZY
+  - STEWARD
+freshness:
+  sla_hours: 48
+  status: proposed; checked against an injected clock, because the synthetic data has fixed dates
+  source_systems:
+  - SAP_LIKE
+  - ORACLE_LIKE
+access:
+  roles_may_read:
+  - ap_analyst_uk
+  - ap_analyst_de
+  - controller
+  - auditor
+  roles_may_not_read:
+  - agent_service
+  row_level_security:
+  - core.supplier
+  - mdm.supplier_xref
+  notes: Bank account numbers are not part of this product. core.v_supplier_bank_account_masked is the only route
+    to them, masked for every role.
+change_policy: Removing or retyping a column, changing a key or grain, or weakening a promise needs a new major
+  version and notice to the consumers above.
