@@ -1,6 +1,6 @@
 import streamlit as st
 
-from p2p_recon.admin import agents, ui
+from p2p_recon.admin import agents, audit_pack, ui
 from p2p_recon.db import connect_as
 
 role = ui.require_reviewer()
@@ -87,6 +87,23 @@ with connect_as(role) as conn:
 
     st.subheader("Runs")
     st.dataframe(run_rows, hide_index=True, alt="Agent runs matching the filter")
+    range_pack = audit_pack.range_pack(conn, run_filter)
+    range_name = audit_pack.default_name("audit-pack", run_filter.date_from, run_filter.date_to)
+    with st.container(horizontal=True):
+        st.download_button(
+            "Audit pack for these runs (markdown)",
+            range_pack["markdown"],
+            file_name=f"{range_name}.md",
+            mime="text/markdown",
+            key="agents_range_md",
+        )
+        st.download_button(
+            "Audit pack for these runs (CSV)",
+            range_pack["csv"],
+            file_name=f"{range_name}.csv",
+            mime="text/csv",
+            key="agents_range_csv",
+        )
     if not run_rows:
         st.info(
             "No agent runs match the filter. Run `uv run p2p agent-run --as ap_analyst_uk` to create one."
@@ -187,6 +204,22 @@ with connect_as(role) as conn:
         mime="text/markdown",
         key="agents_trace_download",
     )
+    pack = audit_pack.proposal_pack(conn, proposal["proposal_id"])
+    with st.container(horizontal=True):
+        st.download_button(
+            "Audit pack (markdown)",
+            pack["markdown"],
+            file_name=f"audit-pack-proposal-{proposal['proposal_id']}.md",
+            mime="text/markdown",
+            key="agents_pack_md",
+        )
+        st.download_button(
+            "Audit pack (CSV)",
+            pack["csv"],
+            file_name=f"audit-pack-proposal-{proposal['proposal_id']}.csv",
+            mime="text/csv",
+            key="agents_pack_csv",
+        )
 
     st.subheader("Review notes on this proposal")
     ui.notes_panel(conn, "proposal", proposal["proposal_id"], key=f"proposal-{proposal['proposal_id']}")

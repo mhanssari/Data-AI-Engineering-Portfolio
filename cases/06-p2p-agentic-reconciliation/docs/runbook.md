@@ -32,13 +32,14 @@ uv sync
 | `uv run p2p validate-ontology` | Validates the ontology examples and a fixed sample of real invoice chains against SHACL, recording each in `ops.dq_result`. `--sample` | New results row per run |
 | `uv run p2p load-documents` | Chunks and embeds `data/generated/documents` into `docs` | Embeds only changed text; removes chunks of removed documents |
 | `uv run p2p search "<question>" --as <user>` | Searches as a user. `--method keyword, vector, hybrid or hybrid_graph`; `--invoice SOURCE_SYSTEM:id` for the graph | Read-only |
-| `uv run p2p eval-retrieval` | Recall@k and MRR per method; writes `evidence/retrieval-evaluation.md` | Overwrites the report |
+| `uv run p2p eval-retrieval` | Recall@k and MRR per method; writes `evidence/retrieval-evaluation.md` and stores the figures in `ops.evaluation_result` | Overwrites the report; adds an evaluation run |
 | `uv run p2p agent-run --as <user>` | Investigates the user's held lines. `--provider`, `--limit` | New run; a later proposal supersedes an earlier one in the queue |
-| `uv run p2p agent-eval` | Runs the planted scenarios plus hostile, outage and access runs; writes `evidence/agent-evaluation-<provider>.md`; exit 1 on any false approval. `--provider`, `--all-lines` | New runs, excluded from the review queue |
+| `uv run p2p agent-eval` | Runs the planted scenarios plus hostile, outage and access runs; writes `evidence/agent-evaluation-<provider>.md` and stores a pass or fail per planted line in `ops.evaluation_result`; exit 1 on any false approval. `--provider`, `--all-lines` | New runs, excluded from the review queue |
 | `uv run p2p review-list --as <user>` | Open proposals for the user's companies | Read-only |
 | `uv run streamlit run src/p2p_recon/review_app.py --server.address 127.0.0.1` | The review page: queue, explanation, citations, graph path, decision | Decisions append |
 | `uv run p2p trace <id>` | From a proposal back to tool calls, citations, source files and datasets. `--out file.md`. Uses the pipeline's login | Read-only |
-| `uv run p2p contracts-check` | Checks every contract against the database and its last release; exit 1 on a problem. `--as-of` sets the freshness clock | Read-only |
+| `uv run p2p contracts-check` | Checks every contract against the database and its last release, recording one result per contract in `ops.dq_result`; exit 1 on a problem. `--as-of` sets the freshness clock | New results row per run |
+| `uv run p2p access-probe` | Tries each role against what it may and may not read or write, each attempt rolled back, and stores the outcomes; exit 1 if any differs from what is expected | Changes no data; adds an evaluation run |
 | `uv run p2p review-decide <id> ACCEPT --as <user>` | Records `ACCEPT`, `OVERRIDE` or `QUERY`, with an optional `--note`. Posts and pays nothing | Appends |
 | `uv run p2p status` | Summary of current results | Read-only |
 

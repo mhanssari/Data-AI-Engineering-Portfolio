@@ -8,6 +8,7 @@ from typing import Annotated
 import psycopg
 import typer
 
+from p2p_recon import access_probe as access_probe_step
 from p2p_recon import conform as conform_step
 from p2p_recon import contracts as contracts_step
 from p2p_recon import documents as documents_step
@@ -286,11 +287,19 @@ def contracts_check(
         ),
     ] = contracts_step.REFERENCE_CLOCK.isoformat(),
 ) -> None:
-    """Check every data contract against the database and its last release. Exit 1 on any problem."""
-    with connect() as conn:
-        results = contracts_step.check_all(conn, datetime.fromisoformat(as_of))
+    """Check every data contract against the database and its last release, and record the result. Exit 1 on any problem."""
+    results = contracts_step.record_check(datetime.fromisoformat(as_of))
     _show(results)
     if any(result["problems"] for result in results.values()):
+        raise typer.Exit(1)
+
+
+@app.command("access-probe")
+def access_probe() -> None:
+    """Try each role against what it may and may not read or write, and record the outcome. Exit 1 on any surprise."""
+    result = access_probe_step.run_probe()
+    _show(result)
+    if result["failed"]:
         raise typer.Exit(1)
 
 

@@ -28,8 +28,11 @@ APP = str(SRC / "admin_app.py")
 PAGES = (
     "admin_pages/overview.py",
     "admin_pages/agents.py",
+    "admin_pages/evaluations.py",
     "admin_pages/entities.py",
     "admin_pages/ontology.py",
+    "admin_pages/lineage.py",
+    "admin_pages/access.py",
     "admin_pages/rules.py",
 )
 

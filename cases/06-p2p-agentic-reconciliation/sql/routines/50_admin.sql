@@ -12,7 +12,7 @@ grant select on all tables in schema mdm to admin_reviewer;
 grant select on agent.acting_user, agent.reviewer, agent.run, agent.step, agent.tool_call, agent.proposal, agent.citation,
     agent.human_decision, agent.review_queue, agent.audit_log, agent.admin_review_note to admin_reviewer;
 grant select on ops.pipeline_run, ops.ingest_file, ops.watermark, ops.quarantine, ops.dq_result, ops.lineage_edge,
-    ops.schema_migration, ops.admin_view_log to admin_reviewer;
+    ops.schema_migration, ops.admin_view_log, ops.evaluation_run, ops.evaluation_result to admin_reviewer;
 
 -- The same rule as for every other role: the masked view, never the number.
 revoke select on core.supplier_bank_account from admin_reviewer;

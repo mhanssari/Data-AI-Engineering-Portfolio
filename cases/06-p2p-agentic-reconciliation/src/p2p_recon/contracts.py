@@ -12,6 +12,7 @@ import yaml
 from psycopg import sql
 
 from p2p_recon.config import CASE_DIR
+from p2p_recon.db import connect, pipeline_run
 
 CONTRACTS_DIR = CASE_DIR / "contracts"
 RELEASED_DIR = CONTRACTS_DIR / "released"
@@ -249,6 +250,30 @@ def check_release(released: dict, current: dict) -> list[str]:
     if current != released and current["version"] == released["version"]:
         problems.append(f"{current['name']}: changed but still at version {current['version']}")
     return problems
+
+
+def record_check(as_of: datetime = REFERENCE_CLOCK) -> dict:
+    """check_all, with one ops.dq_result row per contract under pipeline step contracts_check, for the admin pages."""
+    with pipeline_run("contracts_check", {"as_of": as_of.isoformat()}) as run, connect() as conn:
+        results = check_all(conn, as_of)
+        for name, result in results.items():
+            conn.execute(
+                "insert into ops.dq_result (run_id, check_name, scope, expected, actual, status, detail) "
+                "values (%s, %s, %s, 0, %s, %s, %s)",
+                (
+                    run.run_id,
+                    f"contract.{name}",
+                    str(result["version"]),
+                    len(result["problems"]),
+                    "fail" if result["problems"] else "pass",
+                    "; ".join(result["problems"]) or None,
+                ),
+            )
+        run.counts = {
+            "contracts": len(results),
+            "with_problems": sum(1 for r in results.values() if r["problems"]),
+        }
+    return results
 
 
 def check_all(conn: psycopg.Connection, as_of: datetime | None = None) -> dict:
