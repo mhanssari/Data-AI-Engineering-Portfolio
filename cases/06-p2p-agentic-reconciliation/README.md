@@ -87,6 +87,8 @@ The difficult logic, in the order worth reading:
 | [src/p2p_recon/conform.py](src/p2p_recon/conform.py) | Watermark with lookback, quarantine and retry, upsert if newer |
 | [src/p2p_recon/mdm.py](src/p2p_recon/mdm.py) | When evidence may merge suppliers, and when it must not |
 | [src/p2p_recon/contracts.py](src/p2p_recon/contracts.py) | What counts as a breaking change |
+| [sql/migrations/007_admin_review.sql](sql/migrations/007_admin_review.sql) | A reviewer who sees everything and decides nothing, added through the visibility functions instead of copied policies |
+| [src/p2p_recon/admin/rules.py](src/p2p_recon/admin/rules.py) | Rules, workflow, guard and decision rights read from what applies them, with tests that fail on drift |
 | [docs/decisions](docs/decisions/README.md) | The reasoning, including where something simpler would do |
 
 ### Run it
@@ -102,6 +104,8 @@ uv run p2p agent-run --as ap_analyst_uk
 uv run streamlit run src/p2p_recon/review_app.py --server.address 127.0.0.1
 uv run p2p trace <proposal_id>     # from a proposal back to source files
 uv run p2p contracts-check
+uv run p2p access-probe            # each role against what it may and may not do, recorded
+uv run streamlit run src/p2p_recon/admin_app.py --server.address 127.0.0.1   # governance review
 uv run pytest
 ```
 
@@ -119,6 +123,15 @@ Every command, failure and recovery: [runbook](docs/runbook.md).
 ## 8. Business consumption
 
 - **[Review page](src/p2p_recon/review_app.py):** the queue, the agent's explanation, the SQL figures, each citation and the graph path, then accept, override or query. [What each role sees](evidence/screenshots/). Nothing is posted or paid.
+- **[Governance admin app](src/p2p_recon/admin_app.py):** for a read-only `admin_reviewer` who sees both companies and decides nothing ([decision 0010](docs/decisions/0010-admin-review-dashboard.md)).
+  - **Agents:** behaviour, including agreement with people, guard interventions and citation validity, with a drill-down to one run's steps, tool calls and trace.
+  - **Evaluations:** stored scenario, hostile, outage, access and retrieval results.
+  - **Entities and relationships:** graph neighbourhoods and supplier resolution.
+  - **Ontology:** coverage, drift and the impact of changing a term.
+  - **Lineage and contracts:** dataset lineage, and each contract against its release.
+  - **Access and audit:** a permission matrix read from the catalogue, the audit log, and review notes.
+  - **How the agents decide:** rules, workflow, guard and decision rights.
+  - **Audit packs:** markdown or CSV per proposal or date range. [Screenshots](evidence/screenshots/).
 - **[Trace](evidence/trace-S14.md):** one proposal back through tool calls, citations and core rows to the delivered file, row and checksum.
 - **`p2p status`:** statuses, exceptions by reason, value on hold per currency, GRNI, quarantine.
 - **Decisions enabled:** which invoices to release or query, which failed controls need the controller, and the month-end accrual to review. In this synthetic population, 22 of 360 lines are held.
@@ -171,6 +184,20 @@ Hybrid did **not** beat vector here: on near-identical contract clauses, keyword
 ### Security
 
 Allowed and denied tests for every role, through a real unprivileged login: [security](docs/security.md). Row-level security holds with the application's own filter removed, and application filters hold on a login that bypasses row-level security.
+
+### Governance review
+
+Measured on 3 November 2026 after `p2p reset --yes` and `run-all`, offline provider. Full record: [governance review run](evidence/governance-review-run.md).
+
+| Check | Result |
+| --- | --- |
+| Access probe: each role against the contracts' promises and the fixed rules | 83 of 83 attempts behaved as expected |
+| Decision rights shown, against what PostgreSQL accepts | Every role, decision, proposal kind and lifecycle state agrees |
+| Rules, workflow drawing and guard catalogue against their sources | Agree; tests fail on any drift |
+| Sampled real chains conforming to SHACL | 25 of 25, after fixing a defect that rejected every real reason code |
+| Admin pages rendering for the reviewer; refusing an analyst and the auditor | 8 of 8; all refuse |
+| Rules deliberately broken and caught | 18 of 18 (role); 18 of 18, 21 of 21 and 18 of 18 (pages) |
+| Tests | 550 passed on Windows; ruff clean |
 
 ## 10. Trade-offs and next step
 

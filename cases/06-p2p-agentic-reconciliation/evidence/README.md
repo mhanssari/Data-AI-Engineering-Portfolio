@@ -8,6 +8,7 @@ Actual validation reports and measured results, with dataset, configuration and 
 - [Agent evaluation, offline provider](agent-evaluation-offline.md): planted scenarios, hostile provider, outage and access.
 - [Milestone 3 run record](milestone-3-run.md): security, contracts, lineage, the review page, the Linux rehearsal of CI, and what was not validated.
 - [Trace of one proposal](trace-S14.md): scenario S14, from the proposal back to source files.
-- [Screenshots](screenshots/) of the review page, per role.
+- [Governance review run record](governance-review-run.md): the admin role and app, measured figures, mutation checks, problems found and what was not validated.
+- [Screenshots](screenshots/) of the review page per role, and of each admin page (`admin-*.png`).
 
 No live-model evidence exists yet, and CI has not yet run on GitHub.

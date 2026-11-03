@@ -37,6 +37,7 @@ uv sync
 | `uv run p2p agent-eval` | Runs the planted scenarios plus hostile, outage and access runs; writes `evidence/agent-evaluation-<provider>.md` and stores a pass or fail per planted line in `ops.evaluation_result`; exit 1 on any false approval. `--provider`, `--all-lines` | New runs, excluded from the review queue |
 | `uv run p2p review-list --as <user>` | Open proposals for the user's companies | Read-only |
 | `uv run streamlit run src/p2p_recon/review_app.py --server.address 127.0.0.1` | The review page: queue, explanation, citations, graph path, decision | Decisions append |
+| `uv run streamlit run src/p2p_recon/admin_app.py --server.address 127.0.0.1` | The governance admin app for `admin_reviewer`: agents, evaluations, entities, ontology, lineage, access, rules. Every other role is refused | Notes and view-log entries append; nothing else is written |
 | `uv run p2p trace <id>` | From a proposal back to tool calls, citations, source files and datasets. `--out file.md`. Uses the pipeline's login | Read-only |
 | `uv run p2p contracts-check` | Checks every contract against the database and its last release, recording one result per contract in `ops.dq_result`; exit 1 on a problem. `--as-of` sets the freshness clock | New results row per run |
 | `uv run p2p access-probe` | Tries each role against what it may and may not read or write, each attempt rolled back, and stores the outcomes; exit 1 if any differs from what is expected | Changes no data; adds an evaluation run |

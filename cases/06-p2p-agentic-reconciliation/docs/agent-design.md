@@ -57,6 +57,25 @@ A duplicate can span companies through the golden supplier (S21). The DE01 clerk
 | `agent.human_decision` | One decision | Who, what, when |
 | `agent.audit_log` | One audited event | Written only by triggers: role in use, on behalf of whom, what happened |
 
+## Observability
+
+The trail above is the only source. The governance admin app ([decision 0010](decisions/0010-admin-review-dashboard.md)) reads it as `admin_reviewer` across both companies. Every figure is defined once, in `src/p2p_recon/admin/agents.py`, and the Overview, the Agents page and the audit packs all use that definition.
+
+| Figure | Definition |
+| --- | --- |
+| Agreement with people | ACCEPT ÷ (ACCEPT + OVERRIDE) on the latest decision per proposal. QUERY counts for neither side |
+| Guard intervention | A proposal with any guard flag, or whose stored action differs from the draft. Flags are catalogued with their effect in `guard.FLAGS` |
+| Citation validity | Citations that resolve and that the run's acting user may read, checked against that user's scope |
+| Latency | p50 and p95 per agent from `agent.step`. Investigator rows include each model call and search in its loop |
+| Tokens and cost | As recorded per step. The offline provider's zeros are real zeros |
+| Outage routing | Lines flagged `provider_failure` or `step_or_token_limit`, and how many went to a person |
+
+Evaluation runs carry `evaluation` in their parameters and are left out of live figures unless a filter asks for them, because they include providers that misbehave on purpose.
+
+- **Workflow drawing:** the How the agents decide page draws the compiled graph from `workflow.compile_graph`, the one definition `AgentRun` also uses, and shows the path each line of a chosen run took, rebuilt from its steps.
+- **Stored results:** `agent-eval` stores a pass or fail per planted line in `ops.evaluation_result`, so results can be compared across runs.
+- **Alerts:** thresholds for the Overview's banners, such as citation validity below 100% or any approval with an SQL reason, are in `src/p2p_recon/admin/alerts.yaml`.
+
 ## Providers
 
 `LLM_PROVIDER` selects `offline` (default), `anthropic` or `ollama`. `agent-eval` also accepts `hostile`. See [the runbook](runbook.md).

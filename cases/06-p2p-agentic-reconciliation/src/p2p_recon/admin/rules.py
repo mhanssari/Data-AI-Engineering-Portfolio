@@ -178,14 +178,16 @@ def _flags_raised_in(place: str) -> list[str]:
 
 def _notes() -> dict[str, str]:
     return {
+        # One flag per line: the browser's Graphviz sizes boxes slightly differently from how it draws text, and long
+        # lines run out of the box.
         "investigator": (
-            f"Model loop: at most {workflow.MAX_MODEL_STEPS} calls and {workflow.MAX_TOKENS_PER_LINE:,} tokens.\n"
-            f"Outage and limits route to a person: {', '.join(_flags_raised_in('investigator'))}"
+            f"Model loop: at most {workflow.MAX_MODEL_STEPS} calls, {workflow.MAX_TOKENS_PER_LINE:,} tokens.\n"
+            "Outage and limits go to a person:\n" + "\n".join(_flags_raised_in("investigator"))
         ),
         "submit": (
-            "Guard (apply_guard), then the proposal is stored.\n"
-            f"Checks: {', '.join(_flags_raised_in('guard'))}.\n"
-            "Anything needing review appears in agent.review_queue."
+            "Guard (apply_guard), then the proposal is stored.\nChecks:\n"
+            + "\n".join(_flags_raised_in("guard"))
+            + "\nReview items appear in agent.review_queue."
         ),
     }
 
