@@ -9,6 +9,7 @@ because a finance user's answer can take days and needs no process kept alive fo
 import json
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TypedDict
 
@@ -50,6 +51,37 @@ class CaseState(TypedDict, total=False):
     forced_flags: list[str]
     denied: bool
     proposal_id: int
+
+
+NODES = ("supervisor", "controls", "matching", "investigator", "auto_draft", "submit")
+
+
+def compile_graph(
+    nodes: dict[str, Callable], route_after_supervisor: Callable, route_after_matching: Callable
+):
+    """The one definition of the graph's shape. AgentRun fills it with its nodes; the admin page draws it with inert ones."""
+    graph = StateGraph(CaseState)
+    for name in NODES:
+        graph.add_node(name, nodes[name])
+    graph.add_edge(START, "supervisor")
+    graph.add_conditional_edges("supervisor", route_after_supervisor, {"denied": END, "controls": "controls"})
+    graph.add_edge("controls", "matching")
+    graph.add_conditional_edges(
+        "matching", route_after_matching, {"auto_draft": "auto_draft", "investigator": "investigator"}
+    )
+    graph.add_edge("investigator", "submit")
+    graph.add_edge("auto_draft", "submit")
+    graph.add_edge("submit", END)
+    return graph.compile()
+
+
+def _inert(state: CaseState) -> CaseState:
+    raise RuntimeError("This graph is for drawing only.")
+
+
+def workflow_graph():
+    """The compiled topology without a run, database or provider behind it: nodes, edges and branch labels."""
+    return compile_graph(dict.fromkeys(NODES, _inert), _inert, _inert).get_graph()
 
 
 @dataclass
@@ -344,27 +376,18 @@ class AgentRun:
         return "auto_draft" if clean else "investigator"
 
     def _build(self):
-        graph = StateGraph(CaseState)
-        graph.add_node("supervisor", self._supervisor)
-        graph.add_node("controls", self._controls)
-        graph.add_node("matching", self._matching)
-        graph.add_node("investigator", self._investigator)
-        graph.add_node("auto_draft", self._auto_draft)
-        graph.add_node("submit", self._submit)
-        graph.add_edge(START, "supervisor")
-        graph.add_conditional_edges(
-            "supervisor", self._route_after_supervisor, {"denied": END, "controls": "controls"}
-        )
-        graph.add_edge("controls", "matching")
-        graph.add_conditional_edges(
-            "matching",
+        return compile_graph(
+            {
+                "supervisor": self._supervisor,
+                "controls": self._controls,
+                "matching": self._matching,
+                "investigator": self._investigator,
+                "auto_draft": self._auto_draft,
+                "submit": self._submit,
+            },
+            self._route_after_supervisor,
             self._route_after_matching,
-            {"auto_draft": "auto_draft", "investigator": "investigator"},
         )
-        graph.add_edge("investigator", "submit")
-        graph.add_edge("auto_draft", "submit")
-        graph.add_edge("submit", END)
-        return graph.compile()
 
     def investigate(self, key: LineKey) -> LineOutcome:
         self.step_index = 0
@@ -418,4 +441,14 @@ def open_lines(conn: psycopg.Connection, role: str, limit: int | None = None) ->
     return [LineKey(r["source_system"], r["invoice_id"], r["line_number"]) for r in rows]
 
 
-__all__ = ["FALLBACK_ACTION", "AgentRun", "LineKey", "LineOutcome", "agent_connection", "open_lines"]
+__all__ = [
+    "FALLBACK_ACTION",
+    "NODES",
+    "AgentRun",
+    "LineKey",
+    "LineOutcome",
+    "agent_connection",
+    "compile_graph",
+    "open_lines",
+    "workflow_graph",
+]

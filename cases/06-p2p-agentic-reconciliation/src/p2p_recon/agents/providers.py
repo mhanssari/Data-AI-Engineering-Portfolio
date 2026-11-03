@@ -181,13 +181,17 @@ class OfflineProvider:
         ),
         "InvoiceBeforeReceipt": ("CHECK_RECEIPT", "goods invoice dated before first goods receipt"),
     }
+    # Used only when no reason above applies.
+    STATUS_RULES = {
+        "PendingReceipt": ("WAIT_FOR_RECEIPT", "goods invoice with no goods receipt waits for the receipt"),
+    }
 
     def decide(self, request: DecisionRequest) -> Decision:
         prompt = render_prompt(request)
         reasons = request.case["reasons"]
         rule = next((self.RULES[code] for code in self.RULES if code in reasons), None)
-        if rule is None and request.case["status"] == "PendingReceipt":
-            rule = ("WAIT_FOR_RECEIPT", "goods invoice with no goods receipt waits for the receipt")
+        if rule is None:
+            rule = self.STATUS_RULES.get(request.case["status"])
         if rule is None:
             data = _proposal(
                 "NEEDS_HUMAN_REVIEW",

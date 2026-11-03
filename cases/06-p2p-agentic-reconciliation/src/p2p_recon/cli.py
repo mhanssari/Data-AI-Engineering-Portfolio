@@ -130,13 +130,18 @@ def graph_query(
 
 
 @app.command("validate-ontology")
-def validate_ontology() -> None:
-    """Validate the example instance data against the SHACL shapes."""
+def validate_ontology(
+    sample: Annotated[
+        int, typer.Option(help="How many real invoice chains to validate.")
+    ] = ontology_step.SAMPLE_SIZE,
+) -> None:
+    """Validate the examples and a fixed sample of real invoice chains against SHACL, and record the results."""
     from rdflib import Graph
 
-    for example in ("valid-chain", "invalid-chain"):
+    for example in ontology_step.EXAMPLES:
         result = ontology_step.validate_graph(Graph().parse(ONTOLOGY_DIR / "examples" / f"{example}.ttl"))
         _show({"example": example, "conforms": result.conforms, "violations": result.messages})
+    _show(ontology_step.record_validation(sample))
 
 
 @app.command("run-all")
@@ -156,6 +161,7 @@ def run_all(
     load_documents(GENERATED_DIR / "documents")
     if with_graph:
         graph_sync()
+    validate_ontology(ontology_step.SAMPLE_SIZE)
 
 
 @app.command("load-documents")

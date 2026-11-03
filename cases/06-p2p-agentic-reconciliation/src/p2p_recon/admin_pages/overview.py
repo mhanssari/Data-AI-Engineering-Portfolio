@@ -59,7 +59,8 @@ with right:
     else:
         st.write(
             f"Version {onto['version']}. Last SHACL validation (run {onto['shacl_run_id']}): "
-            f"{onto['conforming']} of {onto['checked']} graphs conform."
+            f"{onto['conforming']} of {onto['checked']} sampled invoice chains conform. "
+            "A chain that breaks a control does not conform, as SQL holds it."
         )
 
     st.subheader("Graph against PostgreSQL")

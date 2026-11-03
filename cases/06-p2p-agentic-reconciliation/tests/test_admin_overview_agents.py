@@ -25,7 +25,13 @@ pytestmark = pytest.mark.integration
 ADMIN = "admin_reviewer"
 SRC = Path(__file__).resolve().parents[1] / "src" / "p2p_recon"
 APP = str(SRC / "admin_app.py")
-PAGES = ("admin_pages/overview.py", "admin_pages/agents.py")
+PAGES = (
+    "admin_pages/overview.py",
+    "admin_pages/agents.py",
+    "admin_pages/entities.py",
+    "admin_pages/ontology.py",
+    "admin_pages/rules.py",
+)
 
 
 # ---------------------------------------------------------------- a run with known figures
@@ -430,3 +436,18 @@ def test_admin_code_does_not_cache_role_dependent_results():
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if isinstance(node, ast.Attribute):
                 assert node.attr not in ("cache_data", "cache_resource"), path.name
+
+
+def test_admin_code_caches_only_repository_files():
+    """lru_cache is used for parsed files from the repository, which are the same for every role. A cached function that
+    took a connection, a role or a user could serve one role's rows to another, so none may take one."""
+    cached = []
+    for path in (SRC / "admin").glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.FunctionDef) and any(
+                (d.id if isinstance(d, ast.Name) else getattr(d, "attr", None)) == "lru_cache"
+                for d in node.decorator_list
+            ):
+                cached.append(node.name)
+                assert {a.arg for a in node.args.args} <= {"name"}, f"{path.name}:{node.name}"
+    assert cached, "expected the parsed-file caches to be found"

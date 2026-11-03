@@ -125,6 +125,25 @@ def test_clean_chain_exported_from_postgres_conforms_to_shacl(pipeline, exported
     assert result.conforms, result.messages
 
 
+@pytest.mark.parametrize("scenario", ["S03", "S07", "S14"])
+def test_chain_with_a_valid_reason_code_conforms(pipeline, exported, scenario):
+    """A real exception whose reason is a SKOS concept is valid data. The reason check once rejected every real code,
+    because the vocabulary was not in the graph its SPARQL queried."""
+    from p2p_recon.db import connect
+
+    row = next(
+        r
+        for r in pipeline.expected
+        if r["scenario_id"] == scenario
+        and r["document_type"] == "INVOICE_LINE"
+        and r["expected_reason_codes"]
+    )
+    with connect() as connection:
+        nodes = invoice_chain_nodes(connection, row["source_system"], row["document_number"])
+    result = validate_graph(document_closure(exported, nodes))
+    assert result.conforms, result.messages
+
+
 @pytest.mark.parametrize(
     ("scenario", "fragment"), [("S12", "Segregation of duties"), ("S11", "Approval limit exceeded")]
 )

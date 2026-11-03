@@ -13,6 +13,49 @@ CLEAN_STATUSES = ("Matched", "MatchedWithinTolerance")
 FALLBACK_ACTION = "NEEDS_HUMAN_REVIEW"
 NUMBER = re.compile(r"\d[\d,]*\.\d+|\d{3,}")
 
+# Every flag a stored proposal can carry: where it is raised and what follows from it. The admin page lists these, and a
+# test fails if the guard or the workflow raises a flag that is not described here.
+FLAGS = {
+    "invalid_action": (
+        "guard",
+        "The draft named an action outside the allowed list. The action becomes NEEDS_HUMAN_REVIEW.",
+    ),
+    "unverified_citations": (
+        "guard",
+        "The draft cited something this run never retrieved, so it is invented or not readable by the acting user. "
+        "Those citations are dropped.",
+    ),
+    "uncited": (
+        "guard",
+        "No verified citation remained. The action becomes NEEDS_HUMAN_REVIEW and the SQL findings are cited instead.",
+    ),
+    "auto_approve_blocked": (
+        "guard",
+        "AUTO_APPROVE was drafted for a line that SQL does not show as clean, or with a citation the run never "
+        "retrieved. The action becomes NEEDS_HUMAN_REVIEW.",
+    ),
+    "unsupported_numbers": (
+        "guard",
+        "The explanation quoted figures that no tool returned. The explanation is withheld; the action stands.",
+    ),
+    "no_explanation": (
+        "guard",
+        "The draft gave no explanation. A stock sentence is stored, and AUTO_APPROVE becomes NEEDS_HUMAN_REVIEW.",
+    ),
+    "provider_failure": (
+        "investigator",
+        "The model provider failed or timed out. Nothing is drafted, so the guard sends the line to a person.",
+    ),
+    "unknown_tool": (
+        "investigator",
+        "The model asked for a tool that does not exist. The loop stops and the line goes to a person.",
+    ),
+    "step_or_token_limit": (
+        "investigator",
+        "The investigation used its steps or tokens without proposing. The line goes to a person.",
+    ),
+}
+
 
 @dataclass
 class GuardResult:

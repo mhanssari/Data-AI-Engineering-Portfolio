@@ -29,7 +29,7 @@ uv sync
 | `uv run p2p dq` | Checks and reconciliations; exit 1 on failure | New results row per run |
 | `uv run p2p graph-sync` | Rebuilds Neo4j; exit 1 if counts differ | Full rebuild |
 | `uv run p2p graph-query <name>` | Runs a query from `graph/queries`; `--param key=value` | Read-only |
-| `uv run p2p validate-ontology` | Validates the ontology examples against SHACL | Read-only |
+| `uv run p2p validate-ontology` | Validates the ontology examples and a fixed sample of real invoice chains against SHACL, recording each in `ops.dq_result`. `--sample` | New results row per run |
 | `uv run p2p load-documents` | Chunks and embeds `data/generated/documents` into `docs` | Embeds only changed text; removes chunks of removed documents |
 | `uv run p2p search "<question>" --as <user>` | Searches as a user. `--method keyword, vector, hybrid or hybrid_graph`; `--invoice SOURCE_SYSTEM:id` for the graph | Read-only |
 | `uv run p2p eval-retrieval` | Recall@k and MRR per method; writes `evidence/retrieval-evaluation.md` | Overwrites the report |

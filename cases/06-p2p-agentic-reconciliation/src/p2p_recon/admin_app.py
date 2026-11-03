@@ -16,6 +16,9 @@ page = st.navigation(
     [
         st.Page("admin_pages/overview.py", title="Overview", icon=":material/dashboard:", default=True),
         st.Page("admin_pages/agents.py", title="Agents", icon=":material/smart_toy:"),
+        st.Page("admin_pages/entities.py", title="Entities and relationships", icon=":material/hub:"),
+        st.Page("admin_pages/ontology.py", title="Ontology", icon=":material/account_tree:"),
+        st.Page("admin_pages/rules.py", title="How the agents decide", icon=":material/rule:"),
     ],
     position="top",
 )

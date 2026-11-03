@@ -33,8 +33,12 @@ A change to a class, property or shape bumps `owl:versionInfo` in `p2p.ttl` and 
 
 ## Validation
 
-`tests/test_ontology.py` runs on every `uv run pytest`, with versions locked in `uv.lock`: all Turtle parses; `valid-chain.ttl` conforms; `invalid-chain.ttl` raises exactly its five planted violations; every mapped name is defined in the ontology; every mapped table and column exists in the database; real exported chains behave as above. To see the examples' results:
+`tests/test_ontology.py` runs on every `uv run pytest`, with versions locked in `uv.lock`: all Turtle parses; `valid-chain.ttl` conforms; `invalid-chain.ttl` raises exactly its five planted violations; every mapped name is defined in the ontology; every mapped table and column exists in the database; real exported chains behave as above, including chains whose exceptions carry valid reason codes. To validate the examples and a fixed sample of 25 real invoice chains, and record one result per chain in `ops.dq_result` (pipeline step `validate_ontology`, which `run-all` also runs):
 
 ```powershell
-uv run p2p validate-ontology
+uv run p2p validate-ontology            # --sample 50 for a larger sample
 ```
+
+The sample is ordered by a hash of the invoice key, so it is the same on every run while the data is unchanged. A chain that breaks a control fails, as SQL holds it. The admin Ontology page shows the last recorded result.
+
+Validation defect found and fixed: the vocabulary was passed to pySHACL only as the ontology graph, but a SPARQL constraint queries the data graph alone, so the reason-code check rejected every real reason code. The examples did not show it, because the valid example has no exception. `validate_graph` now adds the vocabulary to the data it validates.

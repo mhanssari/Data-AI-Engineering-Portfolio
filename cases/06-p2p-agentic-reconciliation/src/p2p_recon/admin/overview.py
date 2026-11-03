@@ -125,7 +125,7 @@ def review_queue(conn: psycopg.Connection) -> dict:
 
 
 def ontology_status(conn: psycopg.Connection) -> dict:
-    """The ontology's declared version, and the last SHACL validation if one has been recorded in ops.dq_result."""
+    """The ontology's declared version, and how many sampled real chains conformed in the last recorded validation."""
     graph = Graph().parse(ONTOLOGY_DIR / "p2p.ttl")
     version = next((str(v) for v in graph.objects(None, OWL.versionInfo)), None)
     run = conn.execute(
@@ -134,7 +134,7 @@ def ontology_status(conn: psycopg.Connection) -> dict:
     if run is None:
         return {"version": version, "shacl_run_id": None, "checked": 0, "conforming": 0}
     rows = conn.execute(
-        "select status from ops.dq_result where run_id = %s and check_name like 'shacl.%%'", (run,)
+        "select status from ops.dq_result where run_id = %s and check_name like 'shacl.chain.%%'", (run,)
     ).fetchall()
     return {
         "version": version,

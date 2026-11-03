@@ -15,6 +15,7 @@ from rdflib import RDF, SH, XSD, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import SKOS
 
 from p2p_recon.config import ONTOLOGY_DIR
+from p2p_recon.db import connect, pipeline_run
 
 P2P = Namespace("https://example.org/p2p#")
 VOC = Namespace("https://example.org/p2p/vocab#")
@@ -36,6 +37,9 @@ class ShaclResult:
 
 
 def validate_graph(data: Graph) -> ShaclResult:
+    # The vocabulary goes into the data itself: a SPARQL constraint queries only the data graph, so with the vocabulary
+    # in ont_graph alone the reason check could not see skos:inScheme and rejected every real reason code.
+    data = data + Graph().parse(ONTOLOGY_DIR / "vocab.ttl")
     conforms, report, _ = validate(
         data, shacl_graph=shapes_graph(), ont_graph=ontology_graph(), inference="rdfs", advanced=True
     )
@@ -152,6 +156,59 @@ def document_closure(graph: Graph, start: list[URIRef]) -> Graph:
             if isinstance(obj, URIRef) and str(obj).startswith(str(DATA)):
                 frontier.append(obj)
     return subset
+
+
+EXAMPLES = {"valid-chain": True, "invalid-chain": False}  # example -> whether it is meant to conform
+SAMPLE_SIZE = 25
+
+
+def sample_invoices(conn: psycopg.Connection, size: int = SAMPLE_SIZE) -> list[dict]:
+    """A fixed sample: ordered by a hash of the key, so each run validates the same chains while the data is unchanged."""
+    return conn.execute(
+        """
+        select source_system, invoice_id from core.supplier_invoice where not is_deleted
+        order by md5(source_system || ':' || invoice_id) limit %s
+        """,
+        (size,),
+    ).fetchall()
+
+
+def record_validation(sample_size: int = SAMPLE_SIZE) -> dict:
+    """Validate the examples and a sample of real invoice chains, and store one ops.dq_result row for each.
+
+    A real chain passes when it conforms. A chain that breaks a control, such as segregation of duties, fails here as it
+    is held in SQL: the two implementations are meant to agree. The invalid example passes when it does not conform.
+    """
+    results = []
+    for example, should_conform in EXAMPLES.items():
+        result = validate_graph(Graph().parse(ONTOLOGY_DIR / "examples" / f"{example}.ttl"))
+        results.append((f"shacl.example.{example}", result, result.conforms == should_conform))
+    with pipeline_run("validate_ontology", {"sample_size": sample_size}) as run, connect() as conn:
+        exported = export_rdf(conn)
+        for row in sample_invoices(conn, sample_size):
+            nodes = invoice_chain_nodes(conn, row["source_system"], row["invoice_id"])
+            result = validate_graph(document_closure(exported, nodes))
+            results.append(
+                (f"shacl.chain.{row['source_system']}:{row['invoice_id']}", result, result.conforms)
+            )
+        for check, result, passed in results:
+            conn.execute(
+                "insert into ops.dq_result (run_id, check_name, expected, actual, status, detail) values (%s, %s, %s, %s, %s, %s)",
+                (
+                    run.run_id,
+                    check,
+                    0 if check != "shacl.example.invalid-chain" else None,
+                    len(result.messages),
+                    "pass" if passed else "fail",
+                    "; ".join(f"{focus}: {message}" for focus, message in result.messages) or None,
+                ),
+            )
+        run.counts = {
+            "checks": len(results),
+            "passed": sum(1 for *_, passed in results if passed),
+            "chains": sum(1 for check, *_ in results if check.startswith("shacl.chain.")),
+        }
+        return run.counts
 
 
 def invoice_chain_nodes(conn: psycopg.Connection, source_system: str, invoice_id: str) -> list[URIRef]:
