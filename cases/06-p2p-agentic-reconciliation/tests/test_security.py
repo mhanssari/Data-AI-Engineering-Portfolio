@@ -101,7 +101,7 @@ def test_every_table_with_a_company_has_row_security(pipeline, conn):
         """
         select c.relnamespace::regnamespace::text || '.' || c.relname as name
         from pg_class c join pg_attribute a on a.attrelid = c.oid and a.attname = 'company_code' and not a.attisdropped
-        where c.relkind = 'r' and c.relnamespace::regnamespace::text in ('core', 'recon', 'docs', 'agent')
+        where c.relkind = 'r' and c.relnamespace::regnamespace::text in ('core', 'recon', 'docs', 'agent', 'mdm', 'ops')
           and not c.relrowsecurity and c.relname <> 'legal_entity'
         """
     ).fetchall()
