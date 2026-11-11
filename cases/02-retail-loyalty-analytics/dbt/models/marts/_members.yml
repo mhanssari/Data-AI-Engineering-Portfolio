@@ -1,0 +1,175 @@
+models:
+  - name: fct_member_month
+    description: >
+      One row per member per calendar month, from the enrolment month to the as-of month, whether or not the member
+      bought anything (periodic snapshot, dense). Measured on the month's last day, or on the as-of date for the
+      month in progress. Inactivity rate = eligible and not active ÷ eligible (docs/metrics.md).
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "member_id || '@' || cast(month_start_date as varchar)"
+    columns:
+      - name: member_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_member')
+                field: member_id
+      - name: month_start_date
+        data_type: date
+        constraints: [{type: not_null}]
+      - name: measurement_date
+        data_type: date
+        description: The month's last day, or the as-of date for the month in progress.
+      - name: enrolment_month_start_date
+        data_type: date
+        description: The retention cohort; follows corrections to the enrolment date.
+      - name: months_since_enrolment
+        data_type: integer
+      - name: is_complete_month
+        data_type: boolean
+      - name: is_eligible
+        data_type: boolean
+        description: Enrolled at least 90 days before the measurement date. Members who never bought are included.
+      - name: is_active
+        data_type: boolean
+        description: At least one qualifying purchase in the 90 days ending on the measurement date.
+      - name: qualifying_purchase_count
+        data_type: integer
+        description: Qualifying purchases in this month, up to the measurement date.
+      - name: net_sales_amount
+        data_type: decimal(18,2)
+        description: The member's net sales in the month by transaction date, returns included.
+
+  - name: agg_repeat_purchase_cohort
+    description: >
+      One row per first-purchase month: members whose first qualifying purchase fell in it, and how many bought
+      again within 60 days. The rate is null until the cohort is mature (every member's 60 days have passed).
+    columns:
+      - name: cohort_month_start_date
+        data_type: date
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: cohort_member_count
+        data_type: integer
+      - name: window_closed_member_count
+        data_type: integer
+      - name: repeat_member_count
+        data_type: integer
+        description: Members whose window has closed and who made a second qualifying purchase within it.
+      - name: is_mature
+        data_type: boolean
+      - name: repeat_purchase_rate
+        data_type: decimal(9,4)
+        description: Null for an immature cohort, never 0.
+
+  - name: agg_retention_cohort
+    description: >
+      One row per enrolment month and months since enrolment, for closed months only: the share of the cohort
+      active at that month's end. Offsets 0 to 2 are early activity, not retention.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "cast(cohort_month_start_date as varchar) || '+' || cast(months_since_enrolment as varchar)"
+    columns:
+      - name: cohort_month_start_date
+        data_type: date
+        constraints: [{type: not_null}]
+      - name: months_since_enrolment
+        data_type: integer
+        constraints: [{type: not_null}]
+      - name: measured_month_start_date
+        data_type: date
+      - name: cohort_member_count
+        data_type: integer
+      - name: active_member_count
+        data_type: integer
+      - name: retention_rate
+        data_type: decimal(9,4)
+      - name: is_early_activity
+        data_type: boolean
+
+unit_tests:
+  - name: a_fully_returned_purchase_does_not_qualify
+    description: >
+      Purchases count only on or after enrolment and only if something is kept after returns; anonymous sales
+      never count.
+    model: int_member_purchases
+    given:
+      - input: ref('fct_sales_line')
+        rows:
+          - {transaction_id: T1, transaction_type: sale, transaction_at: "2026-01-05 10:00:00", transaction_date: 2026-01-05, member_id: M1, net_amount: 20.00, is_unmatched_return: false}
+          - {transaction_id: T2, transaction_type: sale, transaction_at: "2026-01-10 10:00:00", transaction_date: 2026-01-10, member_id: M1, net_amount: 15.00, is_unmatched_return: false}
+          - {transaction_id: R2, transaction_type: return, transaction_at: "2026-01-12 10:00:00", transaction_date: 2026-01-12, member_id: M1, net_amount: -15.00, original_transaction_id: T2, is_unmatched_return: false}
+          - {transaction_id: T3, transaction_type: sale, transaction_at: "2026-01-20 10:00:00", transaction_date: 2026-01-20, member_id: M1, net_amount: 30.00, is_unmatched_return: false}
+          - {transaction_id: R3, transaction_type: return, transaction_at: "2026-01-21 10:00:00", transaction_date: 2026-01-21, member_id: M1, net_amount: -10.00, original_transaction_id: T3, is_unmatched_return: false}
+          - {transaction_id: T0, transaction_type: sale, transaction_at: "2025-12-30 10:00:00", transaction_date: 2025-12-30, member_id: M1, net_amount: 9.00, is_unmatched_return: false}
+          - {transaction_id: T4, transaction_type: sale, transaction_at: "2026-01-06 10:00:00", transaction_date: 2026-01-06, net_amount: 50.00, is_unmatched_return: false}
+      - input: ref('dim_member')
+        rows:
+          - {member_id: M1, enrolled_date: 2026-01-01}
+    expect:
+      rows:
+        - {transaction_id: T1, net_amount_after_returns: 20.00, purchase_number: 1}
+        - {transaction_id: T3, net_amount_after_returns: 20.00, purchase_number: 2}
+
+  - name: a_repeat_needs_a_later_day_within_60_days
+    description: >
+      Of three members whose first purchase is in March: M1 buys again the same day only (not a repeat), M2 on day 60
+      (a repeat), M3 on day 61 (not a repeat). The as-of date closes March's windows, so the cohort is mature.
+    model: agg_repeat_purchase_cohort
+    given:
+      - input: ref('int_member_purchases')
+        format: sql
+        rows: |
+          select member_id, cast(purchase_date as date) as purchase_date, purchase_number
+          from (values
+              ('M1', '2026-03-10', 1), ('M1', '2026-03-10', 2),
+              ('M2', '2026-03-01', 1), ('M2', '2026-04-30', 2),
+              ('M3', '2026-03-31', 1), ('M3', '2026-05-31', 2)
+          ) as v(member_id, purchase_date, purchase_number)
+      - input: ref('int_as_of_date')
+        format: sql
+        rows: "select cast('2026-05-31' as date) as as_of_date"
+    expect:
+      rows:
+        - {cohort_month_start_date: 2026-03-01, cohort_member_count: 3, repeat_member_count: 1, is_mature: true, repeat_purchase_rate: 0.3333}
+
+  - name: a_member_who_never_bought_becomes_eligible_and_inactive
+    description: >
+      Enrolled 1 January, never bought: not eligible at the end of March (89 days), eligible and inactive at the end
+      of April. A member who bought on 15 February is active until the 90 days run out.
+    model: fct_member_month
+    given:
+      - input: ref('dim_member')
+        rows:
+          - {member_id: M1, enrolled_date: 2026-01-01, enrolment_month_start_date: 2026-01-01}
+          - {member_id: M2, enrolled_date: 2026-01-01, enrolment_month_start_date: 2026-01-01}
+      - input: ref('int_member_purchases')
+        format: sql
+        rows: "select 'M2' as member_id, cast('2026-02-15' as date) as purchase_date"
+      - input: ref('fct_sales_line')
+        rows:
+          - {member_id: M2, transaction_date: 2026-02-15, net_amount: 25.00}
+      - input: ref('int_as_of_date')
+        format: sql
+        rows: "select cast('2026-05-31' as date) as as_of_date"
+      - input: ref('dim_date')
+        format: sql
+        rows: |
+          select cast(d as date) as month_start_date
+          from (values ('2026-01-01'), ('2026-02-01'), ('2026-03-01'), ('2026-04-01'), ('2026-05-01'), ('2026-06-01')) as v(d)
+    expect:
+      rows:
+        - {member_id: M1, month_start_date: 2026-01-01, is_eligible: false, is_active: false, net_sales_amount: 0.00}
+        - {member_id: M1, month_start_date: 2026-02-01, is_eligible: false, is_active: false, net_sales_amount: 0.00}
+        - {member_id: M1, month_start_date: 2026-03-01, is_eligible: false, is_active: false, net_sales_amount: 0.00}
+        - {member_id: M1, month_start_date: 2026-04-01, is_eligible: true, is_active: false, net_sales_amount: 0.00}
+        - {member_id: M1, month_start_date: 2026-05-01, is_eligible: true, is_active: false, net_sales_amount: 0.00}
+        - {member_id: M2, month_start_date: 2026-01-01, is_eligible: false, is_active: false, net_sales_amount: 0.00}
+        - {member_id: M2, month_start_date: 2026-02-01, is_eligible: false, is_active: true, net_sales_amount: 25.00}
+        - {member_id: M2, month_start_date: 2026-03-01, is_eligible: false, is_active: true, net_sales_amount: 0.00}
+        - {member_id: M2, month_start_date: 2026-04-01, is_eligible: true, is_active: true, net_sales_amount: 0.00}
+        - {member_id: M2, month_start_date: 2026-05-01, is_eligible: true, is_active: false, net_sales_amount: 0.00}

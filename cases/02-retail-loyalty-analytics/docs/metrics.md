@@ -47,6 +47,7 @@ The **as-of date** is the latest transaction date loaded unless overridden. "Win
 | Grain | Member per month, measured at month end (`fct_member_month`) |
 | Zero denominator | Blank |
 | Example | Enrolled 1 January, never bought: at 31 March (89 days) not yet eligible; at 30 April eligible and inactive |
+| Implemented | `fct_member_month`: `is_eligible`, `is_active`; qualifying purchases in [int_member_purchases](../dbt/models/intermediate/int_member_purchases.sql) |
 
 ## Repeat-purchase rate
 
@@ -60,6 +61,7 @@ The **as-of date** is the latest transaction date loaded unless overridden. "Win
 | Maturity | A cohort is mature when every member's window has closed. Immature cohorts are reported with a null rate and labelled, never as 0% |
 | Exclusions | Members with no qualifying purchase (they appear in inactivity instead); a second transaction on the same day as the first |
 | Example | First purchase 20 August, as-of date 30 September: the window closes 19 October, so the August cohort is immature |
+| Implemented | `agg_repeat_purchase_cohort.repeat_purchase_rate`, null while `is_mature` is false |
 
 ## Retention by enrolment cohort
 
@@ -70,6 +72,7 @@ The **as-of date** is the latest transaction date loaded unless overridden. "Win
 | Formula | For enrolment month *c* and month offset *k*: members of *c* active at the end of month *c + k* ÷ members of *c* |
 | Completeness | A cell exists only when the end of month *c + k* is on or before the as-of date |
 | Note | The activity window is 90 days, so offsets 0 to 2 measure early activity, not retention. The report starts the curve at offset 3 and says why |
+| Implemented | `agg_retention_cohort.retention_rate`, with `is_early_activity` for offsets 0 to 2 |
 
 ## Redemption rate
 
