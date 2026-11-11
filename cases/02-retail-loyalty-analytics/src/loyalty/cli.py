@@ -1,11 +1,11 @@
-"""Command line: `loyalty generate | load | build | run-all`."""
+"""Command line: `loyalty generate | load | build | export | run-all`."""
 
 import argparse
 import sys
 from pathlib import Path
 
-from loyalty import generator, loader, transform
-from loyalty.config import BATCH_WINDOWS, SEED, data_dir, warehouse_path
+from loyalty import export, generator, loader, transform
+from loyalty.config import BATCH_WINDOWS, SEED, data_dir, export_dir, warehouse_path
 
 
 def _load_batches(batches: list[int], data: Path, warehouse: Path) -> None:
@@ -41,6 +41,12 @@ def _build(args: argparse.Namespace) -> int:
     return 0
 
 
+def _export(args: argparse.Namespace) -> int:
+    written = export.export_marts(args.warehouse, args.out)
+    print(f"wrote {len(written)} Parquet files to {args.out}", flush=True)
+    return 0
+
+
 def _run_all(args: argparse.Namespace) -> int:
     """Generate, then load and build one batch at a time, so the snapshot sees each batch's state in order."""
     if args.warehouse.exists():
@@ -51,7 +57,7 @@ def _run_all(args: argparse.Namespace) -> int:
         _load_batches([batch], args.data, args.warehouse)
         transform.run_dbt(["source", "freshness"], args.warehouse)
         transform.run_dbt(["build"], args.warehouse)
-    return 0
+    return _export(args)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -75,12 +81,19 @@ def main(argv: list[str] | None = None) -> int:
     build = add("build", "dbt build: models, snapshot and tests", _build)
     build.add_argument("--warehouse", type=Path, default=warehouse_path())
 
+    exp = add("export", "write the marts and the data-quality history to Parquet for Power BI", _export)
+    exp.add_argument("--warehouse", type=Path, default=warehouse_path())
+    exp.add_argument("--out", type=Path, default=export_dir())
+
     run_all = add(
-        "run-all", "from an empty warehouse: generate, then load and build each batch in order", _run_all
+        "run-all",
+        "from an empty warehouse: generate, load and build each batch in order, then export",
+        _run_all,
     )
     run_all.add_argument("--seed", type=int, default=SEED)
     run_all.add_argument("--data", type=Path, default=data_dir())
     run_all.add_argument("--warehouse", type=Path, default=warehouse_path())
+    run_all.add_argument("--out", type=Path, default=export_dir())
 
     args = parser.parse_args(argv)
     try:

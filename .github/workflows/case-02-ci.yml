@@ -1,0 +1,81 @@
+# Case 02 only. No secrets: the warehouse is a DuckDB file created inside the job.
+name: Case 02 CI
+
+on:
+  push:
+    paths:
+      - "cases/02-retail-loyalty-analytics/**"
+      - ".github/workflows/case-02-ci.yml"
+  pull_request:
+    paths:
+      - "cases/02-retail-loyalty-analytics/**"
+      - ".github/workflows/case-02-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: case-02-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: cases/02-retail-loyalty-analytics
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.7"
+          enable-cache: true
+          cache-dependency-glob: cases/02-retail-loyalty-analytics/uv.lock
+
+      - name: Install locked dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: dbt parses with deprecations treated as errors (decision 0004)
+        run: |
+          cp dbt/profiles.example.yml dbt/profiles.yml
+          uv run dbt parse --project-dir dbt --profiles-dir dbt --no-partial-parse \
+            --warn-error-options '{"error": ["Deprecations"]}'
+
+      - name: Full pipeline from an empty warehouse
+        run: uv run loyalty run-all
+
+      - name: All tests
+        run: uv run pytest -q
+
+      - name: Data-quality history as a job artefact
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: case-02-dq-test-result
+          path: cases/02-retail-loyalty-analytics/exports/dq_test_result.parquet
+          if-no-files-found: ignore
+
+  container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: cases/02-retail-loyalty-analytics
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The image builds and its CLI starts (decision 0005)
+        run: |
+          docker build -t retail-loyalty:ci .
+          docker run --rm retail-loyalty:ci --help

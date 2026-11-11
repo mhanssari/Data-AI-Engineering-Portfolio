@@ -9,7 +9,7 @@ dbt Core 1.12 on DuckDB ([decision 0004](../docs/decisions/0004-dbt-core-v1.md))
 | [models/marts](models/marts) | Dimensions (date, store versions, product with inferred rows, member) sales facts (`fct_sales_line`, incremental; `fct_transaction`) loyalty facts (`fct_loyalty_event`, `fct_reward_entitlement`), `fct_member_month`, and the cohort aggregates (`agg_repeat_purchase_cohort`, `agg_retention_cohort`). Contracts enforced; dbt unit tests in the YAML |
 | [snapshots](snapshots) | `snp_member`: what was reported before a member was corrected ([decision 0002](../docs/decisions/0002-history-strategy.md)) |
 | [tests](tests) | Singular tests, one per business invariant, named `assert_<what must be true>` |
-| [macros](macros) | `generate_schema_name` (schemas named as configured); `iso_day_of_week`, dispatched per adapter because engines spell it differently |
+| [macros](macros) | `generate_schema_name` (schemas named as configured); `iso_day_of_week`, dispatched per adapter because engines spell it differently; `record_test_results`, the `on-run-end` hook that appends every test result to `audit.dq_test_result` |
 
 Schemas in the warehouse: `raw` (loader), `staging`, `marts`, `snapshots`, and `audit`, where every failing test stores its failing rows.
 

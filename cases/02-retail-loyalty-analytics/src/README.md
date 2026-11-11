@@ -9,4 +9,5 @@ The `loyalty` package: everything outside dbt.
 | [generator.py](loyalty/generator.py) | Seeded simulation of the period, cut into two batch extracts |
 | [loader.py](loyalty/loader.py) | Validated, ordered, all-or-nothing, append-only landing into `raw` |
 | [transform.py](loyalty/transform.py) | Runs dbt in its own process against a given warehouse file |
-| [cli.py](loyalty/cli.py) | `loyalty generate`, `load`, `build`, `run-all` |
+| [export.py](loyalty/export.py) | Every mart and the test history to Parquet for Power BI |
+| [cli.py](loyalty/cli.py) | `loyalty generate`, `load`, `build`, `export`, `run-all` |

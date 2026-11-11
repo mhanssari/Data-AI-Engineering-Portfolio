@@ -1,6 +1,6 @@
 # Retail loyalty and customer analytics
 
-**Status: building.** Design agreed. Working and tested: the seeded generator, the append-only loader, dbt staging with source freshness, the member snapshot, the four dimensions, the sales facts (the incremental one proven equal to a full refresh), the loyalty facts with reward status resolved from the event log, and the member-month and cohort marts, with all ten business invariants tested. Not built yet: CI, Airflow, the Parquet export and the Power BI report.
+**Status: building.** Design agreed. Working and tested: the seeded generator, the append-only loader, dbt staging with source freshness, the member snapshot, the four dimensions, the sales facts (the incremental one proven equal to a full refresh), the loyalty facts with reward status resolved from the event log, the member-month and cohort marts with all ten business invariants tested, a recorded history of every test result, and the Parquet export. CI is written and linted but has not yet run on GitHub. Not built yet: Airflow and the Power BI report.
 
 A fictional retailer's marketing, store and finance teams count active customers, members and redemptions differently. This case builds one warehouse whose definitions make those numbers agree, and stay agreed when returns and corrections arrive late.
 
@@ -22,7 +22,7 @@ From this folder. Either way, versions come from `uv.lock`: Python 3.12, dbt-cor
 
 ```powershell
 docker compose build
-docker compose run --rm loyalty run-all                    # generate, then per batch: load, freshness, dbt build
+docker compose run --rm loyalty run-all                    # generate; per batch: load, freshness, dbt build; export
 docker compose run --rm --entrypoint pytest loyalty -q
 docker compose run --rm --entrypoint dbt loyalty build --project-dir dbt --profiles-dir dbt   # any dbt command
 ```
@@ -35,6 +35,6 @@ uv run loyalty run-all
 uv run pytest
 ```
 
-`run-all` starts from an empty warehouse and takes under a minute. Single steps: `loyalty generate`, `loyalty load [--batch 1|2|all]`, `loyalty build`. The build covers every model in the [data model](docs/data-model.md) except `agg_data_quality_run`, with their tests.
+`run-all` starts from an empty warehouse and takes about a minute. Single steps: `loyalty generate`, `loyalty load [--batch 1|2|all]`, `loyalty build`, `loyalty export`. The export writes every mart and the test history to `exports/*.parquet`, which Power BI reads. CI: [case-02-ci.yml](../../.github/workflows/case-02-ci.yml).
 
 [Return to portfolio](../../README.md).

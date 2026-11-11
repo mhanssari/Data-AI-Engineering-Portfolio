@@ -16,7 +16,7 @@ The design question: **which definitions and model grains make these numbers agr
 
 ## Scope
 
-**In scope:** a seeded generator for two batches of source extracts; an append-only load into a local warehouse; dbt staging, intermediate and mart models; one incremental fact; one history dimension built from source history; one dbt snapshot of what the warehouse knew; cohort, retention and redemption marts; data quality through source freshness, enforced model contracts, schema, unit and business-rule tests with stored failures; incremental against full-refresh parity; CI; an opt-in Airflow DAG that runs the same steps per batch; a Power BI report of two pages over the marts.
+**In scope:** a seeded generator for two batches of source extracts; an append-only load into a local warehouse; dbt staging, intermediate and mart models; one incremental fact; one history dimension built from source history; one dbt snapshot of what the warehouse knew; cohort, retention and redemption marts; data quality through source freshness, enforced model contracts, schema, unit and business-rule tests with stored failures and a recorded history of every result; incremental against full-refresh parity; CI; an opt-in Airflow DAG that runs the same steps per batch; a Power BI report of two pages over the marts.
 
 **Out of scope:** campaign attribution, marketing activation, predictive churn, points-balance accounting, personal data of any kind, multiple currencies, a live Snowflake deployment (an opt-in target only, see [decision 0001](decisions/0001-warehouse-target.md)).
 
@@ -39,7 +39,7 @@ Each line becomes a test or a recorded check. Details of the planted defects are
 | A11 | A breaking change fails CI before merge | Enforced contracts on marts; demonstrated once in the PR history |
 | A12 | A corrected member keeps the value reported before the correction | `snp_member` holds both versions after batch 2 |
 | A13 | A stale extract is reported, not silently used | Source freshness warns and errors against set thresholds |
-| A14 | Every failing test leaves its failing rows for inspection | `store_failures` audit schema and `agg_data_quality_run` |
+| A14 | Every failing test leaves its failing rows for inspection | `store_failures` audit schema and the `audit.dq_test_result` history |
 | A15 | The Airflow DAG reproduces the default path, and rerunning one batch interval changes nothing | Recorded run in `evidence/`; marts compared with the CLI run |
 
 ## Invariants

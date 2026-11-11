@@ -114,7 +114,7 @@ Agreed before any SQL. Every mart's dbt description repeats its grain in the fir
 | `agg_repeat_purchase_cohort` | Month of a member's first purchase | `cohort_month` | Aggregate |
 | `agg_retention_cohort` | Enrolment month and months since enrolment | `cohort_month`, `months_since_enrolment` | Aggregate |
 | `snp_member` | Member per version as known to the warehouse, from one snapshot run to the next | `dbt_scd_id` | dbt snapshot, `timestamp` strategy on `updated_at` |
-| `agg_data_quality_run` | dbt invocation and test | `invocation_id`, `test_name` | Audit, from stored test failures |
+| `audit.dq_test_result` | dbt invocation and test | `invocation_id`, `unique_id` | Append-only audit table written by an `on-run-end` hook, not a model: a test's result exists only after the run that would build the model has finished. Failing rows are in the table named by `failures_relation` |
 
 ### Why these grains
 

@@ -84,5 +84,9 @@ def data_dir() -> Path:
     return Path(os.environ.get("LOYALTY_DATA_DIR", CASE_ROOT / "data" / "generated"))
 
 
+def export_dir() -> Path:
+    return Path(os.environ.get("LOYALTY_EXPORT_DIR", CASE_ROOT / "exports"))
+
+
 def warehouse_path() -> Path:
     return Path(os.environ.get("LOYALTY_WAREHOUSE", CASE_ROOT / "warehouse" / "loyalty.duckdb"))

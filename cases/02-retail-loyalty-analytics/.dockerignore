@@ -1,5 +1,6 @@
 .venv/
 warehouse/
+exports/
 data/generated/
 dbt/target/
 dbt/logs/

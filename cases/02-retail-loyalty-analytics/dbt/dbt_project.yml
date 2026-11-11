@@ -12,6 +12,10 @@ flags:
   # No usage telemetry from anyone's clone of a portfolio project.
   send_anonymous_usage_stats: false
 
+on-run-end:
+  - "{{ dq_test_result_ddl() }}"
+  - "{{ record_test_results(results) }}"
+
 vars:
   # The calendar covers the observation period. The as-of date is the latest transaction loaded unless this
   # variable is set, e.g. --vars '{as_of_date: 2026-09-16}'.
