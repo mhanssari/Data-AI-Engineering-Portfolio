@@ -12,7 +12,7 @@ Independent case studies in data engineering, analytics engineering and BI, each
 | --- | --- | --- |
 | [06 Agentic procure-to-pay reconciliation](cases/06-p2p-agentic-reconciliation/README.md) | PostgreSQL + pgvector, Neo4j, OWL/SKOS/SHACL ontology, LangGraph, Streamlit, Python, SQL | Built and tested locally, with an offline provider; no live model evaluated |
 | [01 Supply chain inventory and demand](cases/01-supply-chain-fabric/README.md) | Fabric, SQL, Python/PySpark, Power BI | Planned |
-| [02 Retail loyalty and customer analytics](cases/02-loyalty-dbt-snowflake/README.md) | Snowflake, dbt, SQL, Python, Power BI | Planned |
+| [02 Retail loyalty and customer analytics](cases/02-retail-loyalty-analytics/README.md) | dbt-core, DuckDB (Snowflake opt-in), SQL, Python, Power BI | Designed; build in progress |
 | [03 Payment monitoring and settlement reconciliation](cases/03-payments-streaming/README.md) | Kafka, Python, Spark, PostgreSQL, Airflow | Planned |
 | [04 Product hierarchy and master data quality](cases/04-bom-master-data/README.md) | Fabric or Databricks, PySpark, SQL | Planned |
 | [05 Warehouse modernisation and SQL performance](cases/05-modernisation-performance/README.md) | PostgreSQL, Fabric or Snowflake | Planned |
