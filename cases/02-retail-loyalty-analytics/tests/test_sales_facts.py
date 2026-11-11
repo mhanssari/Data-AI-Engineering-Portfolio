@@ -8,6 +8,7 @@ import pytest
 from conftest import query
 
 from loyalty import transform
+from loyalty.compare import differences as _differences
 
 FACTS = ("fct_sales_line", "fct_transaction")
 
@@ -18,31 +19,6 @@ def _copy(warehouse: Path, folder: Path) -> Path:
     target = folder / "loyalty.duckdb"
     shutil.copy(warehouse, target)
     return target
-
-
-def _differences(left: Path, right: Path, table: str) -> int:
-    """Rows in one table but not the other, both ways, ignoring which dbt run wrote them."""
-    con = duckdb.connect()
-    try:
-        con.execute(f"attach '{left.as_posix()}' as a (read_only)")
-        con.execute(f"attach '{right.as_posix()}' as b (read_only)")
-        columns = [
-            row[0]
-            for row in con.execute(
-                "select column_name from information_schema.columns "
-                "where table_catalog = 'a' and table_schema = 'marts' and table_name = ? "
-                "and column_name <> 'built_in_invocation_id' order by ordinal_position",
-                [table],
-            ).fetchall()
-        ]
-        cols = ", ".join(columns)
-        sql = (
-            f"select count(*) from ((select {cols} from a.marts.{table} except all select {cols} from b.marts.{table}) "
-            f"union all (select {cols} from b.marts.{table} except all select {cols} from a.marts.{table}))"
-        )
-        return con.execute(sql).fetchone()[0]
-    finally:
-        con.close()
 
 
 def _full_refresh(warehouse: Path) -> None:

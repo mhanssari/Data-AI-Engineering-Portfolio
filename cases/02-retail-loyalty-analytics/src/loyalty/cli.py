@@ -1,10 +1,10 @@
-"""Command line: `loyalty generate | load | build | export | run-all`."""
+"""Command line: `loyalty generate | load | freshness | build | export | run-all | compare`."""
 
 import argparse
 import sys
 from pathlib import Path
 
-from loyalty import export, generator, loader, transform
+from loyalty import compare, export, generator, loader, transform
 from loyalty.config import BATCH_WINDOWS, SEED, data_dir, export_dir, warehouse_path
 
 
@@ -25,8 +25,12 @@ def _load_batches(batches: list[int], data: Path, warehouse: Path) -> None:
 
 
 def _generate(args: argparse.Namespace) -> int:
+    present = all((args.out / f"batch_{b}" / "manifest.json").exists() for b in BATCH_WINDOWS)
+    if args.if_missing and present:
+        print(f"extracts already present in {args.out}; nothing written", flush=True)
+        return 0
     for manifest in generator.generate(args.out, args.seed):
-        print(f"wrote {manifest.parent}")
+        print(f"wrote {manifest.parent}", flush=True)
     return 0
 
 
@@ -37,8 +41,22 @@ def _load(args: argparse.Namespace) -> int:
 
 
 def _build(args: argparse.Namespace) -> int:
-    transform.run_dbt(["build"], args.warehouse)
+    select = ["--select", *args.select] if args.select else []
+    indirect = ["--indirect-selection", args.indirect_selection] if args.indirect_selection else []
+    transform.run_dbt(["build", *select, *indirect], args.warehouse)
     return 0
+
+
+def _freshness(args: argparse.Namespace) -> int:
+    transform.run_dbt(["source", "freshness"], args.warehouse)
+    return 0
+
+
+def _compare(args: argparse.Namespace) -> int:
+    result = compare.compare_marts(args.left, args.right)
+    for table, count in result.items():
+        print(f"{table}: {'missing on one side' if count < 0 else f'{count} differing rows'}")
+    return 0 if all(count == 0 for count in result.values()) else 1
 
 
 def _export(args: argparse.Namespace) -> int:
@@ -72,6 +90,9 @@ def main(argv: list[str] | None = None) -> int:
     gen = add("generate", "write both batch extracts from the seeded generator", _generate)
     gen.add_argument("--seed", type=int, default=SEED)
     gen.add_argument("--out", type=Path, default=data_dir())
+    gen.add_argument(
+        "--if-missing", action="store_true", help="do nothing if both batches are already written"
+    )
 
     load = add("load", "land batch extracts in the raw schema", _load)
     load.add_argument("--batch", choices=[*map(str, sorted(BATCH_WINDOWS)), "all"], default="all")
@@ -80,6 +101,15 @@ def main(argv: list[str] | None = None) -> int:
 
     build = add("build", "dbt build: models, snapshot and tests", _build)
     build.add_argument("--warehouse", type=Path, default=warehouse_path())
+    build.add_argument("--select", nargs="+", help="dbt selectors, e.g. path:models/staging path:snapshots")
+    build.add_argument("--indirect-selection", choices=["eager", "cautious", "buildable", "empty"])
+
+    fresh = add("freshness", "dbt source freshness against the warehouse", _freshness)
+    fresh.add_argument("--warehouse", type=Path, default=warehouse_path())
+
+    cmp = add("compare", "compare the marts of two warehouse files row for row", _compare)
+    cmp.add_argument("left", type=Path)
+    cmp.add_argument("right", type=Path)
 
     exp = add("export", "write the marts and the data-quality history to Parquet for Power BI", _export)
     exp.add_argument("--warehouse", type=Path, default=warehouse_path())

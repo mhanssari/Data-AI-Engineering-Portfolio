@@ -1,5 +1,5 @@
 # Evidence
 
-Status: reserved for implementation.
+Recorded runs, with commands, versions and what was not validated. Measured results only.
 
-Actual validation reports, readable screenshots, measured benchmarks and demo links. Record dataset/configuration/versions and separate measured results from targets. No evidence exists yet.
+- [Airflow backfill run](airflow-backfill-run.md): acceptance A15, the DAG against `run-all`, and a rerun that changes nothing.

@@ -44,18 +44,19 @@ A second dbt target, `snowflake`, in `profiles.example.yml`. It is **not built o
 
 ## Opt-in: Airflow
 
-An `orchestration/` folder with its own Docker Compose file and pinned Airflow version. Not needed for the default path, CI or any result in the README except A15.
+An [`orchestration/`](../orchestration/README.md) folder with its own Docker Compose file: Airflow 3.4.0 standalone and a PostgreSQL metadata database. Not needed for the default path, CI or any result in the README except A15. SQLite was tried first and dropped: the scheduler, DAG processor and CLI write at once, and a backfill failed with "database is locked".
 
 ```mermaid
 flowchart LR
   A["generate"] --> B["load batch for the interval"] --> C["dbt source freshness"] --> D["dbt snapshot"] --> E["dbt build: staging"] --> F["dbt build: intermediate and marts"] --> G["export Parquet"]
 ```
 
-- **One run per batch.** Each DAG run's data interval selects one batch, so a backfill over two intervals replays batch 1 then batch 2, in order. Order matters because the snapshot records state as of each run.
+- **One run per batch.** An `EventsTimetable` schedules a run on each delivery date, and the run's logical date selects its batch, so a backfill over September replays batch 1 then batch 2, in order. Order matters because the snapshot records state as of each run.
 - **Rerun safety.** Clearing and rerunning an interval reloads nothing (checksums), the snapshot records no new versions, and the incremental merge rewrites the same rows. A15 checks this.
 - **Tasks call dbt by layer** with `dbt build --select`, so each layer is tested before the next runs. Rendering every model as a task (for example with Cosmos) is left out: another dependency and a noisy graph for about twenty models.
 - **One task at a time,** because DuckDB allows one writer. On Snowflake the marts could run in parallel.
-- **CI** checks that the DAG imports cleanly; it does not start Airflow.
+- **CI** builds the Airflow image and checks that the DAG imports with the agreed shape; it does not start Airflow.
+- **Measured on 11 November 2026** ([verify_a15.sh](../orchestration/verify_a15.sh)): the backfill created two runs and both succeeded, batch 1 then batch 2. All 11 marts equal those of `run-all` built separately. Clearing and rerunning 30 September changed no mart and rewrote no row.
 
 ## Run, data interval and recovery
 

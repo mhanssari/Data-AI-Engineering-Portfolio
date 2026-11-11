@@ -1,0 +1,60 @@
+# Opt-in Airflow for case 02 (decision 0003). From this folder:
+#   docker compose up -d --build        then open http://127.0.0.1:8080
+#   docker compose exec airflow airflow backfill create --dag-id retail_loyalty \
+#       --from-date 2026-09-01 --to-date 2026-10-01 --max-active-runs 1 --reprocess-behavior failed
+#   docker compose down                 (add -v to delete the Airflow state and its warehouse)
+name: retail-loyalty-airflow
+
+services:
+  # Airflow's metadata database. SQLite allows one writer, and the scheduler, DAG processor and CLI write at once:
+  # a backfill failed with "database is locked". No port is published and only this Compose network can reach it,
+  # so it trusts its clients and no password exists to store.
+  metadata-db:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_DB: airflow
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - metadata-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow", "-d", "airflow"]
+      interval: 5s
+      retries: 20
+
+  airflow:
+    build:
+      context: ..
+      dockerfile: orchestration/Dockerfile
+    image: retail-loyalty-airflow:local
+    # Scheduler, DAG processor, API server and triggerer in one container: enough to run and backfill one DAG on a
+    # laptop, and nothing like a production deployment.
+    command: standalone
+    depends_on:
+      metadata-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow@metadata-db/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/loyalty-project/orchestration/dags
+      # Local only, bound to 127.0.0.1: everyone is an admin and there is no password to manage or leak.
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
+      # Airflow's runs use their own data and warehouse, apart from the `loyalty` service's, so the two can be
+      # compared (acceptance A15).
+      LOYALTY_DATA_DIR: /opt/airflow/loyalty/data
+      LOYALTY_WAREHOUSE: /opt/airflow/loyalty/warehouse/loyalty.duckdb
+      LOYALTY_EXPORT_DIR: /opt/airflow/loyalty/exports
+      # dbt's logs and compiled artefacts too, so Airflow never writes into the project folder another
+      # container (or the host) owns.
+      DBT_LOG_PATH: /opt/airflow/loyalty/dbt/logs
+      DBT_TARGET_PATH: /opt/airflow/loyalty/dbt/target
+    volumes:
+      - ..:/opt/loyalty-project
+      - airflow-state:/opt/airflow
+
+volumes:
+  metadata-db:
+  airflow-state:
