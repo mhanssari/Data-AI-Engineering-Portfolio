@@ -1,0 +1,13 @@
+.venv/
+warehouse/
+data/generated/
+dbt/target/
+dbt/logs/
+dbt/profiles.yml
+dbt/.user.yml
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+.env
+CONTEXT.md
+PROGRESS.md

@@ -1,0 +1,20 @@
+# docker compose run --rm loyalty run-all
+# docker compose run --rm --entrypoint pytest loyalty -q
+name: retail-loyalty
+
+services:
+  loyalty:
+    build: .
+    image: retail-loyalty:local
+    environment:
+      # Read by the CLI and by the dbt profile, so dbt run directly finds the same file.
+      LOYALTY_WAREHOUSE: /app/warehouse/loyalty.duckdb
+    volumes:
+      # The project folder, so code edited on the host runs in Linux without a rebuild.
+      - .:/app
+      # The warehouse stays on a Linux volume: DuckDB relies on file locks, which a Windows folder mounted into
+      # the container does not support reliably, and the volume is much faster.
+      - warehouse:/app/warehouse
+
+volumes:
+  warehouse:

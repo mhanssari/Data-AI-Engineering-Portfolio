@@ -16,14 +16,25 @@ Stack: dbt-core on DuckDB by default, with Snowflake as an opt-in target not yet
 
 ## Setup and execution
 
-Needs [uv](https://docs.astral.sh/uv/). From this folder, PowerShell or any shell:
+From this folder. Either way, versions come from `uv.lock`: Python 3.12, dbt-core 1.12.6, dbt-duckdb 1.11.1, DuckDB 1.5.6.
+
+**In a Linux container** (Docker; [decision 0005](docs/decisions/0005-linux-container.md)):
 
 ```powershell
-uv sync                 # Python 3.12, dbt-core 1.12.6, dbt-duckdb 1.11.1, DuckDB 1.5.6, pinned in uv.lock
-uv run loyalty run-all  # from an empty warehouse: generate, then per batch load, freshness, dbt build
+docker compose build
+docker compose run --rm loyalty run-all                    # generate, then per batch: load, freshness, dbt build
+docker compose run --rm --entrypoint pytest loyalty -q
+docker compose run --rm --entrypoint dbt loyalty build --project-dir dbt --profiles-dir dbt   # any dbt command
+```
+
+**Without Docker** (needs [uv](https://docs.astral.sh/uv/)):
+
+```powershell
+uv sync
+uv run loyalty run-all
 uv run pytest
 ```
 
-`run-all` takes about 40 seconds. Single steps: `loyalty generate`, `loyalty load [--batch 1|2|all]`, `loyalty build`. So far the build covers staging, the member snapshot and their tests; marts come next.
+`run-all` starts from an empty warehouse and takes under a minute. Single steps: `loyalty generate`, `loyalty load [--batch 1|2|all]`, `loyalty build`. So far the build covers staging, the member snapshot and their tests; marts come next.
 
 [Return to portfolio](../../README.md).

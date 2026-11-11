@@ -29,6 +29,7 @@ flowchart LR
 | Orchestration | One CLI command running generate, load, snapshot, build and export in order; Airflow opt-in, see below | The default path stays free of Docker; Airflow adds scheduling, per-batch intervals and backfill for those who opt in ([decision 0003](decisions/0003-orchestration.md)) |
 | Data quality | dbt source freshness, enforced contracts on marts, schema tests, unit tests, singular invariant tests with `store_failures` | Freshness catches stale input, contracts catch breaking changes, invariants catch wrong business logic, stored failures show which rows failed |
 | BI | Power BI Desktop, saved as a PBIP project | Text-based semantic model (TMDL) that diffs in Git. Reads Parquet exports, so no driver or credential is involved |
+| Runtime | A Linux image (`Dockerfile`) and Compose service, or local Python with uv; both from `uv.lock` | Development on Windows meets Linux behaviour before CI does; a reviewer without Docker can still run it ([decision 0005](decisions/0005-linux-container.md)) |
 | CI | GitHub Actions, path-filtered to this case | Generate, load, build and test on every pull request |
 
 ## Opt-in: Snowflake
