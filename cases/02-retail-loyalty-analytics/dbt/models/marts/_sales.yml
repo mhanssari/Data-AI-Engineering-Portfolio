@@ -103,8 +103,9 @@ models:
 
   - name: fct_transaction
     description: >
-      One row per till transaction, sale or return, rolled up from fct_sales_line. Use it to count purchases and
-      baskets; amounts equal the sum of the transaction's lines.
+      One row per till transaction, sale or return, rolled up from fct_sales_line, with the loyalty points and
+      redemptions on it. Use it to count purchases and baskets; amounts equal the sum of the transaction's lines,
+      and loyalty events are aggregated before joining, so they never multiply revenue.
     columns:
       - name: transaction_id
         data_type: varchar
@@ -142,6 +143,12 @@ models:
         data_type: varchar
       - name: is_unmatched_return
         data_type: boolean
+      - name: points_earned
+        data_type: integer
+        description: Points earned, bonus and reversed on this transaction, net. Zero for an anonymous one.
+      - name: reward_redemption_count
+        data_type: integer
+        description: Rewards redeemed on this transaction.
 
 unit_tests:
   - name: returns_are_linked_attributed_and_flagged

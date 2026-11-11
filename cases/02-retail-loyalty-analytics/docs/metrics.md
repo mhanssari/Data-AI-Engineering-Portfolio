@@ -17,6 +17,7 @@ The **as-of date** is the latest transaction date loaded unless overridden. "Win
 | Exclusions | None. Unmatched returns are attributed to their return date on both bases |
 | Missing data | A line with an unknown product still counts, under an inferred product |
 | Example | Sale of £50 on 3 March, £20 returned on 10 April: March £50 and April −£20 by transaction date; March £30 and April £0 by attributed date. Both total £30 |
+| Implemented | `fct_sales_line.net_amount`, by `transaction_date` or `attributed_sale_date`; returns linked in [int_sales_lines_with_returns](../dbt/models/intermediate/int_sales_lines_with_returns.sql) |
 
 ## Net sales per trading day
 
@@ -81,6 +82,7 @@ The **as-of date** is the latest transaction date loaded unless overridden. "Win
 | Time basis | Issue month |
 | Exclusions | Open entitlements (not yet expired, not redeemed) and cancelled ones, so a young reward never reads as unused |
 | Status source | The event log wins over the status column when they disagree; disagreements are counted |
+| Implemented | `fct_reward_entitlement`: `is_redeemed` ÷ `is_resolved`; status rules in [int_entitlements_resolved](../dbt/models/intermediate/int_entitlements_resolved.sql) |
 | Zero denominator | Blank |
 | Example | 100 issued in May: 40 redeemed, 35 expired, 20 open, 5 cancelled. Rate = 40 ÷ 75 = 53.3% |
 
