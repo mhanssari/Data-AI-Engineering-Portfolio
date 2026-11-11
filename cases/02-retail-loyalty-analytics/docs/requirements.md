@@ -16,7 +16,7 @@ The design question: **which definitions and model grains make these numbers agr
 
 ## Scope
 
-**In scope:** a seeded generator for two batches of source extracts; an append-only load into a local warehouse; dbt staging, intermediate and mart models; one incremental fact; one history dimension built from source history; cohort, retention and redemption marts; business-rule tests; incremental against full-refresh parity; CI; a Power BI report of two pages over the marts.
+**In scope:** a seeded generator for two batches of source extracts; an append-only load into a local warehouse; dbt staging, intermediate and mart models; one incremental fact; one history dimension built from source history; one dbt snapshot of what the warehouse knew; cohort, retention and redemption marts; data quality through source freshness, enforced model contracts, schema, unit and business-rule tests with stored failures; incremental against full-refresh parity; CI; an opt-in Airflow DAG that runs the same steps per batch; a Power BI report of two pages over the marts.
 
 **Out of scope:** campaign attribution, marketing activation, predictive churn, points-balance accounting, personal data of any kind, multiple currencies, a live Snowflake deployment (an opt-in target only, see [decision 0001](decisions/0001-warehouse-target.md)).
 
@@ -36,7 +36,11 @@ Each line becomes a test or a recorded check. Details of the planted defects are
 | A8 | A product sold before its reference data arrives is kept, then completed | Planted product; inferred row replaced after batch 2 |
 | A9 | Reward status is resolved from the event log when the status column disagrees | Singular test plus planted entitlements |
 | A10 | Dashboard totals reconcile to reference SQL | Recorded comparison in `evidence/` |
-| A11 | A breaking change fails CI before merge | Demonstrated once in the PR history |
+| A11 | A breaking change fails CI before merge | Enforced contracts on marts; demonstrated once in the PR history |
+| A12 | A corrected member keeps the value reported before the correction | `snp_member` holds both versions after batch 2 |
+| A13 | A stale extract is reported, not silently used | Source freshness warns and errors against set thresholds |
+| A14 | Every failing test leaves its failing rows for inspection | `store_failures` audit schema and `agg_data_quality_run` |
+| A15 | The Airflow DAG reproduces the default path, and rerunning one batch interval changes nothing | Recorded run in `evidence/`; marts compared with the CLI run |
 
 ## Invariants
 
@@ -70,6 +74,8 @@ From the portfolio brief, plus this case's items:
 - [ ] Technologies described at the right confidence level
 - [ ] Incremental against full-refresh parity shown after late corrections (A6)
 - [ ] Power BI report: an executive page and a diagnostic page, with documented measures and reconciliation (A10)
+- [ ] Snapshot, freshness, contracts and stored failures demonstrated (A11–A14)
+- [ ] Airflow DAG run recorded, with a backfill over both batches (A15); the default path still needs no Docker
 
 ## What I would do differently at scale
 
@@ -78,4 +84,5 @@ Drafted now, refined at the end.
 - **Incremental boundary:** at millions of lines per day, merge by partition (transaction date) instead of by key over the whole table, and bound the late-arrival window explicitly. The load watermark used here assumes a full table scan is cheap.
 - **Member-month densification** grows with members × months. At scale it becomes an incremental periodic snapshot, appending each closed month and recomputing only the open one.
 - **History:** if the source stopped sending dated store versions, a dbt snapshot over the current-state table would be needed, accepting that it cannot be rebuilt from scratch.
+- **Orchestration:** on a warehouse with concurrent writers, Airflow would run independent marts in parallel and trigger on data arrival (asset-aware scheduling) instead of on a timetable.
 - **Metric layer:** with several BI tools, definitions would move to a semantic layer instead of being repeated in DAX.

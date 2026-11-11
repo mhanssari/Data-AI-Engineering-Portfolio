@@ -10,9 +10,12 @@ flowchart LR
   F --> L["Loader: append-only raw, checksum per file"]
   L --> RAW["raw schema"]
   RAW --> STG["staging: views, dedupe"]
+  RAW -. "freshness" .-> T
+  STG --> SNP["snapshot: snp_member"]
   STG --> INT["intermediate: ephemeral logic"]
-  INT --> MART["marts: dims, facts, aggregates"]
+  INT --> MART["marts: dims, facts, aggregates, contracts enforced"]
   MART --> T["dbt tests: schema, unit, invariants"]
+  T --> DQ["audit schema: stored failures"]
   MART --> X["Parquet export of marts"]
   X --> PBI["Power BI report (PBIP)"]
 ```
@@ -23,7 +26,8 @@ flowchart LR
 | Loader | Python and DuckDB | Shows append-only landing with batch metadata and idempotent reloads, which reading files directly as dbt sources would hide |
 | Warehouse | DuckDB file in the case folder | Runs in-process with no account, so a reviewer and CI run exactly what is documented ([decision 0001](decisions/0001-warehouse-target.md)) |
 | Transformation | dbt-core with dbt-duckdb | Layered models, documentation, schema tests, unit tests and incremental materialisation |
-| Orchestration | One CLI command running generate, load, build and export in order | A linear four-step job does not need a scheduler. Airflow would add a service and teach nothing here |
+| Orchestration | One CLI command running generate, load, snapshot, build and export in order; Airflow opt-in, see below | The default path stays free of Docker; Airflow adds scheduling, per-batch intervals and backfill for those who opt in ([decision 0003](decisions/0003-orchestration.md)) |
+| Data quality | dbt source freshness, enforced contracts on marts, schema tests, unit tests, singular invariant tests with `store_failures` | Freshness catches stale input, contracts catch breaking changes, invariants catch wrong business logic, stored failures show which rows failed |
 | BI | Power BI Desktop, saved as a PBIP project | Text-based semantic model (TMDL) that diffs in Git. Reads Parquet exports, so no driver or credential is involved |
 | CI | GitHub Actions, path-filtered to this case | Generate, load, build and test on every pull request |
 
@@ -34,6 +38,21 @@ A second dbt target, `snowflake`, in `profiles.example.yml`. It is **not built o
 - **What changes:** the profile, and a loader path that stages the extracts and runs `COPY INTO`. Models stay the same.
 - **Portability:** models use dbt's cross-database macros (`dbt.dateadd`, `dbt.datediff`, `dbt.date_trunc`, `dbt.date_spine`). Each is dispatched: dbt looks for `snowflake__datediff`, then `duckdb__datediff`, then `default__datediff`, and the adapter packages supply the right SQL. Where this case needs SQL that differs by engine and dbt has no macro, it adds its own `adapter.dispatch` macro with a `default__` and a `duckdb__` or `snowflake__` implementation, instead of branching on `target.type` inside a model.
 - **Credentials:** read from environment variables, never written to a file in the repository.
+
+## Opt-in: Airflow
+
+An `orchestration/` folder with its own Docker Compose file and pinned Airflow version. Not needed for the default path, CI or any result in the README except A15.
+
+```mermaid
+flowchart LR
+  A["generate"] --> B["load batch for the interval"] --> C["dbt source freshness"] --> D["dbt snapshot"] --> E["dbt build: staging"] --> F["dbt build: intermediate and marts"] --> G["export Parquet"]
+```
+
+- **One run per batch.** Each DAG run's data interval selects one batch, so a backfill over two intervals replays batch 1 then batch 2, in order. Order matters because the snapshot records state as of each run.
+- **Rerun safety.** Clearing and rerunning an interval reloads nothing (checksums), the snapshot records no new versions, and the incremental merge rewrites the same rows. A15 checks this.
+- **Tasks call dbt by layer** with `dbt build --select`, so each layer is tested before the next runs. Rendering every model as a task (for example with Cosmos) is left out: another dependency and a noisy graph for about twenty models.
+- **One task at a time,** because DuckDB allows one writer. On Snowflake the marts could run in parallel.
+- **CI** checks that the DAG imports cleanly; it does not start Airflow.
 
 ## Run, data interval and recovery
 

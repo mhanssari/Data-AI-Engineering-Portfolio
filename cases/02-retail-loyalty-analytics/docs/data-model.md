@@ -65,6 +65,9 @@ flowchart LR
     I3[int_member_purchases]
     I4[int_entitlements_resolved]
   end
+  subgraph snapshots
+    P1[snp_member]
+  end
   subgraph marts
     D1[dim_date]
     D2[dim_store]
@@ -84,13 +87,14 @@ flowchart LR
   I1 --> F1
   F1 --> D3
   S3 --> D4
+  S3 --> P1
   F2 --> I3 --> F5 & A1
   S3 --> F5 --> A2
   S6 --> F3
   S7 & S6 --> I4 --> F4
 ```
 
-Staging models are views: one per source table, renaming, casting and deduplicating, with no joins. Intermediate models are ephemeral and hold the business logic. Marts are tables, except `fct_sales_line`, which is incremental.
+Staging models are views: one per source table, renaming, casting and deduplicating, with no joins. Intermediate models are ephemeral and hold the business logic. Marts are tables, except `fct_sales_line`, which is incremental. `snp_member` is a dbt snapshot, run after each batch is loaded.
 
 ## Mart grain
 
@@ -109,6 +113,8 @@ Agreed before any SQL. Every mart's dbt description repeats its grain in the fir
 | `fct_member_month` | Member per calendar month, from the enrolment month to the as-of month | `member_id`, `month_start_date` | Periodic snapshot, dense |
 | `agg_repeat_purchase_cohort` | Month of a member's first purchase | `cohort_month` | Aggregate |
 | `agg_retention_cohort` | Enrolment month and months since enrolment | `cohort_month`, `months_since_enrolment` | Aggregate |
+| `snp_member` | Member per version as known to the warehouse, from one snapshot run to the next | `dbt_scd_id` | dbt snapshot, `timestamp` strategy on `updated_at` |
+| `agg_data_quality_run` | dbt invocation and test | `invocation_id`, `test_name` | Audit, from stored test failures |
 
 ### Why these grains
 
@@ -119,8 +125,11 @@ Agreed before any SQL. Every mart's dbt description repeats its grain in the fir
 
 ## History and late data
 
-- **Stores:** the source sends each attribute version with the date it took effect, and raw keeps every delivery, so `dim_store` is rebuilt from raw on every run. A dbt snapshot is not used: it records changes only when it runs, and could not be rebuilt from a clean clone. Facts look up the version in force on the transaction date.
-- **Members and transactions:** re-delivered rows carry a later `updated_at`; staging keeps the latest per key. Corrections are type 1: the mart shows the corrected value everywhere.
+Two kinds of history, deliberately kept apart ([decision 0002](decisions/0002-history-strategy.md)):
+
+- **Stores, business history:** the source sends each attribute version with the date it took effect, and raw keeps every delivery, so `dim_store` is rebuilt from raw on every run. Facts look up the version in force on the transaction date. A snapshot is not used here, because a snapshot records changes only when it runs and could not reproduce versions dated before the first run.
+- **Members, what the warehouse knew:** members arrive as latest state, and a correction overwrites the earlier value. `dim_member` is type 1, so reports always use the corrected value. `snp_member` records each state as it was known after each batch, which answers "what did we report before the correction?". It is the right tool here because the source does not keep that history. Its limitation is stated in the README: it holds only the states that existed when it ran, so a clean clone rebuilds it by replaying the batches in order.
+- **Transactions:** re-delivered rows carry a later `updated_at`; staging keeps the latest per key.
 - **Products:** a line whose product is unknown gets an inferred `dim_product` row (`is_inferred = true`, name "Unknown product <id>"). When the reference row arrives, the next build replaces it, and the facts need no change because they hold the business key.
 - **Incremental fact:** `fct_sales_line` processes the transactions loaded since its last build, by load time, not by transaction date, so a late row is caught whatever date it carries. It merges on `sales_line_id`. A correction to a transaction header rewrites that transaction's lines. Parity with a full refresh is tested after batch 2.
 
