@@ -6,27 +6,27 @@ Status: agreed design, 11 November 2026. No models exist yet.
 
 All synthetic, written by a seeded generator as CSV extracts in two batches. Source names are generic: `pos` for the tills, `loyalty` for the programme, `reference` for master data.
 
-| Source table | Grain | Business key | Change pattern | Approximate rows |
+| Source table | Grain | Business key | Change pattern | Rows, batch 1 + batch 2 |
 | --- | --- | --- | --- | --- |
-| `reference.stores` | One row per store per attribute version | `store_id`, `updated_at` | Each version delivered with the date it took effect | 12 stores, about 16 versions |
-| `reference.products` | One row per product | `product_id` | Current state; some products arrive late | 60 |
-| `loyalty.members` | One row per member, latest state | `member_id` | Re-delivered with a later `updated_at` when corrected | 6,000 |
-| `pos.transactions` | One row per till transaction (sale or return) | `transaction_id` | Re-delivered with a later `updated_at` when corrected | 45,000 |
-| `pos.transaction_lines` | One row per line of a transaction | `transaction_id`, `line_number` | Delivered with its transaction | 110,000 |
-| `loyalty.events` | One row per programme event | `event_id` | Append-only; duplicates happen | 75,000 |
-| `loyalty.reward_entitlements` | One row per reward issued to a member, latest state | `entitlement_id` | Re-delivered when the status changes | 9,000 |
+| `reference.stores` | One row per store per attribute version | `store_id`, `effective_from_date` | Full extract each batch; each version carries the date it took effect | 14 + 15 (12 stores, 15 versions) |
+| `reference.products` | One row per product | `product_id` | Full extract each batch; one product arrives late | 60 + 61 |
+| `loyalty.members` | One row per member, latest state | `member_id` | Batch 1 full; later batches send new and corrected members | 5,905 + 102 |
+| `pos.transactions` | One row per till transaction (sale or return) | `transaction_id` | Re-delivered with a later `updated_at` when corrected | 53,487 + 1,291 |
+| `pos.transaction_lines` | One row per line of a transaction | `transaction_id`, `line_number` | Delivered with its transaction | 115,565 + 2,813 |
+| `loyalty.events` | One row per programme event | `event_id` | Append-only; duplicates happen | 53,815 + 1,225 |
+| `loyalty.reward_entitlements` | One row per reward issued to a member, latest state | `entitlement_id` | Batch 1 full; later batches send entitlements issued or changed | 14,474 + 391 |
 
-Row counts are targets for the generator, to be replaced by measured counts.
+Measured from seed 2602 on 11 November 2026, including the planted duplicates.
 
 **Observation period:** 1 October 2024 to 30 September 2026. **Batch 1** holds everything up to 16 September 2026. **Batch 2** holds the last fortnight plus the late material listed below. The as-of date is the latest transaction date loaded; a dbt variable can override it.
 
 ## Raw layer
 
-A Python loader appends each extract to a `raw` table with `_batch_id`, `_source_file`, `_file_checksum` and `_loaded_at`. Raw is append-only. A file whose checksum is already loaded is skipped, so loading the same batch twice lands nothing. Staging deduplicates; raw keeps every delivery as evidence.
+A Python loader ([loader.py](../src/loyalty/loader.py)) appends each extract to a `raw` table, every value as delivered text, plus `_load_id`, `_batch_id`, `_source_file`, `_file_checksum` and `_loaded_at`. `_load_id` rises with every file loaded, and is the incremental watermark: it does not depend on a clock. Before writing, each file is checked against its manifest (checksum, row count) and against the column contract in [config.py](../src/loyalty/config.py); then the whole batch lands in one transaction. A file whose checksum is already in `raw._load_log` is skipped, so loading the same batch twice lands nothing. Batches must arrive in order. Staging deduplicates; raw keeps every delivery as evidence.
 
 ## Planted defects
 
-The generator plants each defect on named records with an expected outcome, as case 06 did, so a test can assert the exact result. The background population is generated cleanly, so any other anomaly is a defect in the models.
+The generator plants each defect on named records with an expected outcome, so a test can assert the exact result. The records and expectations are declared once, in [scenarios.py](../src/loyalty/scenarios.py). Planted records have their own id ranges and receive only the records listed there. The background population is generated cleanly, and [tests](../tests/test_generator.py) check that it is, so any other anomaly is a defect in the models.
 
 | # | Defect | Why it is realistic | Expected handling | Caught by |
 | --- | --- | --- | --- | --- |

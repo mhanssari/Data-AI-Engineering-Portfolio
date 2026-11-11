@@ -1,5 +1,3 @@
-# Data Samples
+# Samples
 
-Status: reserved for implementation.
-
-Small deterministic synthetic fixtures and expected outcomes belong here. No sample data has been generated yet. Keep provenance and generation details in the parent data README.
+Empty by design. The generator recreates the full data in seconds, so no sample extracts are committed.

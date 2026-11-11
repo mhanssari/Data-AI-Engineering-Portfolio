@@ -56,7 +56,7 @@ flowchart LR
 
 ## Run, data interval and recovery
 
-Each load records the batch, files, checksums, row counts and load time in `raw._load_log`. dbt's run results are kept per build as evidence. A failed load leaves no partial batch: each file loads in one transaction. A failed build leaves the previous marts in place, and rerunning is safe because raw is append-only and the incremental fact merges on its key.
+Each load records the batch, files, checksums, row counts and load time in `raw._load_log`. dbt's run results are kept per build as evidence. A failed load leaves no partial batch: every file is validated first, then the whole batch loads in one transaction. A failed build leaves the previous marts in place, and rerunning is safe because raw is append-only and the incremental fact merges on its key.
 
 ## Production design, not built
 

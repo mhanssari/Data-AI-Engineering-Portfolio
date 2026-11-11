@@ -1,5 +1,11 @@
-# Src
+# Source code
 
-Status: reserved for implementation.
+The `loyalty` package: everything outside dbt.
 
-Reusable Python/PySpark modules for extraction, transformation and validation. Keep business logic testable and document inputs and outputs. No implementation exists yet.
+| Module | Purpose |
+| --- | --- |
+| [config.py](loyalty/config.py) | Paths, the observation period, batch windows, and the column contract for each extract |
+| [scenarios.py](loyalty/scenarios.py) | Planted defects D1–D15: records and expected outcomes |
+| [generator.py](loyalty/generator.py) | Seeded simulation of the period, cut into two batch extracts |
+| [loader.py](loyalty/loader.py) | Validated, ordered, all-or-nothing, append-only landing into `raw` |
+| [cli.py](loyalty/cli.py) | `loyalty generate`, `loyalty load` |

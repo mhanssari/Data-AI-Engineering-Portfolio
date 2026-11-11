@@ -1,7 +1,13 @@
-# Data sources and fixtures
+# Data
 
-No dataset is bundled yet. Start with independent synthetic fixtures whose expected results can be checked manually.
+All synthetic. Nothing here comes from a real retailer, and no data is committed: `uv run loyalty generate` writes both batches to `data/generated/` (ignored by Git) from seed 2602, byte for byte the same on every run.
 
-For each source record the name, origin URL or generation method, licence, retrieval/generation date, schema, grain, seed/version, included defects and expected results. Do not copy employer data or third-party exercise files.
+| | |
+| --- | --- |
+| Generator | [src/loyalty/generator.py](../src/loyalty/generator.py), Python standard library only |
+| Seed | 2602 (`--seed` to change) |
+| Period | 1 October 2024 to 30 September 2026; batch 1 to 16 September, batch 2 the rest plus late material |
+| Files per batch | Seven CSV extracts and a `manifest.json` with row counts and SHA-256 checksums |
+| Planted defects | D1–D15, declared with their expected outcomes in [scenarios.py](../src/loyalty/scenarios.py) and described in the [data model](../docs/data-model.md#planted-defects) |
 
-Commit only small safe samples under samples/. The root .gitignore excludes raw/, generated/ and processed/ under data/. Document how larger local data is reproduced rather than committing it.
+Sources, grain, keys and measured volumes are in the [data model](../docs/data-model.md#sources).
