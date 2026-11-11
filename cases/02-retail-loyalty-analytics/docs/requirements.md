@@ -48,7 +48,7 @@ Each becomes a singular test named `assert_<what_must_be_true>.sql`.
 
 1. Net sales in `fct_sales_line` equal net sales computed independently from deduplicated source lines.
 2. Each transaction's net amount in `fct_transaction` equals the sum of its lines.
-3. Over the observation period, net sales by transaction date equal net sales by attributed sale date, except returns whose original sale is outside the period, which are counted and reported.
+3. The two date bases differ only by moving each matched return to its original sale's date, never later than its own; sales and unmatched returns stay on their own date. Totals over the period are therefore equal on both bases.
 4. No mart that carries an amount totals to more or less than `fct_sales_line` for the same filter.
 5. Store versions for one store never overlap, leave no gaps, and exactly one is current.
 6. Every sales line joins to exactly one store version.

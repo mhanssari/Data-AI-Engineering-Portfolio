@@ -32,7 +32,13 @@ models:
             column_name: "transaction_id || '-' || line_number"
     columns:
       - name: transaction_id
-        data_tests: [not_null]
+        data_tests:
+          - not_null
+          # A line without its header would be dropped by the inner join downstream; fail here instead.
+          - relationships:
+              arguments:
+                to: ref('stg_pos__transactions')
+                field: transaction_id
       - name: line_number
         data_tests: [not_null]
       - name: product_id
