@@ -1,6 +1,6 @@
 # Retail loyalty and customer analytics
 
-**Status: building.** Design agreed; the seeded generator and the append-only loader work and are tested. The dbt models, report and orchestration are not built yet.
+**Status: building.** Design agreed. Working and tested: the seeded generator, the append-only loader, dbt staging with source freshness, and the member snapshot. Not built yet: intermediate and mart models, business-rule tests, CI, Airflow, the Power BI report.
 
 A fictional retailer's marketing, store and finance teams count active customers, members and redemptions differently. This case builds one warehouse whose definitions make those numbers agree, and stay agreed when returns and corrections arrive late.
 
@@ -20,11 +20,10 @@ Needs [uv](https://docs.astral.sh/uv/). From this folder, PowerShell or any shel
 
 ```powershell
 uv sync                 # Python 3.12, dbt-core 1.12.6, dbt-duckdb 1.11.1, DuckDB 1.5.6, pinned in uv.lock
-uv run loyalty generate # both batch extracts into data/generated/
-uv run loyalty load     # land them in warehouse/loyalty.duckdb; running it again lands nothing
+uv run loyalty run-all  # from an empty warehouse: generate, then per batch load, freshness, dbt build
 uv run pytest
 ```
 
-The dbt models come next; there is nothing to build yet.
+`run-all` takes about 40 seconds. Single steps: `loyalty generate`, `loyalty load [--batch 1|2|all]`, `loyalty build`. So far the build covers staging, the member snapshot and their tests; marts come next.
 
 [Return to portfolio](../../README.md).

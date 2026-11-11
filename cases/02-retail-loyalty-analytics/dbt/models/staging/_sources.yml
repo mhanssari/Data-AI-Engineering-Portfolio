@@ -1,0 +1,53 @@
+sources:
+  - name: pos
+    description: Till system extracts, landed as delivered by the loader.
+    schema: raw
+    config:
+      # Freshness is measured on landing time: the question is whether the daily extract arrived, not how old the
+      # sales in it are.
+      loaded_at_field: _loaded_at
+      freshness:
+        warn_after: {count: 26, period: hour}
+        error_after: {count: 50, period: hour}
+    tables:
+      - name: transactions
+        identifier: pos_transactions
+        description: One row per delivery of a till transaction, sale or return. Re-delivered when corrected.
+      - name: transaction_lines
+        identifier: pos_transaction_lines
+        description: One row per delivery of a transaction line. Return lines have negative quantities.
+
+  - name: loyalty
+    description: Loyalty programme extracts.
+    schema: raw
+    config:
+      loaded_at_field: _loaded_at
+      freshness:
+        warn_after: {count: 26, period: hour}
+        error_after: {count: 50, period: hour}
+    tables:
+      - name: members
+        identifier: loyalty_members
+        description: One row per delivery of a member's latest state. Corrections overwrite earlier values.
+      - name: events
+        identifier: loyalty_events
+        description: One row per delivery of a programme event. Delivery is at least once.
+      - name: reward_entitlements
+        identifier: loyalty_reward_entitlements
+        description: One row per delivery of an entitlement's latest state.
+
+  - name: reference
+    description: Master data, sent as a full extract with every batch.
+    schema: raw
+    config:
+      loaded_at_field: _loaded_at
+      freshness:
+        warn_after: {count: 26, period: hour}
+        error_after: {count: 50, period: hour}
+    tables:
+      - name: stores
+        identifier: reference_stores
+        description: One row per delivery of a store attribute version, with the date it took effect.
+      - name: products
+        identifier: reference_products
+        description: One row per delivery of a product.
