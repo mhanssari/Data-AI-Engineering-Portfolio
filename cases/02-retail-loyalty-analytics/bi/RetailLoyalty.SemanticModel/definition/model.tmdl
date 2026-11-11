@@ -1,0 +1,20 @@
+model Model
+	culture: en-GB
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-GB
+	discourageImplicitMeasures
+
+ref table dim_date
+ref table dim_store
+ref table dim_product
+ref table dim_member
+ref table fct_sales_line
+ref table fct_transaction
+ref table fct_reward_entitlement
+ref table fct_member_month
+ref table agg_repeat_purchase_cohort
+ref table agg_retention_cohort
+ref table dq_test_result
+
+ref role 'Region North'
+ref role 'Region London'

@@ -1,0 +1,62 @@
+/// One row per enrolment month and months since enrolment, closed months only.
+table agg_retention_cohort
+
+	column cohort_month_start_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: cohort_month_start_date
+
+	column months_since_enrolment
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: months_since_enrolment
+
+	column measured_month_start_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: measured_month_start_date
+
+	column cohort_member_count
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: cohort_member_count
+
+	column active_member_count
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: active_member_count
+
+	column retention_rate
+		dataType: double
+		formatString: 0.0%
+		summarizeBy: none
+		sourceColumn: retention_rate
+
+	column is_early_activity
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_early_activity
+
+	/// Cohort members active at the end of the month, closed months only. Offsets 0-2 are early activity.
+	measure 'Retention Rate' =
+				DIVIDE (
+				    SUM ( agg_retention_cohort[active_member_count] ),
+				    SUM ( agg_retention_cohort[cohort_member_count] )
+				)
+		formatString: 0.0%
+		displayFolder: Cohorts
+
+	partition agg_retention_cohort = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\agg_retention_cohort.parquet")),
+				    Selected = Table.SelectColumns(Source, {"cohort_month_start_date", "months_since_enrolment", "measured_month_start_date", "cohort_member_count", "active_member_count", "retention_rate", "is_early_activity"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"cohort_month_start_date", type date}, {"months_since_enrolment", Int64.Type}, {"measured_month_start_date", type date}, {"cohort_member_count", Int64.Type}, {"active_member_count", Int64.Type}, {"retention_rate", type number}, {"is_early_activity", type logical}})
+				in
+				    Typed

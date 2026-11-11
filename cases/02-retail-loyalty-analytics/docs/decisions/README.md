@@ -8,7 +8,6 @@
 | [0004](0004-dbt-core-v1.md) | dbt Core v1, kept ready for v2 | Accepted |
 | [0005](0005-linux-container.md) | Run in a Linux container; keep a local path without Docker | Accepted |
 | [0006](0006-incremental-boundary.md) | The incremental boundary of `fct_sales_line` | Accepted |
-
-Decision still to record when the report is built: where metric logic lives between dbt and DAX.
+| [0007](0007-metric-logic-dbt-and-dax.md) | Where metric logic lives: dbt for rules, DAX for aggregation | Accepted |
 
 Copy [the template](TEMPLATE.md) to a numbered descriptive file when a material choice is made. Status values: proposed, accepted or superseded.

@@ -1,0 +1,4 @@
+/// Folder holding the Parquet files written by `loyalty export` (the case's exports/ folder). Change it under
+/// Transform data > Edit parameters; bi/reconcile.ps1 sets it automatically.
+expression ExportFolder = "C:\retail-loyalty\exports" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+

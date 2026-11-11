@@ -1,0 +1,38 @@
+/// One row per product, including inferred rows for products sold before master data sent them.
+table dim_product
+
+	column product_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: product_id
+
+	column product_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: product_name
+
+	column category
+		dataType: string
+		summarizeBy: none
+		sourceColumn: category
+
+	column list_price
+		dataType: decimal
+		formatString: \£#,0.00;-\£#,0.00
+		summarizeBy: none
+		sourceColumn: list_price
+
+	column is_inferred
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_inferred
+
+	partition dim_product = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\dim_product.parquet")),
+				    Selected = Table.SelectColumns(Source, {"product_id", "product_name", "category", "list_price", "is_inferred"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"product_id", type text}, {"product_name", type text}, {"category", type text}, {"list_price", Currency.Type}, {"is_inferred", type logical}})
+				in
+				    Typed

@@ -1,0 +1,61 @@
+/// One row per store attribute version (type 2). Sales relate to the version in force on their date.
+table dim_store
+
+	column store_version_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: store_version_id
+
+	column store_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: store_id
+
+	column store_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: store_name
+
+	column region
+		dataType: string
+		summarizeBy: none
+		sourceColumn: region
+
+	column store_format
+		dataType: string
+		summarizeBy: none
+		sourceColumn: store_format
+
+	column opened_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: opened_date
+
+	column valid_from_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: valid_from_date
+
+	column valid_to_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: valid_to_date
+
+	column is_current
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_current
+
+	partition dim_store = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\dim_store.parquet")),
+				    Selected = Table.SelectColumns(Source, {"store_version_id", "store_id", "store_name", "region", "store_format", "opened_date", "valid_from_date", "valid_to_date", "is_current"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"store_version_id", type text}, {"store_id", type text}, {"store_name", type text}, {"region", type text}, {"store_format", type text}, {"opened_date", type date}, {"valid_from_date", type date}, {"valid_to_date", type date}, {"is_current", type logical}})
+				in
+				    Typed

@@ -1,0 +1,64 @@
+/// One row per calendar date in the observation period. Marked as the model's date table.
+table dim_date
+	dataCategory: Time
+
+	column date_day
+		dataType: dateTime
+		isKey
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: date_day
+
+	column month_start_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: month_start_date
+
+	column year_number
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: year_number
+
+	column month_number
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: month_number
+
+	column iso_day_of_week
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: iso_day_of_week
+
+	column is_weekend
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_weekend
+
+	column is_after_as_of_date
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_after_as_of_date
+
+	column is_complete_month
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_complete_month
+
+	/// The latest transaction date loaded; windows, maturity and partial months are measured against it.
+	measure 'As-of Date' = CALCULATE ( MAX ( dim_date[date_day] ), dim_date[is_after_as_of_date] = FALSE (), ALL ( dim_date ) )
+		formatString: yyyy-mm-dd
+		displayFolder: Freshness
+
+	partition dim_date = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\dim_date.parquet")),
+				    Selected = Table.SelectColumns(Source, {"date_day", "month_start_date", "year_number", "month_number", "iso_day_of_week", "is_weekend", "is_after_as_of_date", "is_complete_month"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"date_day", type date}, {"month_start_date", type date}, {"year_number", Int64.Type}, {"month_number", Int64.Type}, {"iso_day_of_week", Int64.Type}, {"is_weekend", type logical}, {"is_after_as_of_date", type logical}, {"is_complete_month", type logical}})
+				in
+				    Typed

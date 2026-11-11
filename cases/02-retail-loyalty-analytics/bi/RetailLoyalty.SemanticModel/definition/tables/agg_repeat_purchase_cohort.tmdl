@@ -1,0 +1,63 @@
+/// One row per first-purchase month; the rate is blank until the cohort is mature.
+table agg_repeat_purchase_cohort
+
+	column cohort_month_start_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: cohort_month_start_date
+
+	column cohort_member_count
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: cohort_member_count
+
+	column window_closed_member_count
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: window_closed_member_count
+
+	column repeat_member_count
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: repeat_member_count
+
+	column is_mature
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_mature
+
+	column repeat_purchase_rate
+		dataType: double
+		formatString: 0.0%
+		summarizeBy: none
+		sourceColumn: repeat_purchase_rate
+
+	/// Members of mature first-purchase cohorts who bought again within 60 days. Blank if any cohort in the filter is immature, never 0%.
+	measure 'Repeat Purchase Rate' =
+				IF (
+				    CALCULATE (
+				        COUNTROWS ( agg_repeat_purchase_cohort ),
+				        agg_repeat_purchase_cohort[is_mature] = FALSE ()
+				    ) > 0,
+				    BLANK (),
+				    DIVIDE (
+				        SUM ( agg_repeat_purchase_cohort[repeat_member_count] ),
+				        SUM ( agg_repeat_purchase_cohort[cohort_member_count] )
+				    )
+				)
+		formatString: 0.0%
+		displayFolder: Cohorts
+
+	partition agg_repeat_purchase_cohort = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\agg_repeat_purchase_cohort.parquet")),
+				    Selected = Table.SelectColumns(Source, {"cohort_month_start_date", "cohort_member_count", "window_closed_member_count", "repeat_member_count", "is_mature", "repeat_purchase_rate"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"cohort_month_start_date", type date}, {"cohort_member_count", Int64.Type}, {"window_closed_member_count", Int64.Type}, {"repeat_member_count", Int64.Type}, {"is_mature", type logical}, {"repeat_purchase_rate", type number}})
+				in
+				    Typed

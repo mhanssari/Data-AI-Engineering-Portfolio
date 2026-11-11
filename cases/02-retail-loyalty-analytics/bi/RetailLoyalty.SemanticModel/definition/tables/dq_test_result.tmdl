@@ -1,0 +1,87 @@
+/// One row per dbt test per run: the data-quality history.
+table dq_test_result
+
+	column invocation_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: invocation_id
+
+	column run_started_at
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:nn:ss
+		summarizeBy: none
+		sourceColumn: run_started_at
+
+	column unique_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: unique_id
+
+	column test_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: test_name
+
+	column test_kind
+		dataType: string
+		summarizeBy: none
+		sourceColumn: test_kind
+
+	column tested_node
+		dataType: string
+		summarizeBy: none
+		sourceColumn: tested_node
+
+	column status
+		dataType: string
+		summarizeBy: none
+		sourceColumn: status
+
+	column failure_count
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: failure_count
+
+	column failures_relation
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: failures_relation
+
+	column execution_seconds
+		dataType: double
+		formatString: 0.000
+		summarizeBy: none
+		sourceColumn: execution_seconds
+
+	/// dbt tests recorded by the latest run.
+	measure 'Tests in Last Build' =
+				VAR LastRun = MAX ( dq_test_result[run_started_at] )
+				RETURN CALCULATE ( COUNTROWS ( dq_test_result ), dq_test_result[run_started_at] = LastRun )
+		formatString: #,0
+		displayFolder: Data quality
+
+	/// dbt tests that failed or errored in the latest run. 0, not blank, when none did: a data-health tile must say so.
+	measure 'Failed Tests in Last Build' =
+				VAR LastRun = MAX ( dq_test_result[run_started_at] )
+				RETURN
+				    CALCULATE (
+				        COUNTROWS ( dq_test_result ),
+				        dq_test_result[run_started_at] = LastRun,
+				        dq_test_result[status] IN { "fail", "error" }
+				    ) + 0
+		formatString: #,0
+		displayFolder: Data quality
+
+	partition dq_test_result = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\dq_test_result.parquet")),
+				    Selected = Table.SelectColumns(Source, {"invocation_id", "run_started_at", "unique_id", "test_name", "test_kind", "tested_node", "status", "failure_count", "failures_relation", "execution_seconds"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"invocation_id", type text}, {"run_started_at", type datetime}, {"unique_id", type text}, {"test_name", type text}, {"test_kind", type text}, {"tested_node", type text}, {"status", type text}, {"failure_count", Int64.Type}, {"failures_relation", type text}, {"execution_seconds", type number}})
+				in
+				    Typed

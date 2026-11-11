@@ -1,0 +1,5 @@
+# Per-user settings and the local data cache Power BI Desktop writes; the model loads its data from exports/.
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+# ADOMD.NET client downloaded by reconcile.ps1
+.tools/

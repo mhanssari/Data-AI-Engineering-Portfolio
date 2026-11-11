@@ -1,0 +1,143 @@
+/// One row per till transaction, rolled up from its lines, with points and redemptions.
+table fct_transaction
+
+	column transaction_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: transaction_id
+
+	column transaction_type
+		dataType: string
+		summarizeBy: none
+		sourceColumn: transaction_type
+
+	column transaction_at
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:nn:ss
+		summarizeBy: none
+		sourceColumn: transaction_at
+
+	column transaction_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: transaction_date
+
+	column attributed_sale_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: attributed_sale_date
+
+	column store_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: store_id
+
+	column store_version_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: store_version_id
+
+	column member_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: member_id
+
+	column is_member_sale
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_member_sale
+
+	column line_count
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: line_count
+
+	column item_quantity
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: item_quantity
+
+	column gross_amount
+		dataType: decimal
+		formatString: \£#,0.00;-\£#,0.00
+		summarizeBy: sum
+		sourceColumn: gross_amount
+
+	column discount_amount
+		dataType: decimal
+		formatString: \£#,0.00;-\£#,0.00
+		summarizeBy: sum
+		sourceColumn: discount_amount
+
+	column net_amount
+		dataType: decimal
+		formatString: \£#,0.00;-\£#,0.00
+		summarizeBy: sum
+		sourceColumn: net_amount
+
+	column original_transaction_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: original_transaction_id
+
+	column is_unmatched_return
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_unmatched_return
+
+	column points_earned
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: points_earned
+
+	column reward_redemption_count
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: reward_redemption_count
+
+	/// Sale transactions, returns excluded.
+	measure 'Sale Transactions' = CALCULATE ( COUNTROWS ( fct_transaction ), fct_transaction[transaction_type] = "sale" )
+		formatString: #,0
+		displayFolder: Baskets
+
+	/// Net sales over sale transactions.
+	measure 'Average Basket' = DIVIDE ( [Net Sales], [Sale Transactions] )
+		formatString: \£#,0.00;-\£#,0.00
+		displayFolder: Baskets
+
+	/// Average basket of member transactions. Descriptive only.
+	measure 'Average Basket (members)' = DIVIDE ( [Member Net Sales], CALCULATE ( [Sale Transactions], fct_transaction[is_member_sale] = TRUE () ) )
+		formatString: \£#,0.00;-\£#,0.00
+		displayFolder: Baskets
+
+	/// Average basket of anonymous transactions.
+	measure 'Average Basket (anonymous)' =
+				DIVIDE (
+				    CALCULATE ( [Net Sales], fct_sales_line[is_member_sale] = FALSE () ),
+				    CALCULATE ( [Sale Transactions], fct_transaction[is_member_sale] = FALSE () )
+				)
+		formatString: \£#,0.00;-\£#,0.00
+		displayFolder: Baskets
+
+	/// Points earned, bonus and reversed, net.
+	measure 'Points Earned' = SUM ( fct_transaction[points_earned] )
+		formatString: #,0
+		displayFolder: Baskets
+
+	partition fct_transaction = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\fct_transaction.parquet")),
+				    Selected = Table.SelectColumns(Source, {"transaction_id", "transaction_type", "transaction_at", "transaction_date", "attributed_sale_date", "store_id", "store_version_id", "member_id", "is_member_sale", "line_count", "item_quantity", "gross_amount", "discount_amount", "net_amount", "original_transaction_id", "is_unmatched_return", "points_earned", "reward_redemption_count"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"transaction_id", type text}, {"transaction_type", type text}, {"transaction_at", type datetime}, {"transaction_date", type date}, {"attributed_sale_date", type date}, {"store_id", type text}, {"store_version_id", type text}, {"member_id", type text}, {"is_member_sale", type logical}, {"line_count", Int64.Type}, {"item_quantity", Int64.Type}, {"gross_amount", Currency.Type}, {"discount_amount", Currency.Type}, {"net_amount", Currency.Type}, {"original_transaction_id", type text}, {"is_unmatched_return", type logical}, {"points_earned", Int64.Type}, {"reward_redemption_count", Int64.Type}})
+				in
+				    Typed

@@ -4,8 +4,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from loyalty import compare, export, generator, loader, transform
-from loyalty.config import BATCH_WINDOWS, SEED, data_dir, export_dir, warehouse_path
+from loyalty import compare, export, generator, loader, reference, transform
+from loyalty.config import BATCH_WINDOWS, CASE_ROOT, SEED, data_dir, export_dir, warehouse_path
 
 
 def _load_batches(batches: list[int], data: Path, warehouse: Path) -> None:
@@ -49,6 +49,12 @@ def _build(args: argparse.Namespace) -> int:
 
 def _freshness(args: argparse.Namespace) -> int:
     transform.run_dbt(["source", "freshness"], args.warehouse)
+    return 0
+
+
+def _reference(args: argparse.Namespace) -> int:
+    out = reference.write_reference_values(args.exports, args.checks, args.exports / "reference_values.json")
+    print(f"wrote {out}", flush=True)
     return 0
 
 
@@ -106,6 +112,14 @@ def main(argv: list[str] | None = None) -> int:
 
     fresh = add("freshness", "dbt source freshness against the warehouse", _freshness)
     fresh.add_argument("--warehouse", type=Path, default=warehouse_path())
+
+    ref = add(
+        "reference",
+        "SQL reference values for the Power BI reconciliation (bi/reconciliation.json)",
+        _reference,
+    )
+    ref.add_argument("--exports", type=Path, default=export_dir())
+    ref.add_argument("--checks", type=Path, default=CASE_ROOT / "bi" / "reconciliation.json")
 
     cmp = add("compare", "compare the marts of two warehouse files row for row", _compare)
     cmp.add_argument("left", type=Path)

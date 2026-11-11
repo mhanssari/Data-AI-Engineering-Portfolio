@@ -1,0 +1,59 @@
+relationship sales_line_transaction_date
+	fromColumn: fct_sales_line.transaction_date
+	toColumn: dim_date.date_day
+
+relationship sales_line_attributed_sale_date
+	isActive: false
+	fromColumn: fct_sales_line.attributed_sale_date
+	toColumn: dim_date.date_day
+
+relationship sales_line_store_version
+	fromColumn: fct_sales_line.store_version_id
+	toColumn: dim_store.store_version_id
+
+relationship sales_line_product
+	fromColumn: fct_sales_line.product_id
+	toColumn: dim_product.product_id
+
+relationship sales_line_member
+	fromColumn: fct_sales_line.member_id
+	toColumn: dim_member.member_id
+
+relationship transaction_date
+	fromColumn: fct_transaction.transaction_date
+	toColumn: dim_date.date_day
+
+relationship transaction_store_version
+	fromColumn: fct_transaction.store_version_id
+	toColumn: dim_store.store_version_id
+
+relationship transaction_member
+	fromColumn: fct_transaction.member_id
+	toColumn: dim_member.member_id
+
+relationship entitlement_issued_date
+	fromColumn: fct_reward_entitlement.issued_date
+	toColumn: dim_date.date_day
+
+relationship entitlement_redeemed_date
+	isActive: false
+	fromColumn: fct_reward_entitlement.redeemed_date
+	toColumn: dim_date.date_day
+
+relationship entitlement_member
+	fromColumn: fct_reward_entitlement.member_id
+	toColumn: dim_member.member_id
+
+relationship entitlement_redeemed_store_version
+	isActive: false
+	fromColumn: fct_reward_entitlement.redeemed_store_version_id
+	toColumn: dim_store.store_version_id
+
+relationship member_month_month
+	fromColumn: fct_member_month.month_start_date
+	toColumn: dim_date.date_day
+
+relationship member_month_member
+	fromColumn: fct_member_month.member_id
+	toColumn: dim_member.member_id
+

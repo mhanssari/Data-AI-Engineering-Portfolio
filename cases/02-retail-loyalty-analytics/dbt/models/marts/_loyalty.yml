@@ -94,6 +94,13 @@ models:
                 field: transaction_id
       - name: redeemed_store_id
         data_type: varchar
+      - name: redeemed_store_version_id
+        data_type: varchar
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_store')
+                field: store_version_id
       - name: source_status
         data_type: varchar
         description: The status column as delivered; kept to show where it was wrong.

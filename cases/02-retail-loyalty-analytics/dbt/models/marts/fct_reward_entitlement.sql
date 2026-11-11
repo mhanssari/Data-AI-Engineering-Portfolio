@@ -5,7 +5,7 @@ with entitlements as (
 )
 
 , transactions as (
-    select transaction_id, store_id from {{ ref('fct_transaction') }}
+    select transaction_id, store_id, store_version_id from {{ ref('fct_transaction') }}
 )
 
 select
@@ -21,6 +21,8 @@ select
     , cast(entitlements.redeemed_at as date) as redeemed_date
     , entitlements.redeemed_transaction_id
     , transactions.store_id as redeemed_store_id
+    -- The store version in force when redeemed, so the report relates redemptions to dim_store like sales.
+    , transactions.store_version_id as redeemed_store_version_id
     , entitlements.source_status
     , entitlements.resolved_status
     , entitlements.resolved_status in ('redeemed', 'expired') as is_resolved

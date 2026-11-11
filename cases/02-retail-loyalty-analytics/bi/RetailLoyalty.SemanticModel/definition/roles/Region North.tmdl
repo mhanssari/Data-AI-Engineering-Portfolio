@@ -1,0 +1,7 @@
+/// A store manager for the North region: sales and baskets of stores while they were in the North. Member,
+/// reward and cohort figures are programme-wide and are not filtered.
+role 'Region North'
+	modelPermission: read
+
+	tablePermission dim_store = [region] = "North"
+

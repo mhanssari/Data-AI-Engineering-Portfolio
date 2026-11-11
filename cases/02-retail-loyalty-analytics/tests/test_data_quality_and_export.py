@@ -7,7 +7,8 @@ import duckdb
 import pytest
 from conftest import query
 
-from loyalty import export, transform
+from loyalty import export, reference, transform
+from loyalty.config import CASE_ROOT
 
 
 def test_every_test_result_is_recorded(after_batches) -> None:
@@ -42,6 +43,22 @@ def test_a_failing_test_leaves_its_result_and_its_failing_rows(after_batches, tm
     status, failures, relation = recorded[0]
     assert (status, failures) == ("fail", 1)  # A14
     assert query(broken, f"select transaction_id from {relation}") == [("T9000003",)]
+
+
+def test_every_reconciliation_query_runs_on_the_export(after_batches, tmp_path: Path) -> None:
+    """The SQL side of the Power BI reconciliation (A10) runs in CI, where Power BI cannot."""
+    _, warehouse = after_batches
+    export.export_marts(warehouse, tmp_path)
+    values = reference.reference_values(tmp_path, CASE_ROOT / "bi" / "reconciliation.json")
+    assert values["Trading days, S012, June 2025 (opened 16 June)"] == 15  # the metric catalogue's example
+    assert values["Status conflicts"] == 2  # D13 and D14
+    assert values["As-of date"] == "2026-09-30"
+    blanks = {name for name, value in values.items() if value is None}
+    assert blanks == {
+        "Repeat purchase rate, August 2026 cohort (immature: blank)",
+        "Repeat purchase rate, all cohorts (some immature: blank)",
+        "RLS denied: Region North sees nothing of S001 (London)",
+    }
 
 
 def test_the_export_is_a_faithful_copy_of_the_marts(after_batches, tmp_path: Path) -> None:

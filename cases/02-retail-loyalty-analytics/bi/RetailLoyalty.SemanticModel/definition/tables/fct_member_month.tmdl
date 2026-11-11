@@ -1,0 +1,110 @@
+/// One row per member per month from enrolment, measured at month end (dense snapshot).
+table fct_member_month
+
+	column member_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: member_id
+
+	column month_start_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: month_start_date
+
+	column measurement_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: measurement_date
+
+	column enrolment_month_start_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: enrolment_month_start_date
+
+	column months_since_enrolment
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: months_since_enrolment
+
+	column is_complete_month
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_complete_month
+
+	column is_eligible
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_eligible
+
+	column is_active
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_active
+
+	column qualifying_purchase_count
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: qualifying_purchase_count
+
+	column net_sales_amount
+		dataType: decimal
+		formatString: \£#,0.00;-\£#,0.00
+		summarizeBy: sum
+		sourceColumn: net_sales_amount
+
+	/// Members enrolled at least 90 days before the measurement date, at the last month in the filter (semi-additive: a snapshot, never summed over months).
+	measure 'Eligible Members' =
+				VAR LastMonth = MAX ( fct_member_month[month_start_date] )
+				RETURN
+				    CALCULATE (
+				        COUNTROWS ( fct_member_month ),
+				        fct_member_month[month_start_date] = LastMonth,
+				        fct_member_month[is_eligible] = TRUE ()
+				    )
+		formatString: #,0
+		displayFolder: Members
+
+	/// Eligible members with no qualifying purchase in the 90 days to the measurement date, at the last month in the filter. Includes members who never bought.
+	measure 'Inactive Members' =
+				VAR LastMonth = MAX ( fct_member_month[month_start_date] )
+				RETURN
+				    CALCULATE (
+				        COUNTROWS ( fct_member_month ),
+				        fct_member_month[month_start_date] = LastMonth,
+				        fct_member_month[is_eligible] = TRUE (),
+				        fct_member_month[is_active] = FALSE ()
+				    )
+		formatString: #,0
+		displayFolder: Members
+
+	/// Inactive members over eligible members.
+	measure 'Inactivity Rate' = DIVIDE ( [Inactive Members], [Eligible Members] )
+		formatString: 0.0%
+		displayFolder: Members
+
+	/// Members with a qualifying purchase in the 90 days to the measurement date, at the last month in the filter.
+	measure 'Active Members' =
+				VAR LastMonth = MAX ( fct_member_month[month_start_date] )
+				RETURN
+				    CALCULATE (
+				        COUNTROWS ( fct_member_month ),
+				        fct_member_month[month_start_date] = LastMonth,
+				        fct_member_month[is_active] = TRUE ()
+				    )
+		formatString: #,0
+		displayFolder: Members
+
+	partition fct_member_month = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\fct_member_month.parquet")),
+				    Selected = Table.SelectColumns(Source, {"member_id", "month_start_date", "measurement_date", "enrolment_month_start_date", "months_since_enrolment", "is_complete_month", "is_eligible", "is_active", "qualifying_purchase_count", "net_sales_amount"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"member_id", type text}, {"month_start_date", type date}, {"measurement_date", type date}, {"enrolment_month_start_date", type date}, {"months_since_enrolment", Int64.Type}, {"is_complete_month", type logical}, {"is_eligible", type logical}, {"is_active", type logical}, {"qualifying_purchase_count", Int64.Type}, {"net_sales_amount", Currency.Type}})
+				in
+				    Typed
