@@ -5,10 +5,13 @@ dbt Core 1.12 on DuckDB ([decision 0004](../docs/decisions/0004-dbt-core-v1.md))
 | Folder | Contents |
 | --- | --- |
 | [models/staging](models/staging) | Sources with freshness thresholds, one view per source table: rename, cast, deduplicate, no joins |
+| [models/intermediate](models/intermediate) | Ephemeral business logic; `int_as_of_date` |
+| [models/marts](models/marts) | Dimensions so far: date, store versions, product (with inferred rows), member. Contracts enforced; dbt unit tests in the YAML |
 | [snapshots](snapshots) | `snp_member`: what was reported before a member was corrected ([decision 0002](../docs/decisions/0002-history-strategy.md)) |
-| [macros](macros) | `generate_schema_name`: schemas named `staging`, `snapshots`, `audit` as configured |
+| [tests](tests) | Singular tests, one per business invariant, named `assert_<what must be true>` |
+| [macros](macros) | `generate_schema_name` (schemas named as configured); `iso_day_of_week`, dispatched per adapter because engines spell it differently |
 
-Schemas in the warehouse: `raw` (loader), `staging`, `snapshots`, and `audit`, where every failing test stores its failing rows.
+Schemas in the warehouse: `raw` (loader), `staging`, `marts`, `snapshots`, and `audit`, where every failing test stores its failing rows.
 
 ## Running dbt directly
 

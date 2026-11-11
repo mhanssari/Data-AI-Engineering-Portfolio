@@ -60,7 +60,7 @@ flowchart LR
     S7[stg_loyalty__reward_entitlements]
   end
   subgraph intermediate
-    I1[int_store_versions]
+    I0[int_as_of_date]
     I2[int_sales_lines_with_returns]
     I3[int_member_purchases]
     I4[int_entitlements_resolved]
@@ -81,11 +81,11 @@ flowchart LR
     A1[agg_repeat_purchase_cohort]
     A2[agg_retention_cohort]
   end
-  S1 --> I1 --> D2
-  S2 --> D3
+  S4 --> I0 --> D1
+  S1 --> D2
+  S2 & S5 --> D3
   S4 & S5 --> I2 --> F1 --> F2
-  I1 --> F1
-  F1 --> D3
+  D2 --> F1
   S3 --> D4
   S3 --> P1
   F2 --> I3 --> F5 & A1
@@ -94,7 +94,7 @@ flowchart LR
   S7 & S6 --> I4 --> F4
 ```
 
-Staging models are views: one per source table, renaming, casting and deduplicating, with no joins. Intermediate models are ephemeral and hold the business logic. Marts are tables, except `fct_sales_line`, which is incremental. `snp_member` is a dbt snapshot, run after each batch is loaded.
+Staging models are views: one per source table, renaming, casting and deduplicating, with no joins. Intermediate models are ephemeral and hold the business logic; `int_as_of_date` is the one date every window and maturity rule is measured against. `dim_store` builds its versions directly from staging: the logic is one window function, and an intermediate model would only make it harder to unit test. Marts are tables, except `fct_sales_line`, which is incremental. `snp_member` is a dbt snapshot, run after each batch is loaded.
 
 ## Mart grain
 

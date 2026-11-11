@@ -1,0 +1,156 @@
+models:
+  - name: dim_date
+    description: >
+      One row per calendar date in the observation period. Flags dates after the as-of date and months the
+      as-of date does not complete, so the report can mark partial periods.
+    columns:
+      - name: date_day
+        data_type: date
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: month_start_date
+        data_type: date
+      - name: year_number
+        data_type: integer
+      - name: month_number
+        data_type: integer
+      - name: iso_day_of_week
+        data_type: integer
+        description: Monday 1 to Sunday 7.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7]
+                quote: false
+      - name: is_weekend
+        data_type: boolean
+      - name: is_after_as_of_date
+        data_type: boolean
+      - name: is_complete_month
+        data_type: boolean
+        description: True when the as-of date is on or after the month's last day.
+
+  - name: dim_store
+    description: >
+      One row per store per attribute version (type 2), rebuilt from source history on every run. Validity is
+      half-open, valid_from_date <= date < valid_to_date; the current version ends on 9999-12-31.
+    columns:
+      - name: store_version_id
+        data_type: varchar
+        description: Store and the date the version took effect, e.g. S003@2025-09-01.
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: store_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: store_name
+        data_type: varchar
+      - name: region
+        data_type: varchar
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [London, South East, South West, Midlands, North, Scotland, Wales]
+      - name: store_format
+        data_type: varchar
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [high_street, retail_park, outlet]
+      - name: opened_date
+        data_type: date
+      - name: valid_from_date
+        data_type: date
+        constraints: [{type: not_null}]
+      - name: valid_to_date
+        data_type: date
+        constraints: [{type: not_null}]
+      - name: is_current
+        data_type: boolean
+
+  - name: dim_product
+    description: >
+      One row per product, including inferred rows for products sold before master data sent them. An inferred row
+      is replaced by the real one on the first build after it arrives.
+    columns:
+      - name: product_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: product_name
+        data_type: varchar
+      - name: category
+        data_type: varchar
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [Personal care, Household, Food cupboard, Beverages, Baby, Gifts, Unknown]
+      - name: list_price
+        data_type: decimal(18,2)
+        description: Null for an inferred product.
+      - name: is_inferred
+        data_type: boolean
+
+  - name: dim_member
+    description: >
+      One row per member, current attributes after corrections (type 1). The enrolment month is the retention
+      cohort. Earlier, uncorrected values are in snp_member.
+    columns:
+      - name: member_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: enrolled_at
+        data_type: timestamp
+      - name: enrolled_date
+        data_type: date
+      - name: enrolment_month_start_date
+        data_type: date
+      - name: home_store_id
+        data_type: varchar
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_store')
+                field: store_id
+      - name: enrolment_channel
+        data_type: varchar
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [store, web, app]
+      - name: birth_month
+        data_type: integer
+
+unit_tests:
+  - name: dim_store_chains_versions_without_gaps
+    description: Each version ends where the next begins; the last is current and ends on 9999-12-31.
+    model: dim_store
+    given:
+      - input: ref('stg_reference__stores')
+        rows:
+          - {store_id: S1, store_name: One, region: North, store_format: high_street, opened_date: 2020-01-01, effective_from_date: 2020-01-01}
+          - {store_id: S1, store_name: One, region: North, store_format: retail_park, opened_date: 2020-01-01, effective_from_date: 2025-09-01}
+          - {store_id: S2, store_name: Two, region: Wales, store_format: outlet, opened_date: 2021-05-01, effective_from_date: 2021-05-01}
+    expect:
+      rows:
+        - {store_version_id: S1@2020-01-01, valid_from_date: 2020-01-01, valid_to_date: 2025-09-01, is_current: false}
+        - {store_version_id: S1@2025-09-01, valid_from_date: 2025-09-01, valid_to_date: 9999-12-31, is_current: true}
+        - {store_version_id: S2@2021-05-01, valid_from_date: 2021-05-01, valid_to_date: 9999-12-31, is_current: true}
+
+  - name: dim_product_infers_products_missing_from_master_data
+    description: A product sold but not in master data gets one inferred row, however many lines sold it.
+    model: dim_product
+    given:
+      - input: ref('stg_reference__products')
+        rows:
+          - {product_id: P1, product_name: Soap, category: Personal care, list_price: 1.99}
+      - input: ref('stg_pos__transaction_lines')
+        rows:
+          - {transaction_id: T1, line_number: 1, product_id: P1}
+          - {transaction_id: T1, line_number: 2, product_id: P9}
+          - {transaction_id: T2, line_number: 1, product_id: P9}
+    expect:
+      rows:
+        - {product_id: P1, product_name: Soap, category: Personal care, is_inferred: false}
+        - {product_id: P9, product_name: Unknown product P9, category: Unknown, is_inferred: true}

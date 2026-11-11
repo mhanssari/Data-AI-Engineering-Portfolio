@@ -1,6 +1,6 @@
 # Retail loyalty and customer analytics
 
-**Status: building.** Design agreed. Working and tested: the seeded generator, the append-only loader, dbt staging with source freshness, and the member snapshot. Not built yet: intermediate and mart models, business-rule tests, CI, Airflow, the Power BI report.
+**Status: building.** Design agreed. Working and tested: the seeded generator, the append-only loader, dbt staging with source freshness, the member snapshot, and the four dimensions. Not built yet: facts, cohort and redemption marts, most business-rule tests, CI, Airflow, the Power BI report.
 
 A fictional retailer's marketing, store and finance teams count active customers, members and redemptions differently. This case builds one warehouse whose definitions make those numbers agree, and stay agreed when returns and corrections arrive late.
 
@@ -35,6 +35,6 @@ uv run loyalty run-all
 uv run pytest
 ```
 
-`run-all` starts from an empty warehouse and takes under a minute. Single steps: `loyalty generate`, `loyalty load [--batch 1|2|all]`, `loyalty build`. So far the build covers staging, the member snapshot and their tests; marts come next.
+`run-all` starts from an empty warehouse and takes under a minute. Single steps: `loyalty generate`, `loyalty load [--batch 1|2|all]`, `loyalty build`. So far the build covers staging, the member snapshot, the dimensions and their tests; facts come next.
 
 [Return to portfolio](../../README.md).

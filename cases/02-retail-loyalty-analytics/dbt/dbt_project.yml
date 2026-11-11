@@ -12,11 +12,26 @@ flags:
   # No usage telemetry from anyone's clone of a portfolio project.
   send_anonymous_usage_stats: false
 
+vars:
+  # The calendar covers the observation period. The as-of date is the latest transaction loaded unless this
+  # variable is set, e.g. --vars '{as_of_date: 2026-09-16}'.
+  calendar_start_date: "2024-10-01"
+  calendar_end_date: "2026-09-30"
+  as_of_date: null
+
 models:
   retail_loyalty:
     staging:
       +materialized: view
       +schema: staging
+    intermediate:
+      +materialized: ephemeral
+    marts:
+      +materialized: table
+      +schema: marts
+      # Column names and types are a promise to the report: a change that breaks it fails the build.
+      +contract:
+        enforced: true
 
 snapshots:
   retail_loyalty:
