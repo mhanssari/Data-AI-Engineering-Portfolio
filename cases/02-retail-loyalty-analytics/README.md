@@ -1,6 +1,6 @@
 # Retail loyalty analytics
 
-**Status: built and validated locally on synthetic data.** It runs end to end in a Linux container or with local Python, with no account or credentials. CI is written but its runs on GitHub have not yet been checked. Snowflake is an opt-in target that has not been run. Nothing is deployed.
+**Status: built and validated locally on synthetic data.** It runs end to end in a Linux container or with local Python, with no account or credentials, and CI passes on GitHub. Snowflake is an opt-in target that has not been run. Nothing is deployed.
 
 A fictional retailer's marketing, store and finance teams count active members, repeat customers and redemptions differently. This case builds one warehouse whose definitions make those numbers agree, and keep agreeing when returns and corrections arrive late.
 
@@ -117,7 +117,7 @@ Every model declares its grain ([data model](docs/data-model.md#mart-grain)). Mo
   - A stale extract fails freshness.
   - A changed column type fails its enforced contract.
 - **Mutation checks:** throwaway scripts broke the logic 35 ways. All were caught, one only after a unit test was added.
-- **CI:** [a workflow](../../.github/workflows/case-02-ci.yml), path-filtered to this case. It lints, parses dbt with deprecations treated as errors, runs the pipeline from an empty warehouse, runs every test, builds both Docker images, and checks the Airflow DAG's shape. **Its runs on GitHub have not yet been checked.**
+- **CI:** [a workflow](../../.github/workflows/case-02-ci.yml), path-filtered to this case. It lints, parses dbt with deprecations treated as errors, runs the pipeline from an empty warehouse, runs every test, builds both Docker images, and checks the Airflow DAG's shape. It has passed on every push since it was added (tests about 2 minutes, images about 1).
 
 ## 8. Business consumption
 
@@ -149,6 +149,7 @@ Measured on Windows 11 with Docker Desktop, seed 2602. Single runs; timings are 
 | Power BI measures against SQL | 34 of 34, including RLS allowed and denied |
 | Airflow backfill against `run-all` | All 11 marts identical; a rerun changed nothing |
 | Generator output, Windows against Linux | Byte-identical |
+| CI on GitHub (lint, dbt parse, run-all, tests, both images) | Passed on every push |
 
 ## 10. Trade-offs and next step
 
@@ -164,7 +165,7 @@ Measured on Windows 11 with Docker Desktop, seed 2602. Single runs; timings are 
 - **Power BI is Desktop only.** RLS, refresh and sharing in the Power BI service are not shown.
 - **Snowflake is untested.** It is an opt-in target that has never been run.
 
-**Next step:** confirm CI on GitHub, then run the Snowflake target once and record its cost.
+**Next step:** run the Snowflake target once and record its cost.
 
 ## Documentation
 

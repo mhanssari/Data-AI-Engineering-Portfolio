@@ -78,4 +78,4 @@ Throwaway scripts, not in the repository, broke the logic and confirmed the test
 
 ## Not validated
 
-CI on GitHub; the Snowflake target; the Power BI service; Linux hosts other than the container; anything at a larger volume.
+The Snowflake target; the Power BI service; Linux hosts other than the container; anything at a larger volume.

@@ -67,7 +67,7 @@ From the portfolio brief, plus this case's items. Reviewed 12 November 2026.
 - [x] Architecture diagram in Mermaid
 - [x] Seeded generator with documented defects
 - [x] Tests cover the invariants above, not only schema constraints: ten singular tests, seven dbt unit tests, planted outcomes in pytest
-- [ ] CI runs build and tests on every pull request: written, linted and path-filtered, **but no run on GitHub has been checked yet**
+- [x] CI runs build and tests on every pull request: path-filtered; passed on GitHub on every push since it was added and on pull request #2
 - [x] No credentials anywhere, including screenshots
 - [x] Assumptions and limitations stated
 - [x] A "what I would do differently at scale" section
