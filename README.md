@@ -26,7 +26,7 @@ The other cases are plans.
 | [02 Retail loyalty and customer analytics](cases/02-retail-loyalty-analytics/README.md) | dbt Core, DuckDB (Snowflake opt-in), SQL, Python, Power BI, Docker; Airflow opt-in | Built and validated locally; CI passing on GitHub |
 | [06 Agentic procure-to-pay reconciliation](cases/06-p2p-agentic-reconciliation/README.md) | PostgreSQL + pgvector, Neo4j, OWL/SKOS/SHACL ontology, LangGraph, Streamlit, Python, SQL | Built and tested locally, with an offline provider; no live model evaluated |
 | [01 Supply chain inventory and demand](cases/01-supply-chain-fabric/README.md) | Fabric, SQL, Python/PySpark, Power BI | Planned |
-| [03 Payment monitoring and settlement reconciliation](cases/03-payments-streaming/README.md) | Kafka, Python, Spark, PostgreSQL, Airflow | Planned |
+| [03 Payment monitoring and settlement reconciliation](cases/03-payment-reconciliation/README.md) | PostgreSQL, Python, Airflow (shared); Kafka, Spark Structured Streaming | Designed; build in progress |
 | [04 Product hierarchy and master data quality](cases/04-bom-master-data/README.md) | Fabric or Databricks, PySpark, SQL | Planned |
 | [05 Warehouse modernisation and SQL performance](cases/05-modernisation-performance/README.md) | PostgreSQL, Fabric or Snowflake | Planned |
 
