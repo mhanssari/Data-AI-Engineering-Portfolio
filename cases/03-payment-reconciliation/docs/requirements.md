@@ -1,6 +1,6 @@
 # Requirements
 
-Status: agreed 12 November 2026. Milestone 1 is being built: landing, core, reconciliation and shared Airflow orchestration are implemented and validated locally; database CI is next.
+Status: agreed 12 November 2026. Milestone 1 is being built: landing, core, reconciliation and shared Airflow orchestration are implemented and validated locally; the platform checks passed on GitHub. Database CI is implemented and locally validated, awaiting its first remote run.
 
 ## Problem and decisions
 

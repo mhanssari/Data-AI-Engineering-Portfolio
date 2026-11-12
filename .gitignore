@@ -54,6 +54,7 @@ logs/
 checkpoints/
 spark-warehouse/
 .fabric/
+/cases/03-payment-reconciliation/evidence/ci/
 
 # Local editor and operating-system metadata
 .idea/

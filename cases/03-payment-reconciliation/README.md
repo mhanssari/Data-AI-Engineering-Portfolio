@@ -25,11 +25,14 @@ docker compose run --rm payrecon run-all          # or replay every day in order
 docker compose run --rm --entrypoint pytest payrecon -q
 ```
 
+The [CI workflow](../../.github/workflows/case-03-ci.yml) runs the locked Linux image against a disposable PostgreSQL service, with database tests required rather than skipped. See [test guidance](tests/README.md) for the same requirement locally. DAG checks run separately in the shared platform workflow.
+
 `load` is safe to repeat: a file already landed with the same name and checksum is skipped. `build-core` rebuilds core from everything that had arrived by a date, so rerunning a day gives the same result. `reconcile` fails, and publishes nothing, if any invariant check fails. A payment or unmatched line waits one grace day before it becomes an exception ([decision 0005](docs/decisions/0005-reconciliation-runs-and-grace.md)). `payrecon reset --yes` drops the case's schemas.
 
 ## Start here
 
 - [Airflow recovery evidence](evidence/airflow-late-file-run.md): late-file recovery and unchanged results on rerun
+- [CI validation evidence](evidence/ci-local-run.md): local test results and unavailable-database failure; new database workflow awaiting its first GitHub run
 - [Requirements](docs/requirements.md): decisions, settlement rules, acceptance criteria, invariants
 - [Data model](docs/data-model.md): sources, planted defects, payment state machine, grain of every table
 - [Metrics](docs/metrics.md)

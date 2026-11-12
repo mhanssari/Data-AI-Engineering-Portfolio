@@ -66,4 +66,6 @@ An initial verifier invocation ran while the 23 October DAG was still running an
 
 ## Limits
 
+After this slice was committed as `ba8d9c9` and pushed to `case-03-payments`, the [Platform Airflow workflow](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43236947315) passed on GitHub (12 November 2026). It built the shared image, checked both DAGs and ran both CLI smoke checks. It did not execute the scheduler backfill on GitHub.
+
 This ran two arrivals through the scheduler, with prior arrivals loaded by the CLI. It does not establish a full-month Airflow backfill. Missing-file behaviour was checked directly in the sensor callable; a live sensor timeout, a failed-task retry and concurrent-writer rejection were not injected. The existing transformation pytest suite was not rerun in this slice; the case logic was unchanged and the new integration was checked through the real DAG. Kafka, Spark and streaming recovery remain unimplemented.

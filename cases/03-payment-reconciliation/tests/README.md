@@ -6,6 +6,18 @@ Run inside the case's Linux container, with PostgreSQL up (see the case README):
 docker compose run --rm --entrypoint pytest payrecon -q
 ```
 
+To require PostgreSQL explicitly (the CI setting):
+
+```sh
+docker compose run --rm -e PAYRECON_REQUIRE_DB=1 --entrypoint pytest payrecon -q
+```
+
+Without that flag, an unavailable database skips the database fixtures so local generator-only work can continue. With `PAYRECON_REQUIRE_DB=1`, a connection failure fails the fixture and the test command exits non-zero. Each database test uses a disposable database; the configured role must be able to create and drop databases. Do not point tests at a production service.
+
+The [Case 03 workflow](../../../.github/workflows/case-03-ci.yml) builds the locked Linux image, checks the CLI and formatting, runs all tests against its own PostgreSQL service with the flag enabled, and uploads JUnit results. It does not require Airflow or local `.env` files. Local reports in `evidence/ci/` are generated output excluded from Git and image builds. The workflow builds with the runner's UID so the non-root test process can write its mounted report directory.
+
+- `test_database_requirement.py`: injects a refused connection and checks required-database failure versus optional local skipping.
+
 - `test_generator.py`: the same seed gives byte-identical files; every planted defect P1–P16 is delivered; the random background follows the payment state machine and settles exactly what was captured, at the plan's fee. A clean background means any exception raised downstream can only come from a planted record.
 - `test_loader.py` (marker `db`): each test creates and drops its own database. Malformed rows are quarantined while the rest of the file lands; a re-sent file lands nothing; a corrected file under the same name does land; a damaged arrival (checksum, header, missing file, row count) is rejected whole; the full delivery loaded twice lands once.
 

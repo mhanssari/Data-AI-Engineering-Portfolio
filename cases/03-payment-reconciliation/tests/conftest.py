@@ -52,6 +52,8 @@ def fresh_database(name: str) -> Iterator[psycopg.Connection]:
     try:
         admin = psycopg.connect(autocommit=True)
     except psycopg.OperationalError as error:
+        if os.environ.get("PAYRECON_REQUIRE_DB") == "1":
+            pytest.fail(f"PostgreSQL is required (PAYRECON_REQUIRE_DB=1): {error}", pytrace=False)
         pytest.skip(f"no PostgreSQL to test against (start compose.yaml's postgres): {error}")
     with admin:
         admin.execute(f"drop database if exists {name} with (force)")
