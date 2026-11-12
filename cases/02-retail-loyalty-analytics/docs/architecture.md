@@ -2,6 +2,12 @@
 
 Status: built, 12 November 2026. Nothing is deployed; the only topology is one laptop.
 
+## Overview and alternatives
+
+![Architecture and alternative technologies](architecture-overview.svg)
+
+Solid boxes are built and tested here. The amber box, Snowflake as a dbt target, is designed but has not been run. Dashed boxes are alternatives that have not been built. A [PNG copy](architecture-overview.png) is kept for places that do not show SVG.
+
 ## Data flow
 
 ```mermaid

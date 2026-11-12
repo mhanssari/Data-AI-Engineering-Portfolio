@@ -75,6 +75,10 @@ flowchart LR
   AF["Airflow, opt-in"] -. "same CLI steps, one run per delivery" .-> L
 ```
 
+What each part could be replaced with on another platform, Snowflake instead of DuckDB among them, is shown below. Only the solid boxes are built.
+
+![Architecture and alternative technologies](docs/architecture-overview.svg)
+
 One CLI runs every step. It works in a Linux container, with the DuckDB file on a Docker volume, or with local Python. The opt-in Airflow DAG calls the same steps, one run per extract delivery. A production design would land extracts in object storage and load a cloud warehouse on arrival; that is not built ([architecture](docs/architecture.md)).
 
 ## 5. Modelling
