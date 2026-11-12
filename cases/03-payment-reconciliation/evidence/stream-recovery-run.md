@@ -1,6 +1,6 @@
 # Abrupt consumer recovery and controlled late backfill
 
-Recorded 12 November 2026 on Windows/Docker Desktop, using Linux containers. **A10 and A11 passed on the bounded synthetic fixture:** actual consumer exits around commit, checkpoint replay, a watermark-excluded authorisation repaired, and state/minute parity with a separate batch run. Recovery changes remain uncommitted; the workflow's new recovery step/artifact has not run remotely. Sustained eviction (A12), benchmarks and general broker-loss recovery remain open.
+Recorded 12 November 2026 on Windows/Docker Desktop, using Linux containers. **A10 and A11 passed locally and on GitHub for the bounded synthetic fixture:** actual consumer exits around commit, checkpoint replay, a watermark-excluded authorisation repaired, and state/minute parity with a separate batch run. Committed/pushed as `e6c3c5e`. [Database CI](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43269557802) passed 92 tests in 152.09 seconds; [Case 03 Streaming](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43269557791) passed all processing/recovery steps and report uploads. Its downloaded recovery JSON confirms both crash boundaries, one repaired event, six matching payment states/eight minute groups and consistency after re-delivery. Later A12 work is recorded [separately](stream-state-run.md).
 
 ## Previous slice delivered
 
@@ -50,7 +50,7 @@ The held payment became captured with 4,200 GBP minor units. Minute buckets were
 
 The live checkpoint/sidecar hash was identical immediately before and after repair. Repeating the same repair ID/request returned `reused=true` with unchanged business fingerprints. Restart resumed the original Spark query/checkpoint without changing business rows. Re-delivering the repaired authorisation added transport evidence only: business fingerprints stayed unchanged and both reported frontiers advanced consistently to partition 0 = 1, partition 1 = 5, partition 2 = 11. Status remained consistent at that recorded frontier and exposed the repair ID/scope.
 
-The helper printed all four PASS messages and `Recovery integration checks passed`, then exited 0 including scoped cleanup. Its full local report is ignored output at `evidence/ci/recovery-integration.json`; the new workflow is configured to upload `case-03-recovery-progress`. Remote execution/upload of that new step remains unverified until the recovery commit is pushed.
+The helper printed all four PASS messages and `Recovery integration checks passed`, then exited 0 including scoped cleanup. Its full local report is ignored output at `evidence/ci/recovery-integration.json`. The pushed workflow subsequently ran the recovery step and uploaded `case-03-recovery-progress`; the downloaded report was inspected under ignored `evidence/ci/recovery-e6c3c5e/`.
 
 ## Database tests and upgrade
 
@@ -70,4 +70,4 @@ Final validation: Ruff lint passed; formatting reported 81 files already formatt
 
 The [decision](../docs/decisions/0010-controlled-stream-recovery.md) and [run guide](../streaming/README.md) own the implemented protocol. This repair requires paused readers, one complete current topic prefix, matching canonical history and an explicit reference frontier; limits are 20,000 deliveries and 64 MiB of key/value bytes. It is not general partial/multi-epoch/retention-loss recovery. Failed repairs roll back; errors remain in caller logs rather than committed failed-audit rows. Broker head may advance beyond the recorded frontier.
 
-Next: commit/push recovery and confirm its new CI step/artifact, then test repeated watermark eviction (A12) before measurement/full-month replay. No new business decision blocks that work. Shared Kafka is stopped at handoff with all shared/case state preserved; PostgreSQL remains running and Airflow remains stopped.
+Recovery commit/CI/artifact are confirmed. [State-eviction evidence](stream-state-run.md) owns the subsequent A12 profile; bounded measurement/full-month replay remains future work. No new business decision blocks that sequence. This slice ended with Kafka stopped, all shared/case state preserved, PostgreSQL running and Airflow stopped.

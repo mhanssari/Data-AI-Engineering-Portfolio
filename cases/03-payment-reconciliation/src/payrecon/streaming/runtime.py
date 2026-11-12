@@ -12,7 +12,7 @@ from payrecon.streaming.intake import Delivery, halt_on_conflict, persist_batch,
 from payrecon.streaming.lineage import register
 from payrecon.streaming.live import lock_writer, persist_live
 from payrecon.streaming.producer import bootstrap, identity
-from payrecon.streaming.progress import record_progress
+from payrecon.streaming.progress import callback_reports, record_progress
 
 
 def run_intake(dataset: Dataset, topic: str, checkpoint: Path, *, available_now: bool = False) -> None:
@@ -155,7 +155,7 @@ def run_query(
             with db.connect() as progress_con:
 
                 def report():
-                    for progress in query.recentProgress:
+                    for progress in callback_reports(query.recentProgress):
                         batch_id = progress["batchId"]
                         if batch_id not in seen:
                             record_progress(progress_con, generation, role, progress)

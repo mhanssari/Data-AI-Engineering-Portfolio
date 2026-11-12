@@ -1,6 +1,6 @@
 # Architecture
 
-Status: 12 November 2026. Batch, shared Kafka and Spark intake/live have passing GitHub checks. Bounded controlled backfill and abrupt consumer-recovery checks are implemented; sustained eviction and measurement remain outstanding. No cloud deployment exists.
+Status: 12 November 2026. Batch, shared Kafka, Spark intake/live and recovery have passing GitHub checks. A finite continuous-query state-eviction profile also passes locally. Measurement remains outstanding; no cloud deployment exists.
 
 Infrastructure ownership follows [portfolio decision 0001](../../../platform/decisions/0001-shared-infrastructure.md). Airflow and Kafka are shared in `platform/airflow/` and `platform/kafka/`. Case 03 retains its PostgreSQL, jobs, dependency environment and processing state.
 

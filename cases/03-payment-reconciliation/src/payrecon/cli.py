@@ -152,6 +152,15 @@ def _stream_live_fixture(args: argparse.Namespace) -> int:
     return 0
 
 
+def _stream_state_fixture(args: argparse.Namespace) -> int:
+    import json
+
+    from payrecon.streaming.state_profile import produce_cohort
+
+    print(json.dumps(produce_cohort(args.topic, args.cohort, args.dataset)))
+    return 0
+
+
 def _stream_recovery_plan(args: argparse.Namespace) -> int:
     import json
 
@@ -217,6 +226,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     live_fixture.add_argument("--topic", default="case03.live-check")
     live_fixture.add_argument("--dataset", default="case03-intake-v1")
+    state_fixture = add(
+        "stream-produce-state-fixture", "publish one fixed A12 event-time cohort", _stream_state_fixture
+    )
+    state_fixture.add_argument("--cohort", type=int, required=True)
+    state_fixture.add_argument("--topic", required=True)
+    state_fixture.add_argument("--dataset", default="case03-intake-v1")
     intake = add(
         "stream-intake", "archive Kafka deliveries and canonical events without a watermark", _stream_intake
     )

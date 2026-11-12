@@ -95,6 +95,20 @@ It uses unique disposable resources, exits the live consumer inside the database
 
 The `stream-live --crash-at before-commit|after-commit` option is diagnostic only. It requires the live role, a `case03.live-check-*` topic and a disposable `payments_stream_check_*` database. It exits on the first non-empty callback with code 86 or 87; remove the option when restarting. Ordinary live processing has no crash hook enabled.
 
+## Repeated state eviction (A12)
+
+With the optional image built and shared Kafka/PostgreSQL healthy, from the repository root:
+
+```sh
+python cases/03-payment-reconciliation/streaming/check_state.py
+```
+
+This profile runs one continuous live query and publishes eight cohorts, seven **event-time** minutes apart. Each cohort has 24 new payments and 48 unique events; the ledger grows to 384 events while old Spark keys must be evicted repeatedly. It waits for acknowledged partition offsets and the actual cleanup watermark, records state rows/operator bytes, then checks an idle period, a recent duplicate cohort and a re-send of already evicted events. Business fingerprints must remain unchanged by the re-sends.
+
+The helper labels and stops only its own live container with SIGINT, drains intake after the live process stops, and resumes the same checkpoint. It expects 480 physical deliveries and 384 canonical events retained in intake, 192 current payment states and eight operational minute buckets at the declared 25% decline rate. Resources are isolated under a unique topic/database/checkpoint root; the existing demo and shared broker volume are preserved. Reports/logs are ignored output under `evidence/ci/`, uploaded by the new CI step when it runs.
+
+The [profile decision](../docs/decisions/0011-observed-stream-state-bounds.md) and [evidence](../evidence/stream-state-run.md) separate finite observed state bounds from a general memory guarantee. PostgreSQL history continues growing; state-operator bytes are not JVM/container memory. This is accelerated historical validation, with no latency/throughput, retention-expiry, checkpoint-disk or long-duration soak claim.
+
 ## State and recovery boundaries
 
 - Base Compose starts without Kafka. The optional overlay joins `portfolio-kafka`, caps the Spark container at 3 GiB, and mounts case-owned `stream-state` at `/state`.

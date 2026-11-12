@@ -5,6 +5,11 @@ import json
 from psycopg.types.json import Jsonb
 
 
+def callback_reports(reports):
+    """Idle polls can reuse the next batch ID; only addBatch reports describe an executed sink callback."""
+    return (report for report in reports if "addBatch" in report.get("durationMs", {}))
+
+
 def record_progress(con, generation: str, role: str, progress: dict) -> None:
     progress = json.loads(json.dumps(progress, default=str))
     con.execute(

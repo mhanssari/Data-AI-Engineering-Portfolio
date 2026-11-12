@@ -48,6 +48,9 @@ jobs:
       - name: Abrupt consumer failure, checkpoint replay and controlled late repair
         run: python3 cases/03-payment-reconciliation/streaming/check_recovery.py
 
+      - name: Continuous query state eviction across repeated event-time windows
+        run: python3 cases/03-payment-reconciliation/streaming/check_state.py
+
       - name: Live progress evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -62,6 +65,16 @@ jobs:
         with:
           name: case-03-recovery-progress
           path: cases/03-payment-reconciliation/evidence/ci/recovery-integration.json
+          if-no-files-found: ignore
+
+      - name: State eviction evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: case-03-state-progress
+          path: |
+            cases/03-payment-reconciliation/evidence/ci/state-integration.json
+            cases/03-payment-reconciliation/evidence/ci/state-live-*.log
           if-no-files-found: ignore
 
       - name: Service logs on failure
