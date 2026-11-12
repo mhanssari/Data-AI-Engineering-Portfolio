@@ -12,7 +12,7 @@ All synthetic, from a seeded generator. In milestone 1, events arrive as daily f
 | `acquirer.settlement_lines` | One line of a daily settlement file | `settlement_line_id` | One file per day per currency. Carries the payment reference, line type (sale, refund, reversal), gross, fee, net, currency and settlement date. A file may be re-sent whole |
 | `reference.merchants` | One merchant | `merchant_id` | Country, settlement currency, and the price plan (basis points plus fixed fee per currency) |
 
-Planned scale for milestone 1: about 40 merchants, 30 days, 60,000 payments, 200,000 events and 90 settlement files. These are targets until the generator's measured counts replace them.
+The measured seed-3303 workload is recorded in the [clean batch run](../evidence/batch-clean-setup-run.md). It covers 30 payment days and 31 arrival dates, with deliberate duplicate, invalid and delayed deliveries. Use that evidence for actual counts rather than the original planning estimates.
 
 ## Payment state machine
 
@@ -64,6 +64,7 @@ PostgreSQL schemas: `raw` (append-only landing), `core` (cleaned and derived), `
 
 | Table | One row per | Key | Kind |
 | --- | --- | --- | --- |
+| `raw.merchant` | Delivered merchant row, as received | `file_id`, `row_number` | Append-only reference landing |
 | `raw.payment_event` | Delivered event row, as received | `file_id`, `row_number` | Append-only landing |
 | `raw.settlement_line` | Delivered settlement row, as received | `file_id`, `row_number` | Append-only landing |
 | `core.merchant` | Merchant, latest version delivered | `merchant_id` | Reference |
@@ -71,15 +72,16 @@ PostgreSQL schemas: `raw` (append-only landing), `core` (cleaned and derived), `
 | `core.payment` | Payment, current state | `payment_id` | Derived state: status, last sequence applied, events held beyond a gap, captured, refunded, reversed and expected settlement amounts, all in one currency |
 | `core.illegal_transition` | Event that could not be applied | `event_id` | Audit: state it met and the reason |
 | `core.allowed_transition` | Allowed state change | `from_status`, `event_type` | The state machine above, as data |
-| `core.build` | Current core build | one row | The arrival date core reflects |
+| `core.build` | Current core build | `singleton`, constrained to true | The arrival date core reflects; at most one row |
 | `core.settlement_line` | Distinct settlement line | `settlement_line_id` | Latest delivery wins, so a corrected re-issue supersedes; identical re-sends never reach raw |
 | `recon.payment_settlement` | Payment due for settlement (ever captured), per run | `as_of_arrival`, `payment_id` | Match result: expected and settled gross in its own currency, fee, expected fee, status (matched, pending or an exception type) |
 | `recon.unmatched_line` | Settlement line matching no payment due in its currency, per run | `as_of_arrival`, `settlement_line_id` | Status: awaiting, unexpected settlement, or currency mismatch |
 | `recon.exception` | Open exception, per run | `as_of_arrival`, `exception_id` | One row per payment or orphan line and exception type, with its signed amount and currency |
 | `recon.control_total` | Currency × due date, per run | `as_of_arrival`, `currency`, `due_date` | Captured, refunded, reversed, settled gross, pending, awaiting, open exception amount, unexplained difference (must be 0) |
 | `ops.run` | Execution of a reconciliation run | `run_id` | As-of arrival, start and finish, status, counts or error |
-| `ops.file` | Arrived file | `file_name`, `checksum` | Arrival, load status, row counts |
+| `ops.file` | Distinct file name and content checksum | `file_id`; unique (`file_name`, `sha256`) | Arrival and row counts; identical re-deliveries are skipped |
 | `ops.quarantine` | Rejected record | `quarantine_id` | Source file and row, raw content, reason, reprocessed flag |
+| `public.schema_migration` | Applied migration | `version` | Installation metadata with application timestamp |
 
 Core is rebuilt whole from raw as of an arrival date ([decision 0004](decisions/0004-core-rebuilt-as-of-arrival.md)): holding out-of-order events, recording illegal transitions and re-reading events for merchants not yet known are described there.
 

@@ -47,7 +47,7 @@ The verifier checks 473 missing and 2 pending USD payments on 22 October, all 47
 
 ## Checks and shutdown
 
-The [DAG check](check_dag.py) runs in the shared image without a database or case credentials. The platform workflow parses both cases' DAGs and checks both isolated CLIs. Case 03's database test workflow is the next slice.
+The [DAG check](check_dag.py) runs in the shared image without a database or case credentials. The platform workflow parses both cases' DAGs and checks both isolated CLIs. The [Case 03 database workflow](../../../.github/workflows/case-03-ci.yml) separately builds the case image and runs all tests with PostgreSQL required; see [CI evidence](../evidence/ci-local-run.md).
 
 ```powershell
 docker compose -f platform/airflow/compose.yaml exec airflow python `

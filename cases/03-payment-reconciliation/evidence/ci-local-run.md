@@ -1,6 +1,6 @@
 # Case 03 CI: local workflow validation
 
-Recorded 12 November 2026 on Windows with Docker Desktop. The new [Case 03 workflow](../../../.github/workflows/case-03-ci.yml) was validated locally in its Linux image against a disposable PostgreSQL 18.6 service. This workflow has not yet been committed, pushed or run on GitHub.
+Recorded 12 November 2026 on Windows with Docker Desktop. The [Case 03 workflow](../../../.github/workflows/case-03-ci.yml) was validated locally in its Linux image against a disposable PostgreSQL 18.6 service, then committed and pushed as `2f3522d`. Its first [GitHub run](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43238741131) passed; remote results are recorded below.
 
 ## Checks and results
 
@@ -38,7 +38,13 @@ docker stop case03-ci-postgres
 
 These are disposable test credentials. The test service is separate from the running Case 03 PostgreSQL on port 55433. Tests create and drop their own databases, and stopping this `--rm` container removes its temporary service state. No existing case database or shared Airflow volume was reset.
 
-The GitHub job uses its own PostgreSQL service and the same test settings. It passes the runner's UID into the existing Dockerfile so the non-root container user can write the report mount. Locally, the image used the default UID 1000 on Docker Desktop. GitHub runner networking, the UID adaptation and artifact upload remain unverified until the workflow's first remote run. The report directory is ignored by Git and excluded from image builds.
+The GitHub job uses its own PostgreSQL service and the same test settings. It passes the runner's UID into the existing Dockerfile so the non-root container user can write the report mount. Locally, the image used the default UID 1000 on Docker Desktop. The report directory is ignored by Git and excluded from image builds.
+
+## First GitHub run
+
+[Run 43238741131](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43238741131), commit `2f3522dfeb1c0858613499cd88c04126ef0413f7`, succeeded on 12 November 2026. The Ubuntu job started at 14:35:20 UTC and completed at 14:38:07 UTC. Service initialisation, locked image build, CLI smoke, lint/format, required-database tests and report upload all passed.
+
+Downloaded the `case-03-pytest` artifact with `gh run download` and inspected its JUnit XML: **47 tests, 0 errors, 0 failures, 0 skipped; 134.390 seconds**. This verifies the actual runner networking, non-root report write and artifact upload as well as the test results. The local and GitHub durations come from different environments and are not a performance comparison. Pull-request triggering is configured but was not separately exercised by opening a PR.
 
 ## Previously pushed milestone
 

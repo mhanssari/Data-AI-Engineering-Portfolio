@@ -37,7 +37,7 @@ Case 03's PostgreSQL remains case-owned. This decision does not move existing da
 ## Implementation state and next step
 
 - Shared Airflow exists; Case 02's backfill was recorded on it. See [the platform run guide](../airflow/README.md).
-- Case 03 now has a DAG in that stack; its [run guide](../../cases/03-payment-reconciliation/orchestration/README.md) documents the late-file recovery and rerun checks. Case 03's database CI workflow is the next slice.
+- Case 03 now has a DAG in that stack; its [run guide](../../cases/03-payment-reconciliation/orchestration/README.md) documents the late-file recovery and rerun checks. Its [database CI](../../cases/03-payment-reconciliation/evidence/ci-local-run.md) is validated locally and on GitHub.
 - Kafka remains planned. Introduce `platform/kafka/` at Case 03 milestone 2, then document and validate topic isolation and replay. Broker versions, watermark, retention and checkpoint details are selected at that milestone.
 
 The earlier [Case 03 Airflow decision](../../cases/03-payment-reconciliation/docs/decisions/0001-shared-airflow.md) retains its implementation rationale. This portfolio decision owns the general sharing policy.

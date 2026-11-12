@@ -1,6 +1,6 @@
 # Requirements
 
-Status: agreed 12 November 2026. Milestone 1 is being built: landing, core, reconciliation and shared Airflow orchestration are implemented and validated locally; the platform checks passed on GitHub. Database CI is implemented and locally validated, awaiting its first remote run.
+Status: agreed 12 November 2026. Milestone 1 (batch) is validated: clean checkout, landing/core/reconciliation, shared Airflow recovery/rerun and GitHub database CI. The full case remains in progress; streaming and failure/measurement milestones are outstanding. See [batch evidence](../evidence/batch-clean-setup-run.md).
 
 ## Problem and decisions
 
@@ -88,15 +88,15 @@ Each becomes a test that fails on the planted defects if the handling is removed
 
 From the portfolio brief, plus this case's items.
 
-- [ ] Runs end to end from a clean clone with documented commands
-- [ ] Grain of every table recorded ([data model](data-model.md))
-- [ ] README explains the decisions and trade-offs
-- [ ] Architecture diagram in Mermaid
-- [ ] Seeded generator with documented defects
-- [ ] Tests cover the invariants, not only schema
-- [ ] CI runs build and tests on every pull request
-- [ ] No credentials anywhere
-- [ ] Limitations and "what I would do differently at scale"
+- [x] Batch CLI runs end to end from a clean checkout with documented commands ([evidence](../evidence/batch-clean-setup-run.md))
+- [x] Grain of every implemented table recorded ([data model](data-model.md))
+- [x] README explains the batch decisions and trade-offs
+- [x] Architecture diagram in Mermaid
+- [x] Seeded generator with documented defects
+- [x] Batch tests cover the invariants, not only schema
+- [x] CI builds/tests case changes on push; pull-request triggering configured (first push run and artifact verified)
+- [x] Runtime credentials outside Git; committed examples and isolated CI use dummy values
+- [x] Batch limitations and "what I would do differently at scale"
 - [x] Batch reconciliation orchestrated by the shared Airflow, with a late-file rerun recorded (A6): [evidence](../evidence/airflow-late-file-run.md)
 - [ ] Streaming milestone with replay and recovery evidence (A9–A12)
 - [ ] Measured latency and throughput, with method and hardware stated
