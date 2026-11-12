@@ -1,6 +1,6 @@
 # Architecture
 
-Status: agreed design, 11 November 2026. Nothing is deployed; the only topology is one laptop.
+Status: built, 12 November 2026. Nothing is deployed; the only topology is one laptop.
 
 ## Data flow
 

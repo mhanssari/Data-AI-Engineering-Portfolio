@@ -1,6 +1,6 @@
 # Requirements
 
-Status: agreed design, 11 November 2026. Nothing is implemented yet; see the case README for progress.
+Status: built and validated locally, 12 November 2026. Design agreed 11 November 2026; the evidence for each criterion is linked below.
 
 ## Problem and decisions
 
@@ -24,23 +24,23 @@ The design question: **which definitions and model grains make these numbers agr
 
 Each line becomes a test or a recorded check. Details of the planted defects are in the [data model](data-model.md#planted-defects).
 
-| # | Criterion | How it is checked |
+| # | Criterion | Evidence |
 | --- | --- | --- |
-| A1 | Returns reduce net sales on both date bases, and the two bases agree in total | Singular test against a control total from deduplicated source rows |
-| A2 | Several loyalty events on one purchase never multiply revenue | Singular test: every mart amount reconciles to `fct_sales_line` |
-| A3 | Inactive-member logic counts members who never purchased | dbt unit test plus a planted member |
-| A4 | Immature cohorts are reported as immature, not as 0% | Singular test on cohort marts; planted late enrolments |
-| A5 | Loading the same batch twice lands nothing; rebuilding changes nothing | pytest |
-| A6 | After a late correction, an incremental build equals a full refresh | pytest comparing every mart both ways |
-| A7 | Sales are attributed to the store version in force on the transaction date | Singular test plus a planted format change |
-| A8 | A product sold before its reference data arrives is kept, then completed | Planted product; inferred row replaced after batch 2 |
-| A9 | Reward status is resolved from the event log when the status column disagrees | Singular test plus planted entitlements |
-| A10 | Dashboard totals reconcile to reference SQL | Recorded comparison in `evidence/` |
-| A11 | A breaking change fails CI before merge | Enforced contracts on marts; demonstrated once in the PR history |
-| A12 | A corrected member keeps the value reported before the correction | `snp_member` holds both versions after batch 2 |
-| A13 | A stale extract is reported, not silently used | Source freshness warns and errors against set thresholds |
-| A14 | Every failing test leaves its failing rows for inspection | `store_failures` audit schema and the `audit.dq_test_result` history |
-| A15 | The Airflow DAG reproduces the default path, and rerunning one batch interval changes nothing | Recorded run in `evidence/`; marts compared with the CLI run |
+| A1 | Returns reduce net sales on both date bases, and the two bases agree in total | `assert_net_sales_match_the_source_control_total`, `assert_returns_are_attributed_to_their_original_sale`; planted D4 in `test_sales_facts.py` |
+| A2 | Several loyalty events on one purchase never multiply revenue | `assert_marts_never_change_revenue`; planted D3 in `test_loyalty_marts.py` |
+| A3 | Inactive-member logic counts members who never purchased | Unit test `a_member_who_never_bought_becomes_eligible_and_inactive`; planted D8 in `test_member_marts.py` |
+| A4 | Immature cohorts are reported as immature, not as 0% | `assert_immature_cohorts_are_never_reported_as_failed`; July 2026 cohort maturing between batches; Power BI blank checks |
+| A5 | Loading the same batch twice lands nothing; rebuilding changes nothing | `test_loader.py`; `test_a_rerun_with_nothing_new_changes_nothing` |
+| A6 | After a late correction, an incremental build equals a full refresh | `test_sales_facts.py`: after batch 2, a late store version and a late sale ([decision 0006](decisions/0006-incremental-boundary.md)) |
+| A7 | Sales are attributed to the store version in force on the transaction date | `assert_every_sales_line_has_the_store_version_in_force`; planted D9 |
+| A8 | A product sold before its reference data arrives is kept, then completed | Planted D10 in `test_dimensions.py`; unit test on `dim_product` |
+| A9 | Reward status is resolved from the event log when the status column disagrees | `assert_entitlement_status_follows_the_evidence`; planted D13, D14; unit test on the status rules |
+| A10 | Dashboard totals reconcile to reference SQL | [Power BI reconciliation](../evidence/power-bi-reconciliation.md): 34 of 34 |
+| A11 | A breaking change fails before merge | Enforced contracts on every mart; a type change rejected in the [run record](../evidence/run-record.md#a-breaking-change-is-rejected-a11) |
+| A12 | A corrected member keeps the value reported before the correction | `test_the_snapshot_keeps_what_was_reported_before_a_correction` |
+| A13 | A stale extract is reported, not silently used | `test_a_stale_extract_fails_freshness` |
+| A14 | Every failing test leaves its failing rows for inspection | `test_a_failing_test_leaves_its_result_and_its_failing_rows` |
+| A15 | The Airflow DAG reproduces the default path, and rerunning one batch interval changes nothing | [Airflow backfill run](../evidence/airflow-backfill-run.md) |
 
 ## Invariants
 
@@ -54,35 +54,37 @@ Each becomes a singular test named `assert_<what_must_be_true>.sql`.
 6. Every sales line joins to exactly one store version.
 7. `fct_member_month` holds exactly one row per member per month from enrolment to the as-of month, whether or not the member bought anything.
 8. Cumulative returned quantity never exceeds the quantity sold on the original line; any excess is flagged, not hidden.
-9. Every entitlement is in exactly one resolved state, and redeemed, expired, open and cancelled sum to issued.
+9. Every entitlement's resolved status follows the evidence: redeemed if and only if a redemption event exists, expired only after its expiry date, open only before it, and a redemption happens on the member's own transaction within the reward's validity.
 10. Repeat-purchase and retention rates are null, never zero, where the window has not closed.
 
 ## Definition of done
 
-From the portfolio brief, plus this case's items:
+From the portfolio brief, plus this case's items. Reviewed 12 November 2026.
 
-- [ ] Runs end to end from a clean clone with documented commands and no account
-- [ ] The grain of every mart is recorded ([data model](data-model.md))
-- [ ] README explains the modelling decisions and trade-offs
-- [ ] Architecture diagram in Mermaid
-- [ ] Seeded generator with documented defects
-- [ ] Tests cover the invariants above, not only schema constraints
-- [ ] CI runs build and tests on every pull request
-- [ ] No credentials anywhere, including screenshots
-- [ ] Assumptions and limitations stated
-- [ ] A "what I would do differently at scale" section
-- [ ] Technologies described at the right confidence level
-- [ ] Incremental against full-refresh parity shown after late corrections (A6)
-- [ ] Power BI report: an executive page and a diagnostic page, with documented measures and reconciliation (A10)
-- [ ] Snapshot, freshness, contracts and stored failures demonstrated (A11–A14)
-- [ ] Airflow DAG run recorded, with a backfill over both batches (A15); the default path still needs no Docker
+- [x] Runs end to end from a clean clone with documented commands and no account ([run record](../evidence/run-record.md#from-a-clean-clone))
+- [x] The grain of every mart is recorded ([data model](data-model.md))
+- [x] README explains the modelling decisions and trade-offs
+- [x] Architecture diagram in Mermaid
+- [x] Seeded generator with documented defects
+- [x] Tests cover the invariants above, not only schema constraints: ten singular tests, seven dbt unit tests, planted outcomes in pytest
+- [ ] CI runs build and tests on every pull request: written, linted and path-filtered, **but no run on GitHub has been checked yet**
+- [x] No credentials anywhere, including screenshots
+- [x] Assumptions and limitations stated
+- [x] A "what I would do differently at scale" section
+- [x] Technologies described at the right confidence level
+- [x] Incremental against full-refresh parity shown after late corrections (A6)
+- [x] Power BI report: an executive page and a diagnostic page, with documented measures and reconciliation (A10)
+- [x] Snapshot, freshness, contracts and stored failures demonstrated (A11–A14)
+- [x] Airflow DAG run recorded, with a backfill over both batches (A15); the default path still needs no Docker
 
 ## What I would do differently at scale
 
-Drafted now, refined at the end.
+Refined at the end of the build.
 
 - **Incremental boundary:** at millions of lines per day, merge by partition (transaction date) instead of by key over the whole table, and bound the late-arrival window explicitly. The load watermark used here assumes a full table scan is cheap.
 - **Member-month densification** grows with members × months. At scale it becomes an incremental periodic snapshot, appending each closed month and recomputing only the open one.
 - **History:** if the source stopped sending dated store versions, a dbt snapshot over the current-state table would be needed, accepting that it cannot be rebuilt from scratch.
 - **Orchestration:** on a warehouse with concurrent writers, Airflow would run independent marts in parallel and trigger on data arrival (asset-aware scheduling) instead of on a timetable.
 - **Metric layer:** with several BI tools, definitions would move to a semantic layer instead of being repeated in DAX.
+- **Store repair and dependants:** the incremental fact's checks scan every existing key; at scale they would be limited to the partitions the changed rows touch ([decision 0006](decisions/0006-incremental-boundary.md)).
+- **BI refresh:** the report reads Parquet files from a folder. A shared report would read a warehouse through a gateway or a direct connection, with scheduled refresh and roles assigned to groups in the Power BI service.

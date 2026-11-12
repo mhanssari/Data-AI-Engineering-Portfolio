@@ -1,6 +1,6 @@
 # Metric catalogue
 
-Status: definitions agreed, 11 November 2026; not yet implemented. This file is the one authoritative definition of each metric. SQL and DAX link here instead of repeating it.
+Status: implemented and reconciled, 12 November 2026. This file is the one authoritative definition of each metric. SQL and DAX link here instead of repeating it; each section names where it is implemented.
 
 The **as-of date** is the latest transaction date loaded unless overridden. "Window closed" always means the window ends on or before the as-of date.
 
@@ -31,8 +31,9 @@ The **as-of date** is the latest transaction date loaded unless overridden. "Win
 | Exclusions | Days before a store opened |
 | Zero denominator | Blank, not zero |
 | Example | A store opened on 16 June with £30,000 in June: £30,000 ÷ 15 days = £2,000 per day |
+| Implemented | DAX `[Trading Days]` and `[Net Sales per Trading Day]`, counting only days on which a store version in the filter was open; reconciled for Store 012 in June 2025 (15 days) |
 
-*Added during design so that store comparisons are fair; flagged for review.*
+*Added during design so that store comparisons are fair.*
 
 ## Active member and inactivity rate
 
@@ -97,3 +98,4 @@ The **as-of date** is the latest transaction date loaded unless overridden. "Win
 | Owner | Loyalty marketing, read by finance |
 | Formulas | Member share = member net sales ÷ net sales. Average basket = net sales ÷ sale transactions, split by member and anonymous |
 | Caveat | **Descriptive only.** Members differ from non-members in ways the data does not record; the difference is not an effect of the programme |
+| Implemented | DAX `[Member Share of Net Sales]`, `[Average Basket]`, `[Average Basket (members)]`, `[Average Basket (anonymous)]` over `fct_sales_line.is_member_sale` and `fct_transaction` |

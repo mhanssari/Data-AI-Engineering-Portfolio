@@ -1,6 +1,6 @@
 # Data model
 
-Status: agreed design, 11 November 2026. No models exist yet.
+Status: built as designed, 12 November 2026. Where building changed the design, this file says so.
 
 ## Sources
 

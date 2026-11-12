@@ -1,6 +1,7 @@
 """Sales facts: planted outcomes, and the incremental fact against a full refresh."""
 
 import shutil
+from decimal import Decimal
 from pathlib import Path
 
 import duckdb
@@ -74,6 +75,19 @@ def test_an_over_return_is_flagged_and_counted(after_batches) -> None:
     sql = "select net_amount, is_over_return from marts.fct_sales_line where transaction_id = 'T9000009'"
     assert query(warehouse, sql) == [(-24, True)]  # D6
     assert query(warehouse, "select count(*) from marts.fct_sales_line where is_over_return") == [(1,)]
+
+
+def test_an_anonymous_sale_counts_in_sales_but_not_for_any_member(after_batches) -> None:
+    _, warehouse = after_batches
+    sql = """
+        select member_id, is_member_sale, net_amount from marts.fct_transaction where transaction_id = 'T9000010'
+    """
+    assert query(warehouse, sql) == [(None, False, Decimal("9.99"))]  # D7
+    member_months = """
+        select count(*) from marts.fct_member_month mm
+        join marts.fct_sales_line l on l.member_id = mm.member_id where l.transaction_id = 'T9000010'
+    """
+    assert query(warehouse, member_months) == [(0,)]
 
 
 def test_sales_use_the_store_version_in_force(after_batches) -> None:
