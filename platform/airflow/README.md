@@ -18,6 +18,7 @@ One Airflow for the portfolio's cases: Airflow 3.4.0 standalone, with a PostgreS
 | Case | DAG | Environment |
 | --- | --- | --- |
 | [02 Retail loyalty](../../cases/02-retail-loyalty-analytics/orchestration/README.md) | `retail_loyalty` | `/opt/cases/retail-loyalty` |
+| [03 Payment reconciliation](../../cases/03-payment-reconciliation/orchestration/README.md) | `payment_reconciliation` | `/opt/cases/payment-reconciliation` |
 
 ## Run
 
@@ -30,6 +31,8 @@ docker compose down                 # add -v to delete Airflow's state
 ```
 
 Each case's README gives its own backfill and verification commands.
+
+Case 03 provides an optional Compose override for its credentials and connection settings; use its run guide when enabling it. The base stack still starts without Case 03 credentials. The DAGs parse without database access and start only when unpaused/configured.
 
 ## Adding a case
 

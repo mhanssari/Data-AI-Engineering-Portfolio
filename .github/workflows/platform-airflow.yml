@@ -45,3 +45,12 @@ jobs:
 
       - name: Case 02 environment runs its CLI
         run: docker run --rm --entrypoint /opt/cases/retail-loyalty/bin/loyalty portfolio-airflow:ci --help
+
+      - name: Case 03 DAG imports and waits for complete arrivals
+        run: |
+          docker run --rm --entrypoint python -v "$PWD:/opt/portfolio:ro" portfolio-airflow:ci \
+            /opt/portfolio/cases/03-payment-reconciliation/orchestration/check_dag.py \
+            /opt/portfolio/cases/03-payment-reconciliation/orchestration/dags
+
+      - name: Case 03 environment runs its CLI
+        run: docker run --rm --entrypoint /opt/cases/payment-reconciliation/bin/payrecon portfolio-airflow:ci --help

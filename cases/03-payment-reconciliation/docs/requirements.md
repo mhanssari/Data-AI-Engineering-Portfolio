@@ -1,6 +1,6 @@
 # Requirements
 
-Status: agreed 12 November 2026. Milestone 1 is being built: landing, core and reconciliation are done; orchestration is next.
+Status: agreed 12 November 2026. Milestone 1 is being built: landing, core, reconciliation and shared Airflow orchestration are implemented and validated locally; database CI is next.
 
 ## Problem and decisions
 
@@ -97,7 +97,7 @@ From the portfolio brief, plus this case's items.
 - [ ] CI runs build and tests on every pull request
 - [ ] No credentials anywhere
 - [ ] Limitations and "what I would do differently at scale"
-- [ ] Batch reconciliation orchestrated by the shared Airflow, with a late-file rerun recorded (A6)
+- [x] Batch reconciliation orchestrated by the shared Airflow, with a late-file rerun recorded (A6): [evidence](../evidence/airflow-late-file-run.md)
 - [ ] Streaming milestone with replay and recovery evidence (A9–A12)
 - [ ] Measured latency and throughput, with method and hardware stated
 

@@ -1,7 +1,12 @@
 # Operational runbook
 
-Status: no running system yet.
+Status: local batch system implemented; streaming remains planned.
 
-When implemented, document prerequisites, dependency installation, configuration, sample-data setup, execution order, validation commands, refresh/backfill, failure diagnosis, quarantine/reprocessing, restart, shutdown and resource cleanup.
+- [Case README](../README.md): prerequisites, case configuration and direct CLI execution.
+- [Shared Airflow run guide](../orchestration/README.md): optional platform configuration, preparation, backfill, rerun verification and shutdown. Run and task logs are visible in the local Airflow UI; `ops.run` records reconciliation executions, including failed checks.
+- [Core rebuild decision](decisions/0004-core-rebuilt-as-of-arrival.md): held events, illegal transitions and unknown-merchant reprocessing.
+- [Reconciliation decision](decisions/0005-reconciliation-runs-and-grace.md): grace, exceptions, invariant failures and atomic publication.
 
-Every command must be verified in the selected environment. Include how to identify a run and inspect logs/counts/freshness. Do not add destructive cleanup commands without explicit scope and safeguards. Credentials belong in local configuration or a secret manager, not this document.
+A rejected arrival must be corrected at source and loaded again; inspect `ops.quarantine` for row-level rejection reasons. Preserve original source files for audit. A failed invariant publishes no replacement results; diagnose the logged check, correct the cause, then clear the failed Airflow task or repeat the corresponding CLI command. Never run a CLI writer concurrently with this DAG against the same database.
+
+Credentials belong in ignored local configuration. Stop shared infrastructure only when other cases do not need it; case cleanup must not delete shared volumes. No cloud operations or streaming restart procedures have been validated.

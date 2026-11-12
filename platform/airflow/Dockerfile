@@ -27,4 +27,10 @@ COPY --chown=airflow:root cases/02-retail-loyalty-analytics/src ${CASE02}/src
 RUN --mount=type=cache,target=/home/airflow/.cache/uv,uid=50000 \
     cd ${CASE02} && UV_PROJECT_ENVIRONMENT=/opt/cases/retail-loyalty uv sync --frozen --no-dev
 
+ARG CASE03=/opt/portfolio/cases/03-payment-reconciliation
+COPY --chown=airflow:root cases/03-payment-reconciliation/pyproject.toml cases/03-payment-reconciliation/uv.lock cases/03-payment-reconciliation/.python-version cases/03-payment-reconciliation/README.md ${CASE03}/
+COPY --chown=airflow:root cases/03-payment-reconciliation/src ${CASE03}/src
+RUN --mount=type=cache,target=/home/airflow/.cache/uv,uid=50000 \
+    cd ${CASE03} && UV_PROJECT_ENVIRONMENT=/opt/cases/payment-reconciliation uv sync --frozen --no-dev
+
 WORKDIR /opt/airflow

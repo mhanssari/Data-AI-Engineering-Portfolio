@@ -1,0 +1,12 @@
+# Optional case settings, merged with platform/airflow/compose.yaml; this is not another Airflow stack.
+# From the repository root (POSTGRES_* comes from the case's ignored .env):
+# docker compose --env-file cases/03-payment-reconciliation/.env -f platform/airflow/compose.yaml \
+#   -f cases/03-payment-reconciliation/orchestration/compose.airflow.yaml up -d --build
+services:
+  airflow:
+    environment:
+      CASE03_PGHOST: host.docker.internal
+      CASE03_PGPORT: ${POSTGRES_PORT:-55433}
+      CASE03_PGDATABASE: ${PAYRECON_AIRFLOW_DB:-payments_airflow}
+      CASE03_PGUSER: ${POSTGRES_USER:-payments_admin}
+      CASE03_PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the case .env}

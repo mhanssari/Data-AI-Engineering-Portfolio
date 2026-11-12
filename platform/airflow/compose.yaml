@@ -46,6 +46,7 @@ services:
       # The repository, for case source code; each case's DAG folder under its own name.
       - ../..:/opt/portfolio
       - ../../cases/02-retail-loyalty-analytics/orchestration/dags:/opt/airflow/dags/retail_loyalty:ro
+      - ../../cases/03-payment-reconciliation/orchestration/dags:/opt/airflow/dags/payment_reconciliation:ro
       - airflow-state:/opt/airflow
 
 volumes:
