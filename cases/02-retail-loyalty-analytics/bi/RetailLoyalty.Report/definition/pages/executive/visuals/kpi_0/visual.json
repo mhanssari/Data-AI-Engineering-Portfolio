@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "kpi_0",
+  "position": {
+    "x": 20,
+    "y": 78,
+    "z": 10,
+    "width": 200,
+    "height": 90,
+    "tabOrder": 10
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_sales_line"
+                    }
+                  },
+                  "Property": "Net Sales"
+                }
+              },
+              "queryRef": "fct_sales_line.Net Sales",
+              "nativeQueryRef": "Net Sales"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

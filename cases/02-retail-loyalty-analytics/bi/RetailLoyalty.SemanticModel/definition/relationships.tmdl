@@ -44,11 +44,6 @@ relationship entitlement_member
 	fromColumn: fct_reward_entitlement.member_id
 	toColumn: dim_member.member_id
 
-relationship entitlement_redeemed_store_version
-	isActive: false
-	fromColumn: fct_reward_entitlement.redeemed_store_version_id
-	toColumn: dim_store.store_version_id
-
 relationship member_month_month
 	fromColumn: fct_member_month.month_start_date
 	toColumn: dim_date.date_day

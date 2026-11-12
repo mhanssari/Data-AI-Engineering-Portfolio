@@ -51,6 +51,11 @@ table agg_retention_cohort
 		formatString: 0.0%
 		displayFolder: Cohorts
 
+	/// Retention rate from month 3 on, blank for months 0-2, which measure early activity while the 90-day window fills. The report's cohort matrix uses this.
+	measure 'Retention Rate (from month 3)' = IF ( MIN ( agg_retention_cohort[months_since_enrolment] ) >= 3, [Retention Rate] )
+		formatString: 0.0%
+		displayFolder: Cohorts
+
 	partition agg_retention_cohort = m
 		mode: import
 		source =

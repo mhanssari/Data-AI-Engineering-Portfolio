@@ -1,0 +1,113 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "retention_matrix",
+  "position": {
+    "x": 20,
+    "y": 446,
+    "z": 22,
+    "width": 1240,
+    "height": 266,
+    "tabOrder": 22
+  },
+  "visual": {
+    "visualType": "pivotTable",
+    "query": {
+      "queryState": {
+        "Rows": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "agg_retention_cohort"
+                    }
+                  },
+                  "Property": "cohort_month_start_date"
+                }
+              },
+              "queryRef": "agg_retention_cohort.cohort_month_start_date",
+              "nativeQueryRef": "cohort_month_start_date",
+              "displayName": "Enrolment month"
+            }
+          ]
+        },
+        "Columns": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "agg_retention_cohort"
+                    }
+                  },
+                  "Property": "months_since_enrolment"
+                }
+              },
+              "queryRef": "agg_retention_cohort.months_since_enrolment",
+              "nativeQueryRef": "months_since_enrolment",
+              "displayName": "Months since enrolment"
+            }
+          ]
+        },
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "agg_retention_cohort"
+                    }
+                  },
+                  "Property": "Retention Rate (from month 3)"
+                }
+              },
+              "queryRef": "agg_retention_cohort.Retention Rate (from month 3)",
+              "nativeQueryRef": "Retention Rate (from month 3)",
+              "displayName": "Retention"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "subTotals": [
+        {
+          "properties": {
+            "columnSubtotals": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Retention by enrolment cohort: share active at month end'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

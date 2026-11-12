@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "kpi_3",
+  "position": {
+    "x": 770,
+    "y": 78,
+    "z": 13,
+    "width": 240,
+    "height": 90,
+    "tabOrder": 13
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_transaction"
+                    }
+                  },
+                  "Property": "Average Basket"
+                }
+              },
+              "queryRef": "fct_transaction.Average Basket",
+              "nativeQueryRef": "Average Basket"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

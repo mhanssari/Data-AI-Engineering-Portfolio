@@ -1,0 +1,148 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "store_versions",
+  "position": {
+    "x": 20,
+    "y": 446,
+    "z": 22,
+    "width": 1240,
+    "height": 266,
+    "tabOrder": 22
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_store"
+                    }
+                  },
+                  "Property": "store_name"
+                }
+              },
+              "queryRef": "dim_store.store_name",
+              "nativeQueryRef": "store_name",
+              "displayName": "Store"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_store"
+                    }
+                  },
+                  "Property": "valid_from_date"
+                }
+              },
+              "queryRef": "dim_store.valid_from_date",
+              "nativeQueryRef": "valid_from_date",
+              "displayName": "Valid from"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_store"
+                    }
+                  },
+                  "Property": "valid_to_date"
+                }
+              },
+              "queryRef": "dim_store.valid_to_date",
+              "nativeQueryRef": "valid_to_date",
+              "displayName": "Valid until"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_store"
+                    }
+                  },
+                  "Property": "region"
+                }
+              },
+              "queryRef": "dim_store.region",
+              "nativeQueryRef": "region",
+              "displayName": "Region"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_store"
+                    }
+                  },
+                  "Property": "store_format"
+                }
+              },
+              "queryRef": "dim_store.store_format",
+              "nativeQueryRef": "store_format",
+              "displayName": "Format"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_sales_line"
+                    }
+                  },
+                  "Property": "Net Sales"
+                }
+              },
+              "queryRef": "fct_sales_line.Net Sales",
+              "nativeQueryRef": "Net Sales"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_sales_line"
+                    }
+                  },
+                  "Property": "Trading Days"
+                }
+              },
+              "queryRef": "fct_sales_line.Trading Days",
+              "nativeQueryRef": "Trading Days"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Store versions and their sales'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

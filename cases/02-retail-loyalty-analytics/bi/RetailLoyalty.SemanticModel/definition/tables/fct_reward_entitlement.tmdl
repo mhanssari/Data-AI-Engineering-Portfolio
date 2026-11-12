@@ -136,11 +136,11 @@ table fct_reward_entitlement
 		formatString: #,0
 		displayFolder: Rewards
 
-	/// Redeemed entitlements by the store and date of redemption, for the store page.
+	/// Redeemed entitlements by the store and date of redemption, for the store page. Stores are applied with TREATAS rather than a relationship: only redeemed entitlements have a store, and a relationship would add a blank store to every store list.
 	measure 'Redemptions' =
 				CALCULATE (
 				    [Entitlements Redeemed],
-				    USERELATIONSHIP ( fct_reward_entitlement[redeemed_store_version_id], dim_store[store_version_id] ),
+				    TREATAS ( VALUES ( dim_store[store_version_id] ), fct_reward_entitlement[redeemed_store_version_id] ),
 				    USERELATIONSHIP ( fct_reward_entitlement[redeemed_date], dim_date[date_day] )
 				)
 		formatString: #,0

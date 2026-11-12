@@ -1,0 +1,78 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "redemption_by_type",
+  "position": {
+    "x": 790,
+    "y": 188,
+    "z": 21,
+    "width": 470,
+    "height": 248,
+    "tabOrder": 21
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_reward_entitlement"
+                    }
+                  },
+                  "Property": "reward_type"
+                }
+              },
+              "queryRef": "fct_reward_entitlement.reward_type",
+              "nativeQueryRef": "reward_type",
+              "displayName": "Reward type"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_reward_entitlement"
+                    }
+                  },
+                  "Property": "Redemption Rate"
+                }
+              },
+              "queryRef": "fct_reward_entitlement.Redemption Rate",
+              "nativeQueryRef": "Redemption Rate"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Redemption rate by reward type (redeemed / resolved)'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

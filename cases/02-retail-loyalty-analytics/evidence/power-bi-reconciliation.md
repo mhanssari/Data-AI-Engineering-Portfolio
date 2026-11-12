@@ -61,6 +61,10 @@ Refreshed from `exports/` in 21 s, then each check's DAX was evaluated by Deskto
 - **The export folder.** It cannot be relative in Power Query. The script overrides the parameter for its refresh only (a TMSL refresh override), so no machine path is written into the project.
 - **Two Desktop windows.** Force-closing one Power BI Desktop while another was open broke the second one's Power Query session ("Could not find a PackageSession"). The script now uses the engine that holds this model, and the README says to keep one Desktop open.
 
+## Re-run after the report pages, 12 November 2026
+
+The report pages replaced the store-to-redemption relationship with `TREATAS` in `[Redemptions]`, and added `[Retention Rate (from month 3)]`. The reconciliation was re-run every time the project was reopened to check a page: 34 of 34 on every run that completed, including `Redemptions at S001` (422). One refresh timed out after 10 minutes while processes from a hung earlier Desktop session were still running; it completed normally once they were ended. Screenshots of the three pages are in [screenshots](screenshots/).
+
 ## Not validated
 
-RLS in the Power BI service, where roles are assigned to users; scheduled refresh; any report visual (no pages built yet); performance.
+RLS in the Power BI service, where roles are assigned to users; scheduled refresh; performance; any reader using the report.
