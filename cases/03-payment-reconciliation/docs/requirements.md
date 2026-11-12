@@ -1,6 +1,6 @@
 # Requirements
 
-Status: design proposed, 12 November 2026; mart grain awaiting agreement. Nothing is built yet.
+Status: agreed 12 November 2026. Milestone 1 is being built: landing and core are done; reconciliation is next.
 
 ## Problem and decisions
 
@@ -106,4 +106,4 @@ Drafted now, refined at the end.
 - **Partitioning:** partition events by payment id in Kafka, so one payment's events stay ordered within a partition, and partition PostgreSQL tables by settlement date.
 - **State:** keep streaming state in a managed store with a time-to-live, instead of relying on a laptop's checkpoint folder.
 - **Settlement files:** land them in object storage with an arrival notification, rather than having a sensor watch a folder.
-- **Reconciliation:** run it incrementally per settlement day instead of over the whole history.
+- **Core and reconciliation:** update core incrementally per arrival and reconcile per settlement day, instead of rebuilding over the whole history ([decision 0004](decisions/0004-core-rebuilt-as-of-arrival.md)); rerun safety then needs explicit undo of a day's effects.

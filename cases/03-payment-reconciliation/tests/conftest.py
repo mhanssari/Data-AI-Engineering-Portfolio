@@ -1,9 +1,13 @@
 """Shared fixtures.
 
 - `generated`: the full seeded delivery, written once per session (about 15 seconds).
-- `con`: a connection to a fresh, migrated database created for one test and dropped after it, so loader tests
-  never touch the working database and never depend on each other. Needs the case's PostgreSQL; connection
-  settings come from libpq's PG* variables, as everywhere else in the case.
+- `con`: a connection to a fresh, migrated database created for one test and dropped after it, so tests never
+  touch the working database and never depend on each other.
+- `delivered`: a fresh database per test module with the whole generated delivery loaded, for tests that only
+  build and read from it.
+
+Database fixtures need the case's PostgreSQL; connection settings come from libpq's PG* variables, as everywhere
+else in the case.
 """
 
 import csv
@@ -11,15 +15,28 @@ import hashlib
 import json
 import os
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import psycopg
 import pytest
 
-from payrecon import db, generator
-from payrecon.config import FILE_COLUMNS, file_kind
+from payrecon import db, generator, loader
+from payrecon.config import FILE_COLUMNS, arrival_days, file_kind
 
-TEST_DATABASE = f"payrecon_test_{os.getpid()}"
+# The state machine as written in docs/data-model.md: (state, event type) -> new state. 'new' is before any event.
+# Transcribed by hand, so a test comparing it with core.allowed_transition catches drift between docs and code.
+TRANSITIONS = {
+    ("new", "initiated"): "initiated",
+    ("initiated", "authorised"): "authorised",
+    ("initiated", "declined"): "declined",
+    ("authorised", "captured"): "captured",
+    ("authorised", "voided"): "voided",
+    ("authorised", "expired"): "expired",
+    ("captured", "refunded"): "refunded",
+    ("refunded", "refunded"): "refunded",
+    ("captured", "reversed"): "reversed",
+}
 
 
 @pytest.fixture(scope="session")
@@ -29,21 +46,36 @@ def generated(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return out
 
 
-@pytest.fixture
-def con() -> Iterator[psycopg.Connection]:
+@contextmanager
+def fresh_database(name: str) -> Iterator[psycopg.Connection]:
+    """Create a migrated database, yield a connection to it, and drop it afterwards."""
     try:
         admin = psycopg.connect(autocommit=True)
     except psycopg.OperationalError as error:
         pytest.skip(f"no PostgreSQL to test against (start compose.yaml's postgres): {error}")
     with admin:
-        admin.execute(f"drop database if exists {TEST_DATABASE} with (force)")
-        admin.execute(f"create database {TEST_DATABASE}")
+        admin.execute(f"drop database if exists {name} with (force)")
+        admin.execute(f"create database {name}")
         try:
-            with db.connect(TEST_DATABASE) as connection:
+            with db.connect(name) as connection:
                 db.migrate(connection)
                 yield connection
         finally:
-            admin.execute(f"drop database if exists {TEST_DATABASE} with (force)")
+            admin.execute(f"drop database if exists {name} with (force)")
+
+
+@pytest.fixture
+def con() -> Iterator[psycopg.Connection]:
+    with fresh_database(f"payrecon_test_{os.getpid()}") as connection:
+        yield connection
+
+
+@pytest.fixture(scope="module")
+def delivered(generated: Path) -> Iterator[psycopg.Connection]:
+    with fresh_database(f"payrecon_test_delivered_{os.getpid()}") as connection:
+        for day in arrival_days():
+            loader.load_arrival(connection, generated / f"arrival_{day}")
+        yield connection
 
 
 def write_arrival(folder: Path, arrival: str, files: dict[str, list[dict]]) -> Path:

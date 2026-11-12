@@ -1,6 +1,6 @@
 # Data model
 
-Status: design proposed, 12 November 2026. **Grain below awaits agreement before any SQL.**
+Status: grain agreed 12 November 2026. Raw, ops and core are built; recon is not yet.
 
 ## Sources
 
@@ -60,23 +60,27 @@ Each is planted on named records with a stated outcome, so tests can assert exac
 
 PostgreSQL schemas: `raw` (append-only landing), `core` (cleaned and derived), `recon` (reconciliation), `ops` (runs, files, quarantine). Milestone 2 adds `stream`.
 
-### Grain, for agreement
+### Grain
 
 | Table | One row per | Key | Kind |
 | --- | --- | --- | --- |
-| `raw.payment_event` | Delivered event row, as received | Load id + row number | Append-only landing |
-| `raw.settlement_line` | Delivered settlement row, as received | Load id + row number | Append-only landing |
-| `core.merchant` | Merchant, current | `merchant_id` | Reference |
-| `core.payment_event` | Distinct event | `event_id` | Event history, deduplicated |
-| `core.payment` | Payment, current state | `payment_id` | Derived state: status, last sequence, captured, refunded and expected settlement amounts, all in one currency |
-| `core.illegal_transition` | Event that could not be applied | `event_id` | Audit |
-| `core.settlement_line` | Distinct settlement line | `settlement_line_id` | Deduplicated across re-sent files |
+| `raw.payment_event` | Delivered event row, as received | `file_id`, `row_number` | Append-only landing |
+| `raw.settlement_line` | Delivered settlement row, as received | `file_id`, `row_number` | Append-only landing |
+| `core.merchant` | Merchant, latest version delivered | `merchant_id` | Reference |
+| `core.payment_event` | Distinct event | `event_id` | Event history: first delivery kept, deliveries counted; `payment_id` + `sequence_no` unique |
+| `core.payment` | Payment, current state | `payment_id` | Derived state: status, last sequence applied, events held beyond a gap, captured, refunded, reversed and expected settlement amounts, all in one currency |
+| `core.illegal_transition` | Event that could not be applied | `event_id` | Audit: state it met and the reason |
+| `core.allowed_transition` | Allowed state change | `from_status`, `event_type` | The state machine above, as data |
+| `core.build` | Current core build | one row | The arrival date core reflects |
+| `core.settlement_line` | Distinct settlement line | `settlement_line_id` | Latest delivery wins, so a corrected re-issue supersedes; identical re-sends never reach raw |
 | `recon.payment_settlement` | Payment due for settlement, per run | `run_id`, `payment_id` | Match result: expected and settled gross, fee, expected fee, status (matched, pending or an exception type) |
 | `recon.exception` | Open or resolved exception, per run | `run_id`, `exception_id` | One row per payment or orphan line and exception type, with its signed amount and currency |
 | `recon.control_total` | Currency × settlement day, per run | `run_id`, `currency`, `settlement_date` | Captured, refunded, settled gross, fees, open exception amount, pending amount, unexplained difference (must be 0) |
 | `ops.run` | Pipeline run | `run_id` | Run metadata: as-of date, inputs, counts, duration |
 | `ops.file` | Arrived file | `file_name`, `checksum` | Arrival, load status, row counts |
 | `ops.quarantine` | Rejected record | `quarantine_id` | Source file and row, raw content, reason, reprocessed flag |
+
+Core is rebuilt whole from raw as of an arrival date ([decision 0004](decisions/0004-core-rebuilt-as-of-arrival.md)): holding out-of-order events, recording illegal transitions and re-reading events for merchants not yet known are described there.
 
 Milestone 2, to be agreed at its start: `stream.payment_status_minute` (currency × merchant × status × one-minute event-time window) and `stream.payment_latest` (payment, latest streamed state).
 

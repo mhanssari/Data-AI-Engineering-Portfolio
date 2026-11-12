@@ -1,11 +1,11 @@
-"""Command line: `payrecon generate | migrate | load | reset`."""
+"""Command line: `payrecon generate | migrate | reset | load | build-core`."""
 
 import argparse
 import sys
 from datetime import date
 from pathlib import Path
 
-from payrecon import db, generator, loader
+from payrecon import core, db, generator, loader
 from payrecon.config import SEED, arrival_days, data_dir
 
 
@@ -49,6 +49,20 @@ def _load(args: argparse.Namespace) -> int:
     return 0
 
 
+def _build_core(args: argparse.Namespace) -> int:
+    with db.connect() as con:
+        as_of = date.fromisoformat(args.arrival) if args.arrival else core.latest_arrival(con)
+        if as_of is None:
+            print("nothing has been loaded yet; run payrecon load first", file=sys.stderr)
+            return 1
+        counts = core.build(con, as_of)
+    print(
+        f"core as of arrival {as_of}: " + ", ".join(f"{n} {t.split('.')[1]}" for t, n in counts.items()),
+        flush=True,
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="payrecon", description="Payment settlement reconciliation")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -70,6 +84,9 @@ def main(argv: list[str] | None = None) -> int:
     load = add("load", "land one arrival folder (or all) in raw", _load)
     load.add_argument("--arrival", default="all", help="YYYY-MM-DD or all")
     load.add_argument("--data", type=Path, default=data_dir())
+
+    build_core = add("build-core", "rebuild core from everything arrived by a date", _build_core)
+    build_core.add_argument("--arrival", help="YYYY-MM-DD; default the latest arrival loaded")
 
     args = parser.parse_args(argv)
     try:

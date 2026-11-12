@@ -10,23 +10,11 @@ from collections import defaultdict
 from pathlib import Path
 
 import pytest
+from conftest import TRANSITIONS
 
 from payrecon import generator
 from payrecon.config import arrival_days
 from payrecon.scenarios import SCENARIOS
-
-# The state machine in docs/data-model.md: allowed (previous type, next type) pairs.
-LEGAL = {
-    (None, "initiated"),
-    ("initiated", "authorised"),
-    ("initiated", "declined"),
-    ("authorised", "captured"),
-    ("authorised", "voided"),
-    ("authorised", "expired"),
-    ("captured", "refunded"),
-    ("refunded", "refunded"),
-    ("captured", "reversed"),
-}
 
 
 def _rows(base: Path, pattern: str) -> list[dict]:
@@ -92,10 +80,10 @@ def test_background_follows_the_state_machine(world: generator.World) -> None:
     for payment_id, events in by_payment.items():
         events.sort(key=lambda e: e.sequence_no)
         assert [e.sequence_no for e in events] == list(range(1, len(events) + 1)), payment_id
-        previous = None
+        previous = "new"
         for e in events:
-            assert (previous, e.event_type) in LEGAL, f"{payment_id}: {previous} -> {e.event_type}"
-            previous = e.event_type
+            assert (previous, e.event_type) in TRANSITIONS, f"{payment_id}: {previous} -> {e.event_type}"
+            previous = TRANSITIONS[(previous, e.event_type)]
 
 
 def test_background_settles_exactly_what_was_captured(world: generator.World) -> None:

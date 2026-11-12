@@ -11,7 +11,10 @@ MIGRATIONS = CASE_ROOT / "sql" / "migrations"
 
 
 def connect(dbname: str | None = None) -> psycopg.Connection:
-    return psycopg.connect(dbname=dbname) if dbname else psycopg.connect()
+    """Autocommit, so each unit of work is an explicit `with con.transaction()` block and never nests silently
+    inside an implicit transaction left open by an earlier query."""
+    kwargs = {"dbname": dbname} if dbname else {}
+    return psycopg.connect(autocommit=True, **kwargs)
 
 
 def migrate(con: psycopg.Connection, folder: Path = MIGRATIONS) -> list[str]:
@@ -20,7 +23,6 @@ def migrate(con: psycopg.Connection, folder: Path = MIGRATIONS) -> list[str]:
         "create table if not exists public.schema_migration (version text primary key, "
         "applied_at timestamptz not null default now())"
     )
-    con.commit()
     applied = {row[0] for row in con.execute("select version from public.schema_migration")}
     done = []
     for path in sorted(folder.glob("*.sql")):
