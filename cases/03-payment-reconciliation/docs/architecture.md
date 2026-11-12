@@ -1,6 +1,6 @@
 # Architecture
 
-Status: 12 November 2026. Batch landing, core and reconciliation are implemented locally, with an opt-in DAG on the shared Airflow. Shared Kafka has passing CI; the optional Spark intake is validated locally. The live query and backfill remain planned. No cloud deployment exists.
+Status: 12 November 2026. Batch, shared Kafka and optional Spark intake have passing GitHub checks. The independent watermarked live query, SQL projections, reference refresh and frontier status are implemented. Controlled backfill and forced crash recovery remain planned. No cloud deployment exists.
 
 Infrastructure ownership follows [portfolio decision 0001](../../../platform/decisions/0001-shared-infrastructure.md). Airflow and Kafka are shared in `platform/airflow/` and `platform/kafka/`. Case 03 retains its PostgreSQL, jobs, dependency environment and processing state.
 
@@ -16,8 +16,10 @@ flowchart LR
   L --> PG[("PostgreSQL: raw, core, recon, ops")]
   PG --> R["SQL: payment state, matching, exceptions, control totals"]
   R --> PG
-  K -. "milestone 2" .-> S["Spark Structured Streaming: dedupe, watermark, idempotent sink"]
-  S -.-> SD
+  K --> S["Spark live: validate, watermark, deduplicate"]
+  S --> LS["Transactional SQL: admitted ledger, sequence walk, minute counts"]
+  LS --> SD
+  MR["Independent seeded reference snapshot"] --> LS
   AF["Shared portfolio Airflow"] -- "daily: wait for file, load, reconcile" --> L
   PG --> V["Finance reconciliation views"]
 ```
@@ -38,9 +40,9 @@ flowchart LR
 - **Every case still runs without Airflow,** through its own CLI.
 - **Case 03 settings:** an optional case-owned Compose override supplies namespaced connection variables, keeping the base platform usable without Case 03 credentials. Tasks read credentials only at execution. See [decision 0006](decisions/0006-batch-orchestration.md) and the [run guide](../orchestration/README.md).
 
-## Streaming intake and proposed live query
+## Streaming intake and live query
 
-The [streaming design](streaming-design.md) owns the contract, grains, two-query intake/live flow and recovery policy. Implemented intake archives every delivery and canonical schema-valid event into `payments_stream`, with quarantine and transactional batch records. See the [run guide](../streaming/README.md) and [evidence](../evidence/stream-intake-run.md). The live query remains planned. Owner-confirmed choices are a ten-minute watermark delay and authorisation decline rate with separate expiry counts. SQL remains authoritative for state transitions and all monetary/matching logic.
+The [streaming design](streaming-design.md) owns the contract, grains, two-query flow and recovery policy. Intake archives every delivery and canonical schema-valid event into `payments_stream`. The independent live query validates before its ten-minute watermark and bounded deduplication, then transactionally publishes an admitted ledger and SQL projections. Both readers report their progress separately; status compares recorded frontiers and exposes missing events or reference/conflict holds. See the [run guide](../streaming/README.md) and [live decision](decisions/0009-live-state-and-operational-projections.md). Authorisation decline rate and expiry counts remain separate. Batch/live share SQL transition values and the sequence walk; matching stays in the financial batch.
 
 Kafka's client network belongs to the platform ([decision 0002](../../../platform/decisions/0002-shared-kafka-topology.md)); the optional case streaming overlay joins it. This differs from Airflow's existing host-port connection and preserves Kafka-free batch startup. The case Spark job runs in local mode with its own runtime, persistent checkpoint volume and separate streaming database; there is no shared Spark service.
 

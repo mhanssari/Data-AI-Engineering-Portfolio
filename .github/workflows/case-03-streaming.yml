@@ -42,6 +42,17 @@ jobs:
       - name: Durable intake, quarantine, restart and re-publication
         run: python3 cases/03-payment-reconciliation/streaming/check_intake.py
 
+      - name: Watermarked live view, SQL projections, reference refresh and duplicate safety
+        run: python3 cases/03-payment-reconciliation/streaming/check_live.py
+
+      - name: Live progress evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: case-03-live-progress
+          path: cases/03-payment-reconciliation/evidence/ci/live-integration.json
+          if-no-files-found: ignore
+
       - name: Service logs on failure
         if: failure()
         run: |

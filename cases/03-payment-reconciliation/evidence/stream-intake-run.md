@@ -1,6 +1,6 @@
 # Streaming runtime and durable intake: local validation
 
-Recorded 12 November 2026 on Windows with Docker Desktop, using Linux containers. **The optional producer/Spark runtime and unwatermarked intake are implemented and validated locally.** This slice remains uncommitted; its new streaming workflow has not run on GitHub. No live metric, watermark eviction, late repair or throughput/latency result is claimed.
+Recorded 12 November 2026 on Windows with Docker Desktop, using Linux containers. **The optional producer/Spark runtime and unwatermarked intake are validated locally and on GitHub.** Committed/pushed as `1848bd9`. Its first [Case 03 Streaming run](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43257252331) passed all three real drains, quarantine, restart and re-publication checks. [Database CI](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43257252189) passed 68 tests in 141.20 seconds, with PostgreSQL required. [Platform Kafka](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43257252008) and [Platform Airflow](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43257252024) also passed. This evidence covers the intake commit; subsequent live-query work is recorded [separately](stream-live-run.md).
 
 ## Prior foundation delivery
 
@@ -56,4 +56,4 @@ Filesystem checkpoints and PostgreSQL are separate durability domains; marker re
 
 The retained demo has eight deliveries, three canonical events, four quarantine rows and no blocking conflict in `payments_stream`, plus its original checkpoint/sidecar. Its topic is separate from the still-empty `case03.payment-events.v1`. Isolated integration fixtures were removed. Shared Kafka is stopped after validation with broker data/network and checkpoint volume preserved; PostgreSQL remains running and Airflow remains stopped.
 
-Next: commit/push this intake slice and confirm its new workflow, then implement the independent ten-minute watermarked live query with deterministic SQL state/minute projections. No business decision blocks that sequence.
+The intake commit and its first CI run are now confirmed. Next application work is the independent ten-minute watermarked live query with deterministic SQL state/minute projections; its [separate evidence](stream-live-run.md) owns current validation and remaining recovery work. No business decision blocks that sequence.

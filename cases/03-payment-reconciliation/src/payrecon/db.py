@@ -6,6 +6,7 @@ from pathlib import Path
 import psycopg
 
 from payrecon.config import CASE_ROOT
+from payrecon.sql_files import read_sql
 
 MIGRATIONS = CASE_ROOT / "sql" / "migrations"
 
@@ -29,7 +30,7 @@ def migrate(con: psycopg.Connection, folder: Path = MIGRATIONS) -> list[str]:
         if path.stem in applied:
             continue
         with con.transaction():
-            con.execute(path.read_text(encoding="utf-8"))
+            con.execute(read_sql(path))
             con.execute("insert into public.schema_migration (version) values (%s)", [path.stem])
         done.append(path.stem)
     return done

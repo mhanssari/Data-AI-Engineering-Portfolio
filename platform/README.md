@@ -5,6 +5,6 @@ Infrastructure used by the portfolio's cases lives here. Workloads, dependencies
 | Resource | State | Guide |
 | --- | --- | --- |
 | Airflow | Shared local stack implemented; Case 02 and Case 03 integrated | [Airflow](airflow/README.md) |
-| Kafka | Shared local broker verified locally and in CI; Case 03 owns its optional Spark intake | [Kafka](kafka/README.md), [topology](decisions/0002-shared-kafka-topology.md) |
+| Kafka | Shared local broker verified locally and in CI; Case 03 owns its optional Spark intake/live workloads | [Kafka](kafka/README.md), [topology](decisions/0002-shared-kafka-topology.md) |
 
 Start only the resources the selected case needs. Each case documents its own prerequisites, execution and recovery commands.

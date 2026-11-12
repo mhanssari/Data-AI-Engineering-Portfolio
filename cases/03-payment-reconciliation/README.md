@@ -1,12 +1,12 @@
 # Payment monitoring and settlement reconciliation
 
-**Status: milestone 1 (batch) validated locally, with database CI passing on GitHub.** Built: the seeded generator (planted defects P1–P16); landing into PostgreSQL with quarantine; core (distinct events, payment state by sequence number, illegal transitions, settlement lines); reconciliation (matching, a one-day grace period, exceptions, control totals and invariant checks per run); an opt-in DAG on the shared Airflow. Shared Kafka is committed with CI passing. The optional producer/Spark runtime and durable intake are now validated locally; the live query and backfill remain planned. See [clean batch evidence](evidence/batch-clean-setup-run.md), [orchestration](orchestration/README.md) and [intake evidence](evidence/stream-intake-run.md).
+**Status: milestone 1 (batch), shared Kafka and durable intake have passing GitHub checks.** Built: the seeded generator (planted defects P1–P16); landing into PostgreSQL with quarantine; core (distinct events, payment state by sequence number, illegal transitions, settlement lines); reconciliation (matching, a one-day grace period, exceptions, control totals and invariant checks per run); an opt-in DAG on the shared Airflow. The optional Spark live query now adds a ten-minute watermark, SQL state/minute projections, reference refresh and frontier diagnostics. Controlled backfill and forced crash recovery remain planned. See [clean batch evidence](evidence/batch-clean-setup-run.md), [intake evidence](evidence/stream-intake-run.md) and [live evidence](evidence/stream-live-run.md).
 
 A fictional payment provider needs two views of the same payments: an operational one, within minutes, of what is failing; and a financial one, daily, proving that every captured payment was settled correctly and explaining every difference. The events arrive duplicated, out of order and late.
 
 Stack:
 - **Batch (milestone 1):** PostgreSQL with Python, orchestrated by the shared portfolio Airflow.
-- **Streaming (milestone 2):** shared Kafka (KRaft), optional Spark intake and acknowledged producer built; live projections and late backfill planned.
+- **Streaming (milestone 2):** shared Kafka (KRaft), optional Spark intake/live readers, acknowledged fixtures and SQL operational views; controlled late backfill planned.
 - **Runtime:** Docker is required ([decision 0003](docs/decisions/0003-docker-required.md)).
 
 ## Run it
@@ -33,8 +33,8 @@ The [CI workflow](../../.github/workflows/case-03-ci.yml) runs the locked Linux 
 ## Start here
 
 - [Clean batch setup and review](evidence/batch-clean-setup-run.md): isolated committed checkout, 31 arrivals, exact fixture counts and remaining limits
-- [Streaming intake guide and checks](streaming/README.md): optional runtime, quarantine, real checkpoint restart and re-publication
-- [Streaming design](docs/streaming-design.md): implemented intake boundary, confirmed metric/lateness choices and proposed live recovery
+- [Streaming run guide and checks](streaming/README.md): optional runtime, quarantine, intake/live checkpoints, minute views and phased replay
+- [Streaming design](docs/streaming-design.md): implemented intake/live boundaries, confirmed metric/lateness choices and remaining controlled recovery
 - [Airflow recovery evidence](evidence/airflow-late-file-run.md): late-file recovery and unchanged results on rerun
 - [CI validation evidence](evidence/ci-local-run.md): 47 passing tests locally and on GitHub; unavailable-database failure and JUnit artifact verified
 - [Requirements](docs/requirements.md): decisions, settlement rules, acceptance criteria, invariants
@@ -47,6 +47,6 @@ The [CI workflow](../../.github/workflows/case-03-ci.yml) runs the locked Linux 
 
 Core is rebuilt from raw for each arrival date, which makes late corrections and historical reruns straightforward at this fixture size. Larger workloads would need incremental processing with equivalent recovery checks. Only one writer may target a case database at a time: Airflow serialises its runs, but concurrent CLI writers are not blocked by a database lock.
 
-Merchant pricing uses the latest reference data available to each as-of build; historical price-plan versions are not modelled. This is a local Docker demonstration, with no high availability or cloud deployment. Live operational projections, watermark/backfill correctness, measured event latency and throughput remain future milestones. See the [clean batch evidence](evidence/batch-clean-setup-run.md) for reproduction results and the [metric catalogue](docs/metrics.md) for implemented versus proposed outputs.
+Merchant pricing uses the latest reference data available to each as-of build; historical price-plan versions are not modelled. This is a local Docker demonstration, with no high availability or cloud deployment. Forced crash recovery, controlled late-backfill parity, sustained state eviction and measured latency/throughput remain future milestones. The live sink rewalks affected payment histories and replaces their minute buckets through one local driver/database; it is not a distributed sink benchmark. See the [clean batch evidence](evidence/batch-clean-setup-run.md) and [metric catalogue](docs/metrics.md) for practical limits.
 
 [Return to portfolio](../../README.md).

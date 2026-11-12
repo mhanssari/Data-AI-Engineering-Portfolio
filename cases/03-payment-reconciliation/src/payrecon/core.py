@@ -9,6 +9,7 @@ from datetime import date
 import psycopg
 
 from payrecon.config import CASE_ROOT
+from payrecon.sql_files import read_sql
 
 BUILD_SQL = CASE_ROOT / "sql" / "core" / "build.sql"
 TABLES = (
@@ -29,5 +30,5 @@ def build(con: psycopg.Connection, as_of_arrival: date) -> dict[str, int]:
     with con.transaction():
         # A transaction-local setting carries the date into a multi-statement script (bind parameters cannot).
         con.execute("select set_config('payrecon.as_of_arrival', %s, true)", [as_of_arrival.isoformat()])
-        con.execute(BUILD_SQL.read_text(encoding="utf-8"))
+        con.execute(read_sql(BUILD_SQL))
         return {table: con.execute(f"select count(*) from {table}").fetchone()[0] for table in TABLES}

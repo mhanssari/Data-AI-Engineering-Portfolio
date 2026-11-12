@@ -8,8 +8,10 @@ from payrecon.streaming.contract import Dataset, stamp
 from payrecon.streaming.intake import Identity, bind_dataset, require_stream_database
 
 
-def register(con, dataset: Dataset, identity: Identity, checkpoint: Path) -> str:
+def register(con, dataset: Dataset, identity: Identity, checkpoint: Path, *, role: str = "intake") -> str:
     require_stream_database(con)
+    if role not in ("intake", "live"):
+        raise ValueError("unknown streaming query role")
     checkpoint = checkpoint.resolve()
     marker = checkpoint.with_name(checkpoint.name + ".lineage.json")
     expected = dict(
@@ -20,16 +22,18 @@ def register(con, dataset: Dataset, identity: Identity, checkpoint: Path) -> str
         topic_id=identity.topic_id,
         topic=identity.topic,
         checkpoint_path=str(checkpoint),
+        query_role=role,
     )
     with con.transaction():
         bind_dataset(con, dataset)
         if marker.exists():
             saved = json.loads(marker.read_text())
+            saved.setdefault("query_role", "intake")  # Markers from the first intake slice remain valid.
             if {key: saved.get(key) for key in expected} != expected:
                 raise ValueError("checkpoint marker does not match dataset, clock, topic or cluster")
             generation = saved["generation"]
             registered = con.execute(
-                "select dataset_id,cluster_id,topic_id,topic,checkpoint_path "
+                "select dataset_id,cluster_id,topic_id,topic,checkpoint_path,query_role "
                 "from stream.lineage where generation=%s",
                 [generation],
             ).fetchone()
@@ -39,6 +43,7 @@ def register(con, dataset: Dataset, identity: Identity, checkpoint: Path) -> str
                 identity.topic_id,
                 identity.topic,
                 str(checkpoint),
+                role,
             ):
                 raise ValueError("checkpoint marker has no matching database lineage")
             committed = con.execute(
@@ -55,8 +60,8 @@ def register(con, dataset: Dataset, identity: Identity, checkpoint: Path) -> str
             raise ValueError("checkpoint marker was removed from a registered path; do not silently reuse it")
         generation = str(uuid.uuid4())
         con.execute(
-            "insert into stream.lineage(generation,dataset_id,cluster_id,topic_id,topic,checkpoint_path) "
-            "values (%s,%s,%s,%s,%s,%s)",
+            "insert into stream.lineage(generation,dataset_id,cluster_id,topic_id,topic,checkpoint_path,query_role) "
+            "values (%s,%s,%s,%s,%s,%s,%s)",
             [
                 generation,
                 dataset.dataset_id,
@@ -64,6 +69,7 @@ def register(con, dataset: Dataset, identity: Identity, checkpoint: Path) -> str
                 identity.topic_id,
                 identity.topic,
                 str(checkpoint),
+                role,
             ],
         )
         marker.parent.mkdir(parents=True, exist_ok=True)

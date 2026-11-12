@@ -71,10 +71,16 @@ def fixture_records(dataset_id: str = DATASET_ID) -> list[tuple[bytes, bytes | N
 
 
 def produce_fixture(topic: str, dataset_id: str = DATASET_ID) -> dict:
-    from confluent_kafka import Producer
-
     if not topic.startswith("case03.intake-check"):
         raise ValueError("fixture producer writes only to case03.intake-check* topics")
+    return publish(topic, fixture_records(dataset_id))
+
+
+def publish(topic: str, records: list[tuple[bytes, bytes | None]]) -> dict:
+    from confluent_kafka import Producer
+
+    if not topic.startswith(("case03.intake-check", "case03.live-check")):
+        raise ValueError("fixture publishing requires a case-owned diagnostic topic")
     source = identity(topic)
     producer = Producer(
         {
@@ -93,11 +99,11 @@ def produce_fixture(topic: str, dataset_id: str = DATASET_ID) -> dict:
         else:
             delivered.append(dict(partition=message.partition(), offset=message.offset()))
 
-    for key, value in fixture_records(dataset_id):
+    for key, value in records:
         producer.produce(topic, key=key, value=value, on_delivery=acknowledged)
         producer.poll(0)
     remaining = producer.flush(35)
-    if errors or remaining or len(delivered) != 8:
+    if errors or remaining or len(delivered) != len(records):
         raise RuntimeError(
             f"producer acknowledgements incomplete: {len(delivered)} acknowledged, {remaining} pending, {errors}"
         )

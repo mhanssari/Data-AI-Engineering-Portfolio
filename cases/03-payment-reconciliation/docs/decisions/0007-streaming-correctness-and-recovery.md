@@ -26,7 +26,7 @@ Options considered: one watermarked query as the only record of input; one state
 - Backfill pauses/fences the live writer, establishes a complete intake/reference frontier, adds valid missing events and rebuilds affected payment histories and minute totals atomically. It records the repair and resumes the same checkpoint. It must not reset the watermark, fabricate missing events or promote quarantined poison records.
 - No end-to-end exactly-once claim. Describe replay-safe database effects under at-least-once delivery, subject to the implementation tests.
 
-The [streaming design](../streaming-design.md) owns the contract, grains and acceptance plan. The shared broker has passing [local and GitHub checks](../../../../platform/kafka/evidence/foundation-run.md). The optional producer/Spark runtime and durable intake are implemented under [decision 0008](0008-streaming-runtime-and-intake.md); the live-query and backfill portions of this decision remain proposed.
+The [streaming design](../streaming-design.md) owns the contract, grains and acceptance plan. The shared broker has passing [local and GitHub checks](../../../../platform/kafka/evidence/foundation-run.md). The optional producer/Spark runtime and durable intake are implemented under [decision 0008](0008-streaming-runtime-and-intake.md); live admission and SQL projections are implemented under [decision 0009](0009-live-state-and-operational-projections.md). Controlled backfill, forced crash recovery and sustained eviction testing remain proposed work.
 
 ## Sources and consequences
 

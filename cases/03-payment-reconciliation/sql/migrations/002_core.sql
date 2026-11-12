@@ -13,16 +13,8 @@ create table core.allowed_transition (
     primary key (from_status, event_type)
 );
 
-insert into core.allowed_transition (from_status, event_type, to_status) values
-    ('new', 'initiated', 'initiated'),
-    ('initiated', 'authorised', 'authorised'),
-    ('initiated', 'declined', 'declined'),
-    ('authorised', 'captured', 'captured'),
-    ('authorised', 'voided', 'voided'),
-    ('authorised', 'expired', 'expired'),
-    ('captured', 'refunded', 'refunded'),
-    ('refunded', 'refunded', 'refunded'),
-    ('captured', 'reversed', 'reversed');
+insert into core.allowed_transition (from_status, event_type, to_status)
+-- include: ../shared/allowed_transitions.sql
 
 -- Which arrival the core tables currently reflect. One row.
 create table core.build (

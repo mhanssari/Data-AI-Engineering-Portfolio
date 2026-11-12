@@ -1,6 +1,6 @@
 # Metric catalogue
 
-Status: 12 November 2026. The financial control components and exception ages are stored by the batch reconciliation. Match-rate, fee-variance and authorisation-age summaries are consumption definitions, not separate implemented reports. Streaming metrics remain proposed for milestone 2. This is the authoritative metric catalogue.
+Status: 12 November 2026. The financial control components and exception ages are stored by the batch reconciliation. Match-rate, fee-variance and authorisation-age summaries are consumption definitions, not separate implemented reports. Streaming applied-event counts, decline rate, separate expiries and application diagnostics are implemented in SQL. Spark progress and recorded-frontier status are retained; latency/throughput distributions, broker-head backlog and controlled repair remain future work. This is the authoritative metric catalogue.
 
 All money is in minor units of one currency; no metric adds currencies. Dates are UTC.
 
@@ -25,9 +25,9 @@ Owner persona: finance reconciliation analyst. Every result is selected for an e
 
 **Grace versus grouping.** `due_date` is the capture date used for financial grouping. `last_due_date` is the latest capture/refund/reversal date used to decide grace. A later refund can put an older capture-date group back within grace; it does not move the payment's control-total bucket.
 
-## Operations (streaming, milestone 2, planned)
+## Operations (streaming, milestone 2)
 
-Owner persona: payment operations analyst. Owner confirmed 12 November 2026: use an authorisation decision decline rate and show expiries separately. The former `(declined + expired) / initiated` in an event-time minute mixed unrelated initiation/decision cohorts and is replaced. Select one live generation; count distinct, schema-valid events that the SQL state walk actually applied. Held, illegal and unknown-reference events appear as diagnostics and are excluded from the decision-rate denominator. Counts are event counts, rather than current payment-state snapshots. A zero denominator gives NULL.
+Owner persona: payment operations analyst. Owner confirmed 12 November 2026: use an authorisation decision decline rate and show expiries separately. The former `(declined + expired) / initiated` in an event-time minute mixed unrelated initiation/decision cohorts and is replaced. Select one live generation; count distinct, schema-valid events that the SQL state walk actually applied. Held, illegal, unknown-reference and inconsistent merchant/currency identities appear as diagnostics and are excluded from the decision-rate denominator. Counts are event counts, rather than current payment-state snapshots. A zero denominator gives NULL; missing event counts are zero. Sum eligible numerator/denominator counts when rolling up, rather than averaging percentages.
 
 | Metric | Definition | Grain | Notes |
 | --- | --- | --- | --- |
@@ -42,3 +42,5 @@ Owner persona: payment operations analyst. Owner confirmed 12 November 2026: use
 | Backlog/readiness | Target offsets minus completed query frontiers, reported per partition and query | Topic epoch × partition × query role | No sum across different epochs. Published view is provisional until both readers reach the stated frontier and conflict/reference checks pass |
 
 The [streaming design](streaming-design.md) owns admission, checkpoint and repair policy. Ten minutes is the confirmed watermark delay, not a measured latency target or a guarantee that every older event is discarded. Backfill can revise previously incomplete minute counts and payment state; expose the repair ID and generation.
+
+Implemented consumption: `stream.event_minute` stores counts by generation/minute/merchant/currency/event type/outcome; `stream.operation_minute` exposes percentage decline rate, separate expiry count and diagnostics at generation/minute/merchant/currency grain. `stream-status` reports recorded intake/live offsets, progress coverage of database commits, missing or unverified events, conflicts and reference frontier. Its consistency flag uses a single database snapshot and does not query the broker head; absolute backlog against an externally selected target remains unimplemented. See the [run guide](../streaming/README.md).

@@ -110,14 +110,44 @@ def _stream_produce(args: argparse.Namespace) -> int:
 
 def _stream_intake(args: argparse.Namespace) -> int:
     from payrecon.streaming.contract import Dataset, utc
-    from payrecon.streaming.runtime import run_intake
+    from payrecon.streaming.runtime import run_query
 
-    run_intake(
+    run_query(
         Dataset(args.dataset, utc(args.source_start), utc(args.source_end)),
         args.topic,
         args.checkpoint,
+        role=args.role,
         available_now=args.available_now,
     )
+    return 0
+
+
+def _stream_reference(args: argparse.Namespace) -> int:
+    import json
+
+    from payrecon.streaming.live import load_reference
+
+    with db.connect() as con:
+        print(json.dumps(load_reference(con, date.fromisoformat(args.arrival))))
+    return 0
+
+
+def _stream_status(args: argparse.Namespace) -> int:
+    import json
+
+    from payrecon.streaming.progress import status
+
+    with db.connect() as con:
+        print(json.dumps(status(con, args.generation)))
+    return 0
+
+
+def _stream_live_fixture(args: argparse.Namespace) -> int:
+    import json
+
+    from payrecon.streaming.live_fixture import produce_phase
+
+    print(json.dumps(produce_phase(args.topic, args.phase, args.dataset)))
     return 0
 
 
@@ -156,18 +186,38 @@ def main(argv: list[str] | None = None) -> int:
     produce = add(
         "stream-produce-fixture", "publish eight acknowledged intake-check deliveries", _stream_produce
     )
+    live_fixture = add(
+        "stream-produce-live-fixture", "publish a bounded live-check fixture phase", _stream_live_fixture
+    )
+    live_fixture.add_argument(
+        "--phase", choices=("initial", "complete", "repeat", "advance", "late"), required=True
+    )
+    live_fixture.add_argument("--topic", default="case03.live-check")
+    live_fixture.add_argument("--dataset", default="case03-intake-v1")
     intake = add(
         "stream-intake", "archive Kafka deliveries and canonical events without a watermark", _stream_intake
     )
-    for command in (produce, intake):
+    intake.set_defaults(role="intake")
+    live = add("stream-live", "validate, watermark and project operational payment events", _stream_intake)
+    live.set_defaults(role="live")
+    reference = add(
+        "stream-reference", "load/refresh the independent seeded reference snapshot", _stream_reference
+    )
+    reference.add_argument("--arrival", default="2026-10-02")
+    status = add("stream-status", "inspect one live generation at reported query frontiers", _stream_status)
+    status.add_argument("--generation", required=True)
+    for command in (produce, intake, live):
         command.add_argument("--topic", default="case03.intake-check")
         command.add_argument("--dataset", default="case03-intake-v1")
-    intake.add_argument("--source-start", default="2026-10-01T00:00:00Z")
-    intake.add_argument("--source-end", default="2026-11-01T00:00:00Z")
-    intake.add_argument("--checkpoint", type=Path, default=Path("/state/intake-v1"))
-    intake.add_argument(
-        "--available-now", action="store_true", help="drain current offsets and stop; default continuous"
-    )
+    for command in (intake, live):
+        command.add_argument("--source-start", default="2026-10-01T00:00:00Z")
+        command.add_argument("--source-end", default="2026-11-01T00:00:00Z")
+        command.add_argument(
+            "--checkpoint", type=Path, default=Path(f"/state/{command.get_default('role')}-v1")
+        )
+        command.add_argument(
+            "--available-now", action="store_true", help="drain current offsets and stop; default continuous"
+        )
 
     args = parser.parse_args(argv)
     try:

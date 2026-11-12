@@ -93,7 +93,8 @@ def persist_batch(
         )
         bind_dataset(con, dataset)
         registered = con.execute(
-            "select dataset_id,cluster_id,topic_id,topic from stream.lineage where generation=%s",
+            "select dataset_id,cluster_id,topic_id,topic from stream.lineage "
+            "where generation=%s and query_role='intake'",
             [generation],
         ).fetchone()
         if registered != (dataset.dataset_id, identity.cluster_id, identity.topic_id, identity.topic):

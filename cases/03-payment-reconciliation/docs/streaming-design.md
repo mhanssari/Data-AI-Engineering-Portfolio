@@ -1,6 +1,6 @@
 # Milestone 2 streaming design
 
-Status: 12 November 2026. The owner confirmed the decline-rate definition and 10-minute lateness choice. The shared broker has passing GitHub CI. The optional versioned fixture producer, Spark runtime and unwatermarked intake are implemented and validated locally ([intake evidence](../evidence/stream-intake-run.md), [decision 0008](decisions/0008-streaming-runtime-and-intake.md)). The live query, projections, backfill and measurement below remain planned.
+Status: 12 November 2026. The owner confirmed the decline-rate definition and 10-minute lateness choice. Shared Kafka and optional runtime/intake have passing GitHub checks. The independent watermarked live query, SQL projections, reference refresh and reported-frontier diagnostics are implemented under [decision 0009](decisions/0009-live-state-and-operational-projections.md). [Live evidence](../evidence/stream-live-run.md) records local validation; controlled backfill, forced crash recovery and measurement remain planned.
 
 ## Boundary and data flow
 
@@ -37,19 +37,19 @@ Register a topic epoch with its Kafka topic/cluster identity. Topic recreation o
 
 ## Proposed grains and keys
 
-Implemented intake tables: `stream.delivery`, `stream.intake_event`, `stream.quarantine`, `ops.stream_batch` (intake role), plus dataset and checkpoint-lineage registration. Other tables below remain planned. `generation` separates checkpoint lineages; a restart with the same checkpoint keeps it. Exact implemented DDL is [stream_001_intake.sql](../sql/stream/migrations/stream_001_intake.sql).
+Intake, live-ledger, application, latest-state, minute-count, reference and reported-progress tables below are implemented; `ops.stream_backfill` remains planned. Additional implemented control tables register the dataset, role-aware checkpoint lineage, reference snapshot and live conflicts. `generation` separates checkpoint lineages; a restart with the same checkpoint keeps it. Exact DDL is in [intake](../sql/stream/migrations/stream_001_intake.sql) and [live](../sql/stream/migrations/stream_002_live.sql) migrations.
 
 | Table | One row per | Key / behaviour |
 | --- | --- | --- |
 | `stream.delivery` | Kafka delivery | topic epoch, partition, offset; raw bytes, broker time and intake commit time |
 | `stream.intake_event` | Canonical schema-valid source event in a dataset | dataset ID, event ID; unique payment/source sequence, immutable semantic hash and normalised source fields |
 | `stream.quarantine` | Rejected delivery and reason | topic epoch, partition, offset, reason; raw bytes retained in the referenced delivery |
-| `stream.reference_merchant` | Merchant at the selected reference frontier | merchant ID; separate from finance core writes |
+| `stream.reference_merchant` | Merchant at the selected reference frontier | merchant ID; separate from finance core writes; snapshot seed/arrival/hash in `stream.reference_snapshot` |
 | `stream.live_event` | Canonical event admitted live or by repair | generation, event ID; complete source fields, hash and admission origin |
-| `stream.event_application` | Result of applying a live-ledger event | generation, event ID; applied, held, illegal or unknown-reference |
+| `stream.event_application` | Result of applying a live-ledger event | generation, event ID; applied, held, illegal, unknown-reference or identity-mismatch |
 | `stream.payment_latest` | Payment state within the live generation | generation, payment ID; source sequence walk, gaps and exact monetary units |
-| `stream.event_minute` | Merchant/currency/event type in a UTC minute | generation, minute start, merchant ID, currency, event type; replace derived counts |
-| `ops.stream_batch` | Committed database sink batch | generation, query role, batch ID; counts, physical-input hash and commit time |
+| `stream.event_minute` | Merchant/currency/event type/application outcome in a UTC minute | generation, minute start, merchant ID, currency, event type, outcome; replace derived counts |
+| `ops.stream_batch` | Committed database sink batch | generation, query role, batch ID; counts and commit time; intake hashes physical input, live hashes admitted semantic events |
 | `ops.stream_progress` | Reported Spark query progress | generation, query role, batch ID; offsets, watermark and state metrics; not a transaction spanning both queries |
 | `ops.stream_backfill` | Controlled repair | repair ID; input/reference frontier, scope, status, before/after counts and reason |
 
@@ -61,7 +61,7 @@ Each `foreachBatch` consumes its entire bounded output, including a repeated bat
 
 Within each query transaction: verify generation and immutable hashes, insert unseen delivery/event keys, refresh affected SQL projections, then record the batch commit. Rollback on failure. On retry, return the same database effects. A database advisory lock fences a second live writer for that generation. Progress callbacks may lag commits; do not treat a progress row alone as financial completeness.
 
-Extract/share the existing SQL state-walk rules without changing the batch results; keep the independent Python replay tests. Rewalk the complete event history of affected payments, not just the newest sequence. Reference corrections can change which historical events apply, so refresh every affected minute, including old buckets. Foreign currency amounts are never added together, and no matching logic moves into Python or Spark floating-point expressions.
+The existing SQL transition values and sequence walk are shared through explicit relative SQL includes in `sql/shared/`, resolved by the CLI. Batch retains its independent Python replay tests. Live rewalks the complete history of affected payments and refreshes every touched minute, aggregating all neighbouring payments in those buckets. Independent reference refresh atomically reprojects all live generations while fencing live writes. Foreign currency amounts are never added together, and no matching logic moves into Python or Spark floating-point expressions.
 
 ## Event time, checkpoints and recovery
 
@@ -92,9 +92,9 @@ Streaming dependencies use an opt-in case group/image; the batch image and share
 ## Delivery slices and acceptance evidence
 
 1. **Shared broker foundation — local and GitHub checks passed:** optional network/listeners, persistent volume, case-owned idempotent topic creation; listener roundtrips, native host metadata, restart and unrelated-topic preservation. See foundation evidence for the exact client paths.
-2. **Runtime/intake — locally validated:** optional Python/JRE/Spark/connector runtime; acknowledged versioned fixture; deliveries and quarantine without a watermark. Actual checkpoint restart/re-publication passed; database tests cover hash conflicts, rollback and lineage guards. The live query and its independent identity remain future work.
-3. **Live slice:** bounded deduplication, SQL latest/minute projections and operational views. Duplicate batches and checkpoint restarts leave totals unchanged (A9); illegal transitions/gaps behave like batch. Show decline rate and expiry count separately.
+2. **Runtime/intake — local and GitHub checks passed:** optional Python/JRE/Spark/connector runtime; acknowledged versioned fixture; deliveries and quarantine without a watermark. Actual checkpoint restart/re-publication passed; database tests cover hash conflicts, rollback and lineage guards.
+3. **Live slice — implemented:** independent role/checkpoint, bounded deduplication, SQL latest/minute projections and operational views, reference refresh and reported-frontier status. [Live evidence](../evidence/stream-live-run.md) owns duplicate/restart (A9), batch-state parity and actual watermark checks. Decline rate and expiries remain separate.
 4. **Recovery slice:** crash before/after sink commit; verify checkpoint continuation and no accepted-event loss (A10); repair a deliberately beyond-watermark record and prove parity (A11); advance event time over repeated intervals and observe eviction (A12). Expose live/intake frontier mismatch rather than claiming atomicity.
 5. **Measurement:** only after correctness, run bounded, repeatable latency/throughput profiles. No cloud, Databricks, Kubernetes, schema registry or extra application framework is required.
 
-Metric and lateness choices are confirmed. No further business answer blocks the live slice. Keep the implemented intake guarantees separate from proposed live-state and recovery guarantees, and revise engineering budgets if subsequent tests expose a constraint.
+Metric and lateness choices are confirmed. No further business answer blocks controlled recovery. Keep implemented intake/live guarantees separate from the remaining crash, late-backfill, sustained eviction and measurement work.
