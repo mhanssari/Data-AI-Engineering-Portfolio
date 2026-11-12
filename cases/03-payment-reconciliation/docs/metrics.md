@@ -25,11 +25,20 @@ Owner persona: finance reconciliation analyst. Every result is selected for an e
 
 **Grace versus grouping.** `due_date` is the capture date used for financial grouping. `last_due_date` is the latest capture/refund/reversal date used to decide grace. A later refund can put an older capture-date group back within grace; it does not move the payment's control-total bucket.
 
-## Operations (streaming, milestone 2)
+## Operations (streaming, milestone 2, planned)
+
+Owner persona: payment operations analyst. Owner confirmed 12 November 2026: use an authorisation decision decline rate and show expiries separately. The former `(declined + expired) / initiated` in an event-time minute mixed unrelated initiation/decision cohorts and is replaced. Select one live generation; count distinct, schema-valid events that the SQL state walk actually applied. Held, illegal and unknown-reference events appear as diagnostics and are excluded from the decision-rate denominator. Counts are event counts, rather than current payment-state snapshots. A zero denominator gives NULL.
 
 | Metric | Definition | Grain | Notes |
 | --- | --- | --- | --- |
-| Failure rate | Declined + expired ÷ payments initiated | Currency × merchant × one-minute event-time window | Distinct payments; duplicate events do not count twice |
-| Throughput | Distinct events processed per second | Processing time | Measured, not targeted |
-| End-to-end latency | Sink write time − event time, p50 and p95 | Event | Reported with the hardware and load used |
-| Late events | Events whose event time is behind the watermark when they arrive | Window | Dropped from the stream view by design; recovered in batch |
+| Authorisation decline rate | Applied declined events ÷ (applied authorised + applied declined events) | Currency × merchant × one-minute decision-event-time window | Report as a percentage; both sides use the same window. Event-ID uniqueness prevents replay inflation |
+| Expiry count | Applied expired events | Currency × merchant × one-minute expiry-event-time window | Separate operational count; never added to the authorisation decline-rate numerator |
+| Event counts | Applied unique events by event type; held/illegal/unknown-reference counts shown separately | Currency × merchant × one-minute event-time window × event type | Replaced from the admitted ledger after retry, reference refresh or repair; not incremented blindly |
+| Throughput | Physical Kafka deliveries read per wall-clock second, and unique applied events per wall-clock second, labelled separately | Declared processing interval | Measure both readers separately; duplicate reads are not extra business events |
+| Broker-to-sink latency | First successful sink commit time − broker append timestamp, p50 and p95 | Unique event / specified query | Separate intake and live results. Retries do not replace the first successful commit time |
+| Event-to-sink latency | First successful live commit time − event time, p50 and p95 | Unique applied event | Use a paced current-clock/rebased fixture for a real-time claim; historical source timestamps measure event age, not processing speed |
+| Source late-event count | Unique schema-valid intake events with source ingestion time − event time > 10 minutes | Dataset × currency × merchant | A source-clock diagnostic, not a claim that Spark dropped those records |
+| Spark watermark drops | Spark's reported `numRowsDroppedByWatermark`, alongside actual watermark and input offsets | Live query generation × micro-batch | Physical operator metric; not a unique business-event count. Events older than the delay can be admitted or excluded; durable intake is the repair source |
+| Backlog/readiness | Target offsets minus completed query frontiers, reported per partition and query | Topic epoch × partition × query role | No sum across different epochs. Published view is provisional until both readers reach the stated frontier and conflict/reference checks pass |
+
+The [streaming design](streaming-design.md) owns admission, checkpoint and repair policy. Ten minutes is the confirmed watermark delay, not a measured latency target or a guarantee that every older event is discarded. Backfill can revise previously incomplete minute counts and payment state; expose the repair ID and generation.

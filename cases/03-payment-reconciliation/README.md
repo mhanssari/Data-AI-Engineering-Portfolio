@@ -33,6 +33,7 @@ The [CI workflow](../../.github/workflows/case-03-ci.yml) runs the locked Linux 
 ## Start here
 
 - [Clean batch setup and review](evidence/batch-clean-setup-run.md): isolated committed checkout, 31 arrivals, exact fixture counts and remaining limits
+- [Streaming design (planned)](docs/streaming-design.md): shared Kafka, source contract, confirmed metric/lateness choices and recovery plan
 - [Airflow recovery evidence](evidence/airflow-late-file-run.md): late-file recovery and unchanged results on rerun
 - [CI validation evidence](evidence/ci-local-run.md): 47 passing tests locally and on GitHub; unavailable-database failure and JUnit artifact verified
 - [Requirements](docs/requirements.md): decisions, settlement rules, acceptance criteria, invariants

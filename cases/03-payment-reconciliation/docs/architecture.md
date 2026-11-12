@@ -35,6 +35,12 @@ flowchart LR
 - **Every case still runs without Airflow,** through its own CLI.
 - **Case 03 settings:** an optional case-owned Compose override supplies namespaced connection variables, keeping the base platform usable without Case 03 credentials. Tasks read credentials only at execution. See [decision 0006](decisions/0006-batch-orchestration.md) and the [run guide](../orchestration/README.md).
 
+## Streaming proposal
+
+The [streaming design](streaming-design.md) owns the new contract, grains, two-query intake/live flow and recovery policy; it is unimplemented. Owner-confirmed choices are a ten-minute watermark delay and authorisation decline rate with separate expiry counts. SQL remains authoritative for state transitions and all monetary/matching logic.
+
+Kafka's proposed optional client network belongs to the platform ([decision 0002](../../../platform/decisions/0002-shared-kafka-topology.md)); only the case's streaming configuration joins it. This differs from Airflow's existing host-port connection and preserves Kafka-free batch startup. No shared Spark service is required: the case runs a local-mode job with its own runtime and checkpoints.
+
 ## Memory budget
 
-Docker has 7.7 GB on this laptop. Airflow takes about 2–3 GB, PostgreSQL under 0.5 GB, Kafka about 1 GB, and Spark in local mode about 1.5 GB. Milestone 1 needs only Airflow and PostgreSQL. In milestone 2 Airflow can be stopped while the stream runs, if memory is short.
+Docker reported ~7.66 GiB and 8 logical CPUs on 12 November 2026. Milestone 1 uses PostgreSQL and optional Airflow. The streaming proposal budgets up to 1.5 GiB for Kafka and 3 GiB for the case Spark container, plus PostgreSQL/native/OS headroom, with Airflow stopped. These are unmeasured limits, not observed service peaks. The runtime compatibility and memory gates are recorded in the streaming design.

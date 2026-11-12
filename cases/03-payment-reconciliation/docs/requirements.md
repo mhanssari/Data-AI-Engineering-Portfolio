@@ -29,6 +29,8 @@ The design question: **how do you keep an operational view fast and a financial 
 - **Event handling:** deduplication, an event-time watermark, and an idempotent sink.
 - **Outputs:** minute aggregates and a simple operational view.
 
+The unimplemented [streaming design](streaming-design.md) now owns the event contract, proposed output grains, checkpoint/backfill boundaries and runtime candidates. Owner confirmed 12 November 2026: ten-minute event-time watermark delay; authorisation decline rate with expiries shown separately. Shared Kafka topology is proposed in [portfolio decision 0002](../../../platform/decisions/0002-shared-kafka-topology.md). These choices do not alter the validated batch settlement rules.
+
 **Milestone 3, failure and measurement:**
 - **Injected failures:** a consumer crash and a poison event.
 - **Recovery:** replay, recovery from a checkpoint, and a controlled backfill beyond the lateness window.
