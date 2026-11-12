@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import date, timedelta
 
 from psycopg.types.json import Jsonb
@@ -97,7 +98,14 @@ def load_reference(con, arrival: date, *, seed: int = SEED) -> dict:
 
 
 def persist_live(
-    con, dataset: Dataset, source: Identity, generation: str, batch_id: int, records: list[Delivery]
+    con,
+    dataset: Dataset,
+    source: Identity,
+    generation: str,
+    batch_id: int,
+    records: list[Delivery],
+    *,
+    before_commit: Callable[[], None] | None = None,
 ) -> tuple[dict, bool]:
     require_stream_database(con)
     # Hash the semantic admitted set. Deduplication may choose a different physical copy on a retry.
@@ -172,4 +180,6 @@ def persist_live(
             "insert into ops.stream_batch values (%s,'live',%s,%s,%s,now())",
             [generation, batch_id, digest, Jsonb(summary)],
         )
+        if before_commit is not None:
+            before_commit()
     return summary, False

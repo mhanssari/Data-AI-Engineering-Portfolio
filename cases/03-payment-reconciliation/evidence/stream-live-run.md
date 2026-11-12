@@ -1,6 +1,6 @@
 # Watermarked live view and SQL projections: local validation
 
-Recorded 12 November 2026 on Windows/Docker Desktop with Linux containers. **The independent live query and SQL operational projections are implemented and locally validated.** These live changes remain uncommitted; the extended live workflow has not run remotely. A9 passed on the small deterministic fixture. Forced consumer crash recovery, controlled backfill parity and sustained eviction testing (A10–A12) remain open.
+Recorded 12 November 2026 on Windows/Docker Desktop with Linux containers. **The independent live query and SQL operational projections are validated locally and on GitHub.** Committed/pushed as `89e465b`. [Case 03 database CI](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43262873619) and [Case 03 Streaming](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43262873686) passed. Inspected the live-step logs and downloaded its `case-03-live-progress` artifact: 19 deliveries, 14 intake events, 13 live events, one reported watermark drop and one missing admission, correctly provisional. A9 passed on the bounded fixture. Subsequent recovery work is recorded [separately](stream-recovery-run.md).
 
 ## Previous slice delivered
 
@@ -39,7 +39,7 @@ Final isolated counts: **19 physical deliveries, 14 canonical intake events, two
 
 Observed deduplication state rows: 11 → 11 → 12 → 12 → 13 → 1 → 1. Duplicate-drop custom metrics total three; watermark-drop count totals one. Maximum reported state-operator `memoryUsedBytes` in these progress records was 4,816 bytes. This is a tiny operator observation, not a total JVM-memory measurement or sustained state-bound benchmark. A12 remains open.
 
-The helper now writes full progress diagnostics to ignored `evidence/ci/live-integration.json` when run; the extended workflow is configured to upload that report. The recorded local check above used console snapshots before the report-writing addition; remote report upload is not yet verified.
+The helper writes full progress diagnostics to ignored `evidence/ci/live-integration.json`. The original local check above used console snapshots before that output addition. The pushed workflow subsequently wrote/uploaded the report successfully; its downloaded JSON was inspected locally under ignored `evidence/ci/live-89e465b/`.
 
 ## Database and compatibility checks
 
@@ -67,4 +67,4 @@ The primary `case03.payment-events.v1` topic remains empty; the retained demo us
 
 The live slice is a local driver-to-PostgreSQL sink with a bounded historical fixture. Reported progress may lag commits, the broker may have newer data, and checkpoints remain separate from database durability. No end-to-end exactly-once, cloud deployment, backup/archive, broker-loss recovery or benchmark claim is made.
 
-Next: commit/push this slice and confirm the extended live workflow; then inject consumer failures before/after sink commit, implement controlled late repair with a fenced writer and explicit intake/reference frontier, prove parity, and test repeated watermark eviction. No new business decision blocks that sequence.
+The live commit and its extended workflow/artifact are confirmed. [Recovery evidence](stream-recovery-run.md) owns subsequent before/after-commit failure and controlled late-repair validation. Repeated watermark eviction and measurement remain separate work; no new business decision blocks recovery.

@@ -117,6 +117,7 @@ def _stream_intake(args: argparse.Namespace) -> int:
         args.topic,
         args.checkpoint,
         role=args.role,
+        crash_at=getattr(args, "crash_at", None),
         available_now=args.available_now,
     )
     return 0
@@ -148,6 +149,28 @@ def _stream_live_fixture(args: argparse.Namespace) -> int:
     from payrecon.streaming.live_fixture import produce_phase
 
     print(json.dumps(produce_phase(args.topic, args.phase, args.dataset)))
+    return 0
+
+
+def _stream_recovery_plan(args: argparse.Namespace) -> int:
+    import json
+
+    from payrecon.streaming.recovery import plan
+
+    with db.connect() as con:
+        print(json.dumps(plan(con, args.generation), indent=2))
+    return 0
+
+
+def _stream_backfill(args: argparse.Namespace) -> int:
+    import json
+
+    from payrecon.streaming.recovery import backfill
+
+    spec = json.loads(args.plan.read_text(encoding="utf-8"))
+    with db.connect() as con:
+        summary, reused = backfill(con, spec, args.repair_id, args.reason)
+        print(json.dumps(dict(repair_id=args.repair_id, reused=reused, **summary)))
     return 0
 
 
@@ -190,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         "stream-produce-live-fixture", "publish a bounded live-check fixture phase", _stream_live_fixture
     )
     live_fixture.add_argument(
-        "--phase", choices=("initial", "complete", "repeat", "advance", "late"), required=True
+        "--phase", choices=("initial", "complete", "repeat", "advance", "late", "late-gap"), required=True
     )
     live_fixture.add_argument("--topic", default="case03.live-check")
     live_fixture.add_argument("--dataset", default="case03-intake-v1")
@@ -200,12 +223,31 @@ def main(argv: list[str] | None = None) -> int:
     intake.set_defaults(role="intake")
     live = add("stream-live", "validate, watermark and project operational payment events", _stream_intake)
     live.set_defaults(role="live")
+    live.add_argument(
+        "--crash-at",
+        choices=("before-commit", "after-commit"),
+        help="abrupt exit on first non-empty callback; disposable checks only",
+    )
     reference = add(
         "stream-reference", "load/refresh the independent seeded reference snapshot", _stream_reference
     )
     reference.add_argument("--arrival", default="2026-10-02")
     status = add("stream-status", "inspect one live generation at reported query frontiers", _stream_status)
     status.add_argument("--generation", required=True)
+    repair_plan = add(
+        "stream-backfill-plan",
+        "capture explicit intake/reference scope for a bounded repair",
+        _stream_recovery_plan,
+    )
+    repair_plan.add_argument("--generation", required=True)
+    repair = add(
+        "stream-backfill",
+        "repair a paused live generation from a reviewed intake-prefix plan",
+        _stream_backfill,
+    )
+    repair.add_argument("--plan", type=Path, required=True)
+    repair.add_argument("--repair-id", required=True)
+    repair.add_argument("--reason", required=True)
     for command in (produce, intake, live):
         command.add_argument("--topic", default="case03.intake-check")
         command.add_argument("--dataset", default="case03-intake-v1")

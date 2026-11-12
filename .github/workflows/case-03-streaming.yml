@@ -45,12 +45,23 @@ jobs:
       - name: Watermarked live view, SQL projections, reference refresh and duplicate safety
         run: python3 cases/03-payment-reconciliation/streaming/check_live.py
 
+      - name: Abrupt consumer failure, checkpoint replay and controlled late repair
+        run: python3 cases/03-payment-reconciliation/streaming/check_recovery.py
+
       - name: Live progress evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: case-03-live-progress
           path: cases/03-payment-reconciliation/evidence/ci/live-integration.json
+          if-no-files-found: ignore
+
+      - name: Recovery evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: case-03-recovery-progress
+          path: cases/03-payment-reconciliation/evidence/ci/recovery-integration.json
           if-no-files-found: ignore
 
       - name: Service logs on failure

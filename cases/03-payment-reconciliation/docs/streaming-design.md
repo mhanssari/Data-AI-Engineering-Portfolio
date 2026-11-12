@@ -1,6 +1,6 @@
 # Milestone 2 streaming design
 
-Status: 12 November 2026. The owner confirmed the decline-rate definition and 10-minute lateness choice. Shared Kafka and optional runtime/intake have passing GitHub checks. The independent watermarked live query, SQL projections, reference refresh and reported-frontier diagnostics are implemented under [decision 0009](decisions/0009-live-state-and-operational-projections.md). [Live evidence](../evidence/stream-live-run.md) records local validation; controlled backfill, forced crash recovery and measurement remain planned.
+Status: 12 November 2026. The owner confirmed the decline-rate definition and 10-minute lateness choice. Kafka and intake/live have passing GitHub checks. Controlled late backfill and abrupt before/after-commit recovery are implemented under [decision 0010](decisions/0010-controlled-stream-recovery.md); [recovery evidence](../evidence/stream-recovery-run.md) records actual validation. Repeated eviction and measurement remain outstanding.
 
 ## Boundary and data flow
 
@@ -37,7 +37,7 @@ Register a topic epoch with its Kafka topic/cluster identity. Topic recreation o
 
 ## Proposed grains and keys
 
-Intake, live-ledger, application, latest-state, minute-count, reference and reported-progress tables below are implemented; `ops.stream_backfill` remains planned. Additional implemented control tables register the dataset, role-aware checkpoint lineage, reference snapshot and live conflicts. `generation` separates checkpoint lineages; a restart with the same checkpoint keeps it. Exact DDL is in [intake](../sql/stream/migrations/stream_001_intake.sql) and [live](../sql/stream/migrations/stream_002_live.sql) migrations.
+The tables below, including completed repair audit `ops.stream_backfill`, are implemented. Additional control tables register the dataset, role-aware checkpoint lineage, reference snapshot and live conflicts. `generation` separates checkpoint lineages; a restart or repair keeps the existing generation. Exact DDL is in [intake](../sql/stream/migrations/stream_001_intake.sql), [live](../sql/stream/migrations/stream_002_live.sql) and [recovery](../sql/stream/migrations/stream_003_recovery.sql) migrations.
 
 | Table | One row per | Key / behaviour |
 | --- | --- | --- |
@@ -51,7 +51,7 @@ Intake, live-ledger, application, latest-state, minute-count, reference and repo
 | `stream.event_minute` | Merchant/currency/event type/application outcome in a UTC minute | generation, minute start, merchant ID, currency, event type, outcome; replace derived counts |
 | `ops.stream_batch` | Committed database sink batch | generation, query role, batch ID; counts and commit time; intake hashes physical input, live hashes admitted semantic events |
 | `ops.stream_progress` | Reported Spark query progress | generation, query role, batch ID; offsets, watermark and state metrics; not a transaction spanning both queries |
-| `ops.stream_backfill` | Controlled repair | repair ID; input/reference frontier, scope, status, before/after counts and reason |
+| `ops.stream_backfill` | Completed controlled repair | repair ID; request hash, explicit plan/frontiers, reason, source digest, before/after counts/fingerprints and completion time; retry reuses result |
 
 Do not mix generations in one operational view. Minute buckets are half-open UTC `[start, start + 1 minute)`. Definitions and eligibility are owned by [metrics](metrics.md); event counts are not snapshots of current payment status.
 
@@ -69,7 +69,7 @@ The existing SQL transition values and sequence walk are shared through explicit
 - Use independent persistent checkpoint directories for `intake-v1` and `live-v1`. Start at earliest available offsets for a new lineage; resume offsets from the existing checkpoint on restart. Keep `failOnDataLoss=true`. Use separate case/query `groupIdPrefix` values, not a shared forced Kafka group ID.
 - State is evicted only as observed event time advances; an idle query has no wall-clock expiry guarantee. Record state rows/memory and the actual watermark. A watermark bounds a time range under an input rate; it is not an absolute RAM limit.
 - Beyond-watermark admission is not a deterministic age cutoff. Monitor Spark's actual late-drop metrics separately from source ingestion lag; do not label every record with source lag over ten minutes as a proven Spark drop. Intake contains the full source ledger regardless of the live query's decision.
-- Backfill: stop/fence live writes; wait for intake to reach an explicit partition-offset and reference frontier; select valid missing events; rewalk complete affected payment histories and replace affected minute counts in one transaction; record the repair; resume the same live checkpoint. For the first small fixture, a full-generation rebuild is acceptable. Retain admitted/backfilled event keys so later re-delivery cannot count them again.
+- Backfill: capture a plan after both readers report the same explicit partition-offset frontier; stop both readers in this MVP. Fence live/reference writes and intake writes; recheck the plan's identities, source clock and reference frontier. Validate a complete zero-based raw prefix against the canonical intake ledger; admit valid missing events and rebuild the small generation's histories/minutes with the completed audit in one transaction. Preserve checkpoint files, existing event timestamps and backfilled keys; resume the same live checkpoint. Scope is one dataset/topic epoch, at most 20,000 deliveries and 64 MiB of key/value bytes. Missing transport history or mixed epochs fail visibly; general partial/retention-loss repair is not implemented.
 - Prove parity against the batch reference at the same dataset, source-clock cutoff and reference version after repair. Compare payment state/business columns and independently derived minute counts. Expected live incompleteness before repair is visible; it is not unexplained financial reconciliation loss.
 - Lost/expired Kafka offsets fail visibly. Recover from retained intake/source fixtures with a new checkpoint generation; never silently reset to latest. Retain fixture/audit history for this bounded MVP. Database archival and backup guarantees are not implemented by the watermark or broker retention.
 
@@ -94,7 +94,7 @@ Streaming dependencies use an opt-in case group/image; the batch image and share
 1. **Shared broker foundation — local and GitHub checks passed:** optional network/listeners, persistent volume, case-owned idempotent topic creation; listener roundtrips, native host metadata, restart and unrelated-topic preservation. See foundation evidence for the exact client paths.
 2. **Runtime/intake — local and GitHub checks passed:** optional Python/JRE/Spark/connector runtime; acknowledged versioned fixture; deliveries and quarantine without a watermark. Actual checkpoint restart/re-publication passed; database tests cover hash conflicts, rollback and lineage guards.
 3. **Live slice — implemented:** independent role/checkpoint, bounded deduplication, SQL latest/minute projections and operational views, reference refresh and reported-frontier status. [Live evidence](../evidence/stream-live-run.md) owns duplicate/restart (A9), batch-state parity and actual watermark checks. Decline rate and expiries remain separate.
-4. **Recovery slice:** crash before/after sink commit; verify checkpoint continuation and no accepted-event loss (A10); repair a deliberately beyond-watermark record and prove parity (A11); advance event time over repeated intervals and observe eviction (A12). Expose live/intake frontier mismatch rather than claiming atomicity.
+4. **Recovery slice:** abrupt before/after-commit exits and controlled late authorisation repair are implemented (A10/A11), with separate batch state/minute comparison; [recovery evidence](../evidence/stream-recovery-run.md) owns results. Repeated event-time advancement/eviction (A12) remains next. Expose live/intake frontier mismatch rather than claiming atomicity.
 5. **Measurement:** only after correctness, run bounded, repeatable latency/throughput profiles. No cloud, Databricks, Kubernetes, schema registry or extra application framework is required.
 
-Metric and lateness choices are confirmed. No further business answer blocks controlled recovery. Keep implemented intake/live guarantees separate from the remaining crash, late-backfill, sustained eviction and measurement work.
+Metric and lateness choices are confirmed. No further business answer blocks sustained eviction checks. Keep implemented bounded recovery separate from remaining archival, broker-loss, sustained-state and measurement work.

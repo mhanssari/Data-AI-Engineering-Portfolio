@@ -73,6 +73,8 @@ Agreed defaults, to be revisited with a finance reviewer:
 | A11 | A correction later than the lateness window is recovered by a controlled backfill, and the batch and stream views agree afterwards (milestone 3) |
 | A12 | Streaming state stays bounded under the documented watermark and retention (milestone 3) |
 
+Streaming evidence: [A9](../evidence/stream-live-run.md) passed locally and in GitHub CI; [A10/A11](../evidence/stream-recovery-run.md) passed locally on the bounded recovery fixture. A12 and latency/throughput measurement remain open; the full streaming milestone is not complete.
+
 ## Invariants
 
 Each becomes a test that fails on the planted defects if the handling is removed.

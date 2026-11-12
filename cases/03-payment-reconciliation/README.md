@@ -1,12 +1,12 @@
 # Payment monitoring and settlement reconciliation
 
-**Status: milestone 1 (batch), shared Kafka and durable intake have passing GitHub checks.** Built: the seeded generator (planted defects P1–P16); landing into PostgreSQL with quarantine; core (distinct events, payment state by sequence number, illegal transitions, settlement lines); reconciliation (matching, a one-day grace period, exceptions, control totals and invariant checks per run); an opt-in DAG on the shared Airflow. The optional Spark live query now adds a ten-minute watermark, SQL state/minute projections, reference refresh and frontier diagnostics. Controlled backfill and forced crash recovery remain planned. See [clean batch evidence](evidence/batch-clean-setup-run.md), [intake evidence](evidence/stream-intake-run.md) and [live evidence](evidence/stream-live-run.md).
+**Status: batch, shared Kafka and Spark intake/live have passing GitHub checks.** Built: the seeded generator (planted defects P1–P16); landing into PostgreSQL with quarantine; core (distinct events, payment state by sequence number, illegal transitions, settlement lines); reconciliation (matching, grace, exceptions and per-run control totals); an opt-in DAG on the shared Airflow. Spark adds a ten-minute watermark, SQL state/minute projections, reference refresh and frontier diagnostics. Bounded controlled backfill and abrupt consumer-failure checks are implemented; [recovery evidence](evidence/stream-recovery-run.md) records validation and limits. See also [clean batch](evidence/batch-clean-setup-run.md), [intake](evidence/stream-intake-run.md) and [live](evidence/stream-live-run.md) evidence.
 
 A fictional payment provider needs two views of the same payments: an operational one, within minutes, of what is failing; and a financial one, daily, proving that every captured payment was settled correctly and explaining every difference. The events arrive duplicated, out of order and late.
 
 Stack:
 - **Batch (milestone 1):** PostgreSQL with Python, orchestrated by the shared portfolio Airflow.
-- **Streaming (milestone 2):** shared Kafka (KRaft), optional Spark intake/live readers, acknowledged fixtures and SQL operational views; controlled late backfill planned.
+- **Streaming:** shared Kafka (KRaft), optional Spark intake/live readers, acknowledged fixtures, SQL operational views and bounded controlled backfill.
 - **Runtime:** Docker is required ([decision 0003](docs/decisions/0003-docker-required.md)).
 
 ## Run it
@@ -47,6 +47,6 @@ The [CI workflow](../../.github/workflows/case-03-ci.yml) runs the locked Linux 
 
 Core is rebuilt from raw for each arrival date, which makes late corrections and historical reruns straightforward at this fixture size. Larger workloads would need incremental processing with equivalent recovery checks. Only one writer may target a case database at a time: Airflow serialises its runs, but concurrent CLI writers are not blocked by a database lock.
 
-Merchant pricing uses the latest reference data available to each as-of build; historical price-plan versions are not modelled. This is a local Docker demonstration, with no high availability or cloud deployment. Forced crash recovery, controlled late-backfill parity, sustained state eviction and measured latency/throughput remain future milestones. The live sink rewalks affected payment histories and replaces their minute buckets through one local driver/database; it is not a distributed sink benchmark. See the [clean batch evidence](evidence/batch-clean-setup-run.md) and [metric catalogue](docs/metrics.md) for practical limits.
+Merchant pricing uses the latest reference data available to each as-of build; historical price-plan versions are not modelled. This is a local Docker demonstration, with no high availability or cloud deployment. Sustained state eviction and measured latency/throughput remain future milestones. The live sink rewalks affected histories through one driver/database; repair requires complete retained input for a bounded topic prefix. This is not a distributed sink benchmark or general broker-loss recovery system. See the [recovery limits](evidence/stream-recovery-run.md), [clean batch evidence](evidence/batch-clean-setup-run.md) and [metric catalogue](docs/metrics.md).
 
 [Return to portfolio](../../README.md).

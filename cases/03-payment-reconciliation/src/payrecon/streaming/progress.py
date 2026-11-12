@@ -85,6 +85,11 @@ def _status(con, generation: str) -> dict:
         ).fetchall()
     )
     reference = con.execute("select as_of_arrival from stream.reference_snapshot").fetchone()
+    repair = con.execute(
+        "select repair_id,completed_at,plan from ops.stream_backfill where generation=%s "
+        "order by completed_at desc,repair_id desc limit 1",
+        [generation],
+    ).fetchone()
     return dict(
         generation=str(generation),
         intake_frontier=intake_end,
@@ -106,5 +111,15 @@ def _status(con, generation: str) -> dict:
         intake_events_not_admitted=missing,
         diagnostics=diagnostics,
         reference_arrival=str(reference[0]) if reference else None,
+        last_repair=(
+            dict(
+                repair_id=repair[0],
+                completed_at=repair[1].isoformat(),
+                frontier=repair[2]["frontier"],
+                reference=repair[2]["reference"],
+            )
+            if repair
+            else None
+        ),
         scope="recorded source frontiers only; broker head may have advanced; live view may need late repair",
     )

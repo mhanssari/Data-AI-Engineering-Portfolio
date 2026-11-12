@@ -13,6 +13,7 @@ Portfolio-wide infrastructure ownership is defined in [portfolio decision 0001](
 | [0007](0007-streaming-correctness-and-recovery.md) | Durable intake, bounded live state and transactional recovery | Proposed engineering design; metric and lateness confirmed |
 | [0008](0008-streaming-runtime-and-intake.md) | Optional streaming runtime and durable intake | Accepted; intake implemented |
 | [0009](0009-live-state-and-operational-projections.md) | Watermarked live admission and deterministic SQL projections | Accepted; live slice implemented |
+| [0010](0010-controlled-stream-recovery.md) | Abrupt consumer recovery and bounded late backfill | Accepted; recovery slice implemented |
 
 Streaming ownership also follows [portfolio decision 0002](../../../../platform/decisions/0002-shared-kafka-topology.md). Refine proposed details against the first compatibility tests; record actual guarantees and recovery evidence when implemented.
 

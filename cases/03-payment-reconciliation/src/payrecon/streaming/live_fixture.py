@@ -61,6 +61,8 @@ def phase_records(phase: str, dataset_id: str = DATASET_ID) -> list[tuple[bytes,
         events = [event("advance", 1, "initiated", 30)]
     elif phase == "late":
         events = [event("late", 1, "initiated", 5, ingestion="2026-10-13T11:00:00Z")]
+    elif phase == "late-gap":
+        events = [event("gap", 2, "authorised", 1, ingestion="2026-10-13T11:00:00Z")]
     else:
         raise ValueError("unknown live fixture phase")
     return [(e["payment_id"].encode(), encode(e, dataset_id)) for e in events]

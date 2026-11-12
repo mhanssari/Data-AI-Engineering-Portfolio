@@ -7,6 +7,7 @@ from pathlib import Path
 
 from payrecon import db
 from payrecon.streaming.contract import ContractError, Dataset, decode, utc
+from payrecon.streaming.faults import crash, validate_crash
 from payrecon.streaming.intake import Delivery, halt_on_conflict, persist_batch, require_stream_database
 from payrecon.streaming.lineage import register
 from payrecon.streaming.live import lock_writer, persist_live
@@ -45,10 +46,17 @@ def live_columns(frame, dataset: Dataset):
 
 
 def run_query(
-    dataset: Dataset, topic: str, checkpoint: Path, *, role: str, available_now: bool = False
+    dataset: Dataset,
+    topic: str,
+    checkpoint: Path,
+    *,
+    role: str,
+    available_now: bool = False,
+    crash_at: str | None = None,
 ) -> None:
     from pyspark.sql import SparkSession
 
+    validate_crash(crash_at, role, topic)
     source = identity(topic)
     jars = sorted(Path("/opt/ivy/jars").glob("*.jar"))
     if not jars:
@@ -104,7 +112,12 @@ def run_query(
                     for r in rows
                 ]
                 sink = persist_live if role == "live" else persist_batch
-                summary, reused = sink(con, dataset, source, generation, batch_id, records)
+                options = {}
+                if records and crash_at == "before-commit":
+                    options["before_commit"] = lambda: crash(crash_at, generation, batch_id)
+                summary, reused = sink(con, dataset, source, generation, batch_id, records, **options)
+                if records and crash_at == "after-commit":
+                    crash(crash_at, generation, batch_id)
                 print(
                     json.dumps(dict(generation=generation, batch_id=batch_id, reused=reused, **summary)),
                     flush=True,

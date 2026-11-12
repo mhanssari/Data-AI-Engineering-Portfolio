@@ -1,6 +1,6 @@
 # Architecture
 
-Status: 12 November 2026. Batch, shared Kafka and optional Spark intake have passing GitHub checks. The independent watermarked live query, SQL projections, reference refresh and frontier status are implemented. Controlled backfill and forced crash recovery remain planned. No cloud deployment exists.
+Status: 12 November 2026. Batch, shared Kafka and Spark intake/live have passing GitHub checks. Bounded controlled backfill and abrupt consumer-recovery checks are implemented; sustained eviction and measurement remain outstanding. No cloud deployment exists.
 
 Infrastructure ownership follows [portfolio decision 0001](../../../platform/decisions/0001-shared-infrastructure.md). Airflow and Kafka are shared in `platform/airflow/` and `platform/kafka/`. Case 03 retains its PostgreSQL, jobs, dependency environment and processing state.
 
@@ -11,7 +11,7 @@ flowchart LR
   G -. "milestone 2" .-> K["Kafka (KRaft)"]
   FP["Small acknowledged fixture producer"] --> K
   K --> SI["Spark intake: no watermark"]
-  SI --> SD[("Separate payments_stream: deliveries, events, quarantine")]
+  SI --> SD[("Separate payments_stream: intake/live ledgers and projections")]
   EF & SF --> L["Loader: checks, quarantine, append-only raw"]
   L --> PG[("PostgreSQL: raw, core, recon, ops")]
   PG --> R["SQL: payment state, matching, exceptions, control totals"]
@@ -19,6 +19,8 @@ flowchart LR
   K --> S["Spark live: validate, watermark, deduplicate"]
   S --> LS["Transactional SQL: admitted ledger, sequence walk, minute counts"]
   LS --> SD
+  SD --> BF["Paused readers: fenced prefix repair and audit"]
+  BF --> LS
   MR["Independent seeded reference snapshot"] --> LS
   AF["Shared portfolio Airflow"] -- "daily: wait for file, load, reconcile" --> L
   PG --> V["Finance reconciliation views"]
@@ -43,6 +45,8 @@ flowchart LR
 ## Streaming intake and live query
 
 The [streaming design](streaming-design.md) owns the contract, grains, two-query flow and recovery policy. Intake archives every delivery and canonical schema-valid event into `payments_stream`. The independent live query validates before its ten-minute watermark and bounded deduplication, then transactionally publishes an admitted ledger and SQL projections. Both readers report their progress separately; status compares recorded frontiers and exposes missing events or reference/conflict holds. See the [run guide](../streaming/README.md) and [live decision](decisions/0009-live-state-and-operational-projections.md). Authorisation decline rate and expiry counts remain separate. Batch/live share SQL transition values and the sequence walk; matching stays in the financial batch.
+
+Controlled repair consumes the retained intake prefix offline, with both readers paused/fenced and an explicit reference snapshot. It admits only validated missing events, reprojects the small generation and commits an audit atomically; it does not write financial tables or reset Spark checkpoints. The [recovery decision](decisions/0010-controlled-stream-recovery.md) records bounds, source-proof requirements and failure semantics.
 
 Kafka's client network belongs to the platform ([decision 0002](../../../platform/decisions/0002-shared-kafka-topology.md)); the optional case streaming overlay joins it. This differs from Airflow's existing host-port connection and preserves Kafka-free batch startup. The case Spark job runs in local mode with its own runtime, persistent checkpoint volume and separate streaming database; there is no shared Spark service.
 

@@ -1,6 +1,6 @@
 # Case 03 streaming intake
 
-Implemented: an optional producer/Spark runtime, **unwatermarked durable intake**, and an independent ten-minute watermarked live query with transactional SQL state/minute projections. Controlled backfill and forced crash recovery remain planned in the [streaming design](../docs/streaming-design.md). See [intake evidence](../evidence/stream-intake-run.md), [live evidence](../evidence/stream-live-run.md) and [decision 0009](../docs/decisions/0009-live-state-and-operational-projections.md).
+Implemented: an optional producer/Spark runtime, **unwatermarked durable intake**, an independent ten-minute watermarked live query, transactional SQL projections and bounded controlled backfill. The [streaming design](../docs/streaming-design.md) separates these guarantees from remaining sustained-state and measurement work. See [intake evidence](../evidence/stream-intake-run.md), [live evidence](../evidence/stream-live-run.md), [recovery evidence](../evidence/stream-recovery-run.md) and [decision 0010](../docs/decisions/0010-controlled-stream-recovery.md).
 
 ## Run the small fixture
 
@@ -63,7 +63,37 @@ Run the phased, isolated real live check from the repository root:
 python cases/03-payment-reconciliation/streaming/check_live.py
 ```
 
-It uses the same built image and healthy services, with a unique topic/database/checkpoint root. Phases demonstrate a held sequence gap, decision/expiry/illegal-event eligibility, stateful checkpoint restart, cross-batch duplicates, reference refresh and actual watermark exclusion. It leaves the omitted event in intake and reports repair required; it does not perform that future backfill. The fixture producer supports `stream-produce-live-fixture --topic case03.live-check --phase initial|complete|repeat|advance|late`; use the automated helper for isolated setup and phase ordering. Historical source timestamps do not measure real-time latency.
+It uses the same built image and healthy services, with a unique topic/database/checkpoint root. Phases demonstrate a held sequence gap, decision/expiry/illegal-event eligibility, stateful checkpoint restart, cross-batch duplicates, reference refresh and actual watermark exclusion. It leaves the omitted event in intake and reports repair required; the separate recovery check below demonstrates repair. The fixture producer supports `stream-produce-live-fixture --topic case03.live-check --phase initial|complete|repeat|advance|late|late-gap`; use the helpers for isolated setup and phase ordering. Historical source timestamps do not measure real-time latency.
+
+## Controlled recovery
+
+Run `stream-prepare` once to apply the additive recovery audit migration. Stop both readers after they have drained to the same target offsets; reference refresh must also be idle. Capture a plan for the affected **live generation**, from the case directory:
+
+```sh
+docker compose -f compose.yaml -f streaming/compose.yaml run --rm -T stream stream-backfill-plan --generation YOUR_LIVE_GENERATION_UUID
+```
+
+Save the returned JSON as UTF-8 in an ignored local file, for example `evidence/ci/repair-plan.json`. Inspect its dataset/clock, cluster/topic IDs, reader generations, exclusive partition offsets and reference seed/arrival/hash. Then apply that exact plan with a unique repair ID and a concrete reason:
+
+```sh
+docker compose -f compose.yaml -f streaming/compose.yaml run --rm stream stream-backfill --plan /app/evidence/ci/repair-plan.json --repair-id late-authorisation-001 --reason "Recover the authorisation omitted behind the observed watermark"
+docker compose -f compose.yaml -f streaming/compose.yaml run --rm stream stream-status --generation YOUR_LIVE_GENERATION_UUID
+docker compose -f compose.yaml -f streaming/compose.yaml run --rm stream stream-live --available-now
+```
+
+Both writers are fenced during repair. A changed plan/frontier/reference, immutable conflict, unverified live event or missing source prefix fails without partial publication. The first MVP repairs the full current generation from one topic epoch, requiring complete transport history from offset zero: at most 20,000 deliveries and 64 MiB of key/value bytes. It does not support arbitrary historical/partial scopes, mixed epochs or missing retained source history. The broker may have newer data outside the declared prefix.
+
+Repair admits only validated missing canonical events, preserves existing content/timestamps, rebuilds payment histories/minutes, and commits the audit in `ops.stream_backfill` atomically. Poison records remain quarantined. Repeating the same repair ID and request reuses its recorded result; changing the request under that ID fails. Spark checkpoint files and query batch/progress records are untouched. Resume the same checkpoint; PostgreSQL uniqueness still protects the repaired events against later delivery. Failed attempts roll back completely and are visible in caller logs, rather than committed failed-audit rows.
+
+For the actual abrupt-exit and repair demonstration, from the repository root with both services healthy and the optional image built:
+
+```sh
+python cases/03-payment-reconciliation/streaming/check_recovery.py
+```
+
+It uses unique disposable resources, exits the live consumer inside the database transaction and just after commit, checks database rows against real Spark commit/offset files, and resumes the same checkpoint. A later phase excludes an authorisation behind the observed watermark; repair rewalks the held capture and is compared with an actual batch run in another disposable database. Repeated repair and later re-delivery must leave business rows unchanged. The helper writes ignored `evidence/ci/recovery-integration.json` and cleans only its own topic, databases, checkpoint root and plan file.
+
+The `stream-live --crash-at before-commit|after-commit` option is diagnostic only. It requires the live role, a `case03.live-check-*` topic and a disposable `payments_stream_check_*` database. It exits on the first non-empty callback with code 86 or 87; remove the option when restarting. Ordinary live processing has no crash hook enabled.
 
 ## State and recovery boundaries
 
