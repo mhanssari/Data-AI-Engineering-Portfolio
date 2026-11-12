@@ -1,8 +1,8 @@
 # Architecture
 
-Status: 12 November 2026. Batch landing, core and reconciliation are implemented locally, with an opt-in DAG on the shared Airflow. Kafka and Spark remain planned. No cloud deployment exists.
+Status: 12 November 2026. Batch landing, core and reconciliation are implemented locally, with an opt-in DAG on the shared Airflow. The shared Kafka foundation and case topic are validated locally; the Spark application remains planned. No cloud deployment exists.
 
-Infrastructure ownership follows [portfolio decision 0001](../../../platform/decisions/0001-shared-infrastructure.md). Airflow is shared in `platform/airflow/`; Kafka will be shared in `platform/kafka/` at milestone 2. Case 03 retains its PostgreSQL, jobs, dependency environment and processing state.
+Infrastructure ownership follows [portfolio decision 0001](../../../platform/decisions/0001-shared-infrastructure.md). Airflow and Kafka are shared in `platform/airflow/` and `platform/kafka/`. Case 03 retains its PostgreSQL, jobs, dependency environment and processing state.
 
 ```mermaid
 flowchart LR
@@ -37,9 +37,9 @@ flowchart LR
 
 ## Streaming proposal
 
-The [streaming design](streaming-design.md) owns the new contract, grains, two-query intake/live flow and recovery policy; it is unimplemented. Owner-confirmed choices are a ten-minute watermark delay and authorisation decline rate with separate expiry counts. SQL remains authoritative for state transitions and all monetary/matching logic.
+The [streaming design](streaming-design.md) owns the new contract, grains, two-query intake/live flow and recovery policy. Only its broker prerequisite and topic initializer are implemented; see [foundation evidence](../../../platform/kafka/evidence/foundation-run.md). Owner-confirmed choices are a ten-minute watermark delay and authorisation decline rate with separate expiry counts. SQL remains authoritative for state transitions and all monetary/matching logic.
 
-Kafka's proposed optional client network belongs to the platform ([decision 0002](../../../platform/decisions/0002-shared-kafka-topology.md)); only the case's streaming configuration joins it. This differs from Airflow's existing host-port connection and preserves Kafka-free batch startup. No shared Spark service is required: the case runs a local-mode job with its own runtime and checkpoints.
+Kafka's implemented client network belongs to the platform ([decision 0002](../../../platform/decisions/0002-shared-kafka-topology.md)); future case streaming configuration joins it optionally. This differs from Airflow's existing host-port connection and preserves Kafka-free batch startup. No shared Spark service is required: the planned case job runs in local mode with its own runtime and checkpoints.
 
 ## Memory budget
 

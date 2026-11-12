@@ -26,7 +26,7 @@ Options considered: one watermarked query as the only record of input; one state
 - Backfill pauses/fences the live writer, establishes a complete intake/reference frontier, adds valid missing events and rebuilds affected payment histories and minute totals atomically. It records the repair and resumes the same checkpoint. It must not reset the watermark, fabricate missing events or promote quarantined poison records.
 - No end-to-end exactly-once claim. Describe replay-safe database effects under at-least-once delivery, subject to the implementation tests.
 
-The [streaming design](../streaming-design.md) owns the contract, grains, runtime candidates and acceptance plan. No Kafka, Spark job, migration or dependency pin is implemented by this record.
+The [streaming design](../streaming-design.md) owns the contract, grains, runtime candidates and acceptance plan. The shared broker prerequisite is now [validated locally](../../../../platform/kafka/evidence/foundation-run.md); this application decision remains proposed, with no producer/Spark job, intake migration or Spark dependency pin implemented.
 
 ## Sources and consequences
 

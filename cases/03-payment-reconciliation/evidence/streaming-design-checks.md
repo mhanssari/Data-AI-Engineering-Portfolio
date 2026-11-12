@@ -2,6 +2,8 @@
 
 Recorded 12 November 2026. These are source profiling and availability/documentation checks, not streaming runtime validation. No Kafka/Spark service, dependency lock or migration was added in this slice.
 
+Subsequent broker implementation and its actual runtime checks are recorded separately in [Kafka foundation evidence](../../../platform/kafka/evidence/foundation-run.md). The original metadata observations below remain a design-stage record.
+
 ## Owner choices
 
 - Confirmed authorisation decline rate with a separate expiry count, replacing the draft cross-time failure ratio.

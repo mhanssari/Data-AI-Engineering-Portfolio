@@ -1,6 +1,6 @@
 # Milestone 2 streaming design
 
-Status: proposed engineering design, 12 November 2026. The owner confirmed the decline-rate definition and 10-minute lateness choice. Everything below is planned unless explicitly identified as an existing batch feature or a completed metadata check. No streaming implementation or benchmark exists yet.
+Status: 12 November 2026. The owner confirmed the decline-rate definition and 10-minute lateness choice. The shared broker foundation and case topic are now implemented ([evidence](../../../platform/kafka/evidence/foundation-run.md)). The application design below remains planned: no versioned producer, Spark runtime/job, intake ledger or benchmark exists yet.
 
 ## Boundary and data flow
 
@@ -85,13 +85,13 @@ Full-month replay is separately labelled accelerated historical replay. It canno
 
 ## Runtime candidates and memory
 
-Candidates, not installed/pinned dependencies: Kafka `4.3.2`; PySpark and matching Scala-2.13 Kafka connector `4.2.1`; existing Python `3.12.16`; OpenJDK `21`; producer `confluent-kafka 2.16.1`. Metadata availability and Python/Linux suitability were checked; end-to-end compatibility is still a smoke-test gate. Spark's connector POM declares `kafka-clients 3.9.2`; do not override it merely to match the broker number. Sources and exact checks are in [design checks](../evidence/streaming-design-checks.md).
+Kafka `4.3.2` is now pinned and verified in the shared foundation. Remaining candidates, not installed/pinned dependencies: PySpark and matching Scala-2.13 Kafka connector `4.2.1`; existing Python `3.12.16`; OpenJDK `21`; producer `confluent-kafka 2.16.1`. Metadata availability and Python/Linux suitability were checked; end-to-end Spark/producer compatibility is still a smoke-test gate. Spark's connector POM declares `kafka-clients 3.9.2`; do not override it merely to match the broker number. Sources and exact checks are in [design checks](../evidence/streaming-design-checks.md).
 
 Keep streaming dependencies in an opt-in case group/image; the current batch image and shared Airflow environment need no PySpark or JRE. Resolve/lock the complete runtime at the first compatibility slice. Suggested initial limits: Kafka 512 MiB heap within a 1.5 GiB container; Spark `local[2]`, three shuffle partitions, 1 GiB driver heap within a 3 GiB container; 3,000 input offsets per query per micro-batch. PostgreSQL and OS/native overhead need headroom. Docker currently has 8 logical CPUs and 8,225,247,232 bytes (~7.66 GiB); the physical laptop remains four cores. Keep Airflow stopped during streaming checks. These are provisional budgets, not measured peak use.
 
 ## Delivery slices and acceptance evidence
 
-1. **Shared broker foundation:** optional network/listeners, persistent volume, case-owned idempotent topic creation; internal/host produce-consume, restart and unrelated-topic preservation. No Spark state or recovery claim yet.
+1. **Shared broker foundation — locally validated:** optional network/listeners, persistent volume, case-owned idempotent topic creation; listener roundtrips, native host metadata, restart and unrelated-topic preservation. See foundation evidence for the exact client paths. No Spark state or recovery claim yet.
 2. **Runtime/intake:** build locked optional Python/JRE/Spark/connector runtime; produce the versioned envelope; persist deliveries and quarantine without a watermark. Verify offsets, hash conflicts, restart and two separate query identities.
 3. **Live slice:** bounded deduplication, SQL latest/minute projections and operational views. Duplicate batches and checkpoint restarts leave totals unchanged (A9); illegal transitions/gaps behave like batch. Show decline rate and expiry count separately.
 4. **Recovery slice:** crash before/after sink commit; verify checkpoint continuation and no accepted-event loss (A10); repair a deliberately beyond-watermark record and prove parity (A11); advance event time over repeated intervals and observe eviction (A12). Expose live/intake frontier mismatch rather than claiming atomicity.
