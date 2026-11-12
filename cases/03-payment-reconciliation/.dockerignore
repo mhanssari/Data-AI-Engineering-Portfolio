@@ -1,0 +1,8 @@
+.venv/
+data/generated/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+.env
+CONTEXT.md
+PROGRESS.md
