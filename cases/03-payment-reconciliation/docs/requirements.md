@@ -73,7 +73,7 @@ Agreed defaults, to be revisited with a finance reviewer:
 | A11 | A correction later than the lateness window is recovered by a controlled backfill, and the batch and stream views agree afterwards (milestone 3) |
 | A12 | Streaming state stays bounded under the documented watermark and retention (milestone 3) |
 
-Streaming evidence: [A9](../evidence/stream-live-run.md) and [A10/A11](../evidence/stream-recovery-run.md) passed locally and in GitHub CI; [A12](../evidence/stream-state-run.md) passed locally for the declared finite continuous-query profile. This does not prove arbitrary-rate RAM bounds or broker retention expiry. Latency/throughput measurement remains open; the full case is not complete.
+Streaming evidence: [A9](../evidence/stream-live-run.md), [A10/A11](../evidence/stream-recovery-run.md) and [A12](../evidence/stream-state-run.md) passed locally and in GitHub CI within their declared finite scopes. This does not prove arbitrary-rate RAM bounds or broker retention expiry. Three [current-clock measurement profiles](../evidence/stream-measurement-run.md) passed locally; the new measurement slice awaits commit/CI and final clean-checkout review. The full case is not complete.
 
 ## Invariants
 
@@ -102,8 +102,9 @@ From the portfolio brief, plus this case's items.
 - [x] Runtime credentials outside Git; committed examples and isolated CI use dummy values
 - [x] Batch limitations and "what I would do differently at scale"
 - [x] Batch reconciliation orchestrated by the shared Airflow, with a late-file rerun recorded (A6): [evidence](../evidence/airflow-late-file-run.md)
-- [x] Small-fixture streaming correctness with replay/recovery and declared state profile (A9–A12); A12's first remote run remains pending
-- [ ] Measured latency and throughput, with method and hardware stated
+- [x] Small-fixture streaming correctness with replay/recovery and declared state profile (A9–A12), locally and in CI
+- [x] Measured latency and throughput, with method and hardware stated ([three local repeats](../evidence/stream-measurement-run.md))
+- [ ] Final clean-checkout streaming review and handoff after the measurement slice is committed
 
 ## What I would do differently at scale
 

@@ -1,0 +1,253 @@
+{
+  "date": "2026-11-12",
+  "hardware": {
+    "cpu": "Intel Core i7-10510U",
+    "docker_cpus": 8,
+    "docker_memory_bytes": 8225247232,
+    "docker_server": "29.9.2",
+    "kernel": "6.6.87.2-microsoft-standard-WSL2",
+    "logical_processors": 8,
+    "physical_cores": 4,
+    "physical_memory_bytes": 16977625088
+  },
+  "method": "0012-current-clock-measurement",
+  "percentile": "nearest rank",
+  "resources": {
+    "kafka_container_limit": "1.5 GiB",
+    "kafka_heap_max": "512 MiB",
+    "postgresql_container_limit": null,
+    "spark_container_limit": "3 GiB",
+    "spark_driver_heap": "1 GiB"
+  },
+  "runs": [
+    {
+      "cluster_id": "MkU3OEVBNTcwNTJENDM2Qk",
+      "consistent_at_recorded_frontier": true,
+      "counts": {
+        "authorised": 300,
+        "canonical": 800,
+        "declined": 100,
+        "deliveries": 800,
+        "expired": 0,
+        "live": 800,
+        "payments": 400
+      },
+      "exclusive_frontier": {
+        "0": 242,
+        "1": 294,
+        "2": 264
+      },
+      "final_ack_to_all_visible_seconds": 2.844923,
+      "final_not_observed": 0,
+      "generation": "d9cd2c2b-1b8f-476a-8658-36dea284c209",
+      "max_clock_check_round_trip_seconds": 0.010936,
+      "max_observation_gap_seconds": 1.0322142629993323,
+      "max_submitted_not_observed_measured": 72,
+      "observed_events_per_second": 9.560117788936594,
+      "phases": [
+        {
+          "events": 200,
+          "offered_events_per_second": 9.987096170395352,
+          "phase": "warmup",
+          "scheduling_lag_seconds": {
+            "maximum": 0.0019001949985977262,
+            "n": 100,
+            "p50": 0.0001698400010354817,
+            "p95": 0.0002549499986344017
+          },
+          "submission_seconds": 20.02584100400054
+        },
+        {
+          "events": 600,
+          "offered_events_per_second": 9.98057130108172,
+          "phase": "measured",
+          "scheduling_lag_seconds": {
+            "maximum": 0.010559301998000592,
+            "n": 300,
+            "p50": 0.00017293299970333464,
+            "p95": 0.0004492559965001419
+          },
+          "submission_seconds": 60.11679911900137
+        }
+      ],
+      "query_id": "c683b03d-3819-4ce0-a21e-bac628f64c65",
+      "raw_report_sha256": "7273ac986bd321384d806b6599a2e8c2758588c95e38fd65f54a18e02e94df1b",
+      "run": 1,
+      "summary": {
+        "broker_to_visible_seconds": {
+          "maximum": 8.026721,
+          "n": 600,
+          "p50": 4.624844,
+          "p95": 7.062442
+        },
+        "event_to_visible_seconds": {
+          "maximum": 8.033901,
+          "n": 600,
+          "p50": 4.631437,
+          "p95": 7.069091
+        }
+      },
+      "token": "ec829116bcda",
+      "topic": "case03.live-check-ec829116bcda",
+      "topic_id": "FNwOMGUNQjGrUzFDH6xJNg",
+      "warmup_start_to_measured_start_seconds": 56.773262
+    },
+    {
+      "cluster_id": "MkU3OEVBNTcwNTJENDM2Qk",
+      "consistent_at_recorded_frontier": true,
+      "counts": {
+        "authorised": 300,
+        "canonical": 800,
+        "declined": 100,
+        "deliveries": 800,
+        "expired": 0,
+        "live": 800,
+        "payments": 400
+      },
+      "exclusive_frontier": {
+        "0": 242,
+        "1": 294,
+        "2": 264
+      },
+      "final_ack_to_all_visible_seconds": 2.840455,
+      "final_not_observed": 0,
+      "generation": "2bc34f64-faeb-4c71-8469-99159f9ca952",
+      "max_clock_check_round_trip_seconds": 0.00443,
+      "max_observation_gap_seconds": 1.0259626639999624,
+      "max_submitted_not_observed_measured": 64,
+      "observed_events_per_second": 9.564916041000266,
+      "phases": [
+        {
+          "events": 200,
+          "offered_events_per_second": 9.987033295372543,
+          "phase": "warmup",
+          "scheduling_lag_seconds": {
+            "maximum": 0.002429600001050858,
+            "n": 100,
+            "p50": 0.0001614360007806681,
+            "p95": 0.00022585099941352382
+          },
+          "submission_seconds": 20.025967080000555
+        },
+        {
+          "events": 600,
+          "offered_events_per_second": 9.984643674109597,
+          "phase": "measured",
+          "scheduling_lag_seconds": {
+            "maximum": 0.010758544998680009,
+            "n": 300,
+            "p50": 0.00018075000116368756,
+            "p95": 0.0005249889982223976
+          },
+          "submission_seconds": 60.09227966300023
+        }
+      ],
+      "query_id": "a76142ff-61ab-4317-ac32-8642fea38a34",
+      "raw_report_sha256": "c2ea4efebc2c79e570a937fa1d9c61085ea75bf47e723824d52b3bdbc1734d93",
+      "run": 2,
+      "summary": {
+        "broker_to_visible_seconds": {
+          "maximum": 7.450389,
+          "n": 600,
+          "p50": 4.63673,
+          "p95": 6.935003
+        },
+        "event_to_visible_seconds": {
+          "maximum": 7.457562,
+          "n": 600,
+          "p50": 4.64573,
+          "p95": 6.941597
+        }
+      },
+      "token": "fa61854df56c",
+      "topic": "case03.live-check-fa61854df56c",
+      "topic_id": "Z0mZPvkoSNWyNEK8KkQgBQ",
+      "warmup_start_to_measured_start_seconds": 25.28729
+    },
+    {
+      "cluster_id": "MkU3OEVBNTcwNTJENDM2Qk",
+      "consistent_at_recorded_frontier": true,
+      "counts": {
+        "authorised": 300,
+        "canonical": 800,
+        "declined": 100,
+        "deliveries": 800,
+        "expired": 0,
+        "live": 800,
+        "payments": 400
+      },
+      "exclusive_frontier": {
+        "0": 242,
+        "1": 294,
+        "2": 264
+      },
+      "final_ack_to_all_visible_seconds": 5.88541,
+      "final_not_observed": 0,
+      "generation": "669efc57-77be-4c6c-87a2-9b0812c8d8cd",
+      "max_clock_check_round_trip_seconds": 0.004625,
+      "max_observation_gap_seconds": 1.0305818400011049,
+      "max_submitted_not_observed_measured": 62,
+      "observed_events_per_second": 9.122403081803188,
+      "phases": [
+        {
+          "events": 200,
+          "offered_events_per_second": 9.988526342104036,
+          "phase": "warmup",
+          "scheduling_lag_seconds": {
+            "maximum": 0.0012120209976274054,
+            "n": 100,
+            "p50": 0.0001761859966791235,
+            "p95": 0.0002273739992233459
+          },
+          "submission_seconds": 20.022973675000685
+        },
+        {
+          "events": 600,
+          "offered_events_per_second": 9.985531012827494,
+          "phase": "measured",
+          "scheduling_lag_seconds": {
+            "maximum": 0.007826578996173339,
+            "n": 300,
+            "p50": 0.00018083899703924544,
+            "p95": 0.000574392997805262
+          },
+          "submission_seconds": 60.0869397159986
+        }
+      ],
+      "query_id": "c62e6e6c-1fda-4768-80d2-0dd28fe6d61e",
+      "raw_report_sha256": "f7d85276b7c1b6409aacb7d8a281b392827ec61618965e7b1834c6ce750c5759",
+      "run": 3,
+      "summary": {
+        "broker_to_visible_seconds": {
+          "maximum": 7.410998,
+          "n": 600,
+          "p50": 4.433021,
+          "p95": 6.792897
+        },
+        "event_to_visible_seconds": {
+          "maximum": 7.417482,
+          "n": 600,
+          "p50": 4.441739,
+          "p95": 6.799067
+        }
+      },
+      "token": "390e5bce50d7",
+      "topic": "case03.live-check-390e5bce50d7",
+      "topic_id": "txK88SjKQDCJWpxX3PvGMw",
+      "warmup_start_to_measured_start_seconds": 27.343651
+    }
+  ],
+  "software": {
+    "confluent_kafka": "2.16.1",
+    "java": "21.0.13",
+    "kafka": "4.3.2",
+    "postgresql": "18.6",
+    "python": "3.12.16",
+    "spark": "4.2.1"
+  },
+  "target": {
+    "broker_to_visible_p95_seconds_less_than": 15,
+    "events_per_second_nominal": 10
+  },
+  "topology": "single continuous live query; producer/observer; intake only afterwards"
+}

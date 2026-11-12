@@ -109,6 +109,18 @@ The helper labels and stops only its own live container with SIGINT, drains inta
 
 The [profile decision](../docs/decisions/0011-observed-stream-state-bounds.md) and [evidence](../evidence/stream-state-run.md) separate finite observed state bounds from a general memory guarantee. PostgreSQL history continues growing; state-operator bytes are not JVM/container memory. This is accelerated historical validation, with no latency/throughput, retention-expiry, checkpoint-disk or long-duration soak claim.
 
+## Current-clock measurement
+
+From the repository root, with the optional image built and shared Kafka/case PostgreSQL healthy:
+
+```sh
+python cases/03-payment-reconciliation/streaming/measure_stream.py
+```
+
+This host-stdlib helper runs three isolated profiles. Each warms up for at least 20 seconds and drains warm-up, then offers 600 current-clock events at nominal ten events/second over at least 60 seconds. It records independent database visibility observations roughly once per second; actual gaps are reported. Intake drains afterwards to verify broker timestamps and completeness. This measures one live reader, rather than simultaneous intake/live performance. It does not change the retained demonstration database or primary topic. Each run cleans only its own diagnostic topic/database/checkpoints and labelled live container; shared service lifecycle remains operator-owned.
+
+Per-event JSON, poll backlog, clock brackets and live logs are written to ignored `evidence/ci/measurement-*.json` and `measurement-live-*.log`. The [measurement decision](../docs/decisions/0012-current-clock-measurement.md) and [metric definitions](../docs/metrics.md) explain warm-up exclusion, rates and why visibility latency is an observed upper bound on commit latency. Existing transaction-start timestamps are not used for this measurement. This explicit local command has no timing gate in CI.
+
 ## State and recovery boundaries
 
 - Base Compose starts without Kafka. The optional overlay joins `portfolio-kafka`, caps the Spark container at 3 GiB, and mounts case-owned `stream-state` at `/state`.
