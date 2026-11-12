@@ -11,6 +11,7 @@ Portfolio-wide infrastructure ownership is defined in [portfolio decision 0001](
 | [0005](0005-reconciliation-runs-and-grace.md) | Reconciliation runs, the grace period, and lines that wait | Accepted |
 | [0006](0006-batch-orchestration.md) | Bounded arrival scheduling on the shared Airflow | Accepted |
 | [0007](0007-streaming-correctness-and-recovery.md) | Durable intake, bounded live state and transactional recovery | Proposed engineering design; metric and lateness confirmed |
+| [0008](0008-streaming-runtime-and-intake.md) | Optional streaming runtime and durable intake | Accepted; intake implemented |
 
 Streaming ownership also follows [portfolio decision 0002](../../../../platform/decisions/0002-shared-kafka-topology.md). Refine proposed details against the first compatibility tests; record actual guarantees and recovery evidence when implemented.
 

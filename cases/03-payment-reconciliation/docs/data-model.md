@@ -87,7 +87,7 @@ Core is rebuilt whole from raw as of an arrival date ([decision 0004](decisions/
 
 Reconciliation results are keyed by the run's arrival date rather than a run id: rerunning a day replaces that day's results, so they depend only on what had arrived by then, while `ops.run` keeps every execution. Matching, the grace period and lines that wait are in [decision 0005](decisions/0005-reconciliation-runs-and-grace.md).
 
-Milestone 2's proposed tables and keys are owned by [the streaming design](streaming-design.md). It distinguishes source-event minute counts (`stream.event_minute`) from latest payment state, plus durable intake, admitted events, quarantine and recovery metadata. These tables are not implemented. The former draft name `stream.payment_status_minute` is retired to avoid confusing events with current-state snapshots.
+Milestone 2's tables and keys are owned by [the streaming design](streaming-design.md). Intake deliveries, canonical events, quarantine, dataset/lineage registration and intake batch commits are implemented in the separate streaming database. Source-event minute counts (`stream.event_minute`), latest payment state, admitted-event and recovery projections remain planned. The former draft name `stream.payment_status_minute` is retired to avoid confusing events with current-state snapshots.
 
 ### Why these grains
 

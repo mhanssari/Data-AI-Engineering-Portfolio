@@ -92,6 +92,35 @@ def _run_all(args: argparse.Namespace) -> int:
     return 0
 
 
+def _stream_prepare(args: argparse.Namespace) -> int:
+    from payrecon.streaming.intake import prepare
+
+    print("stream migrations: " + ", ".join(prepare()))
+    return 0
+
+
+def _stream_produce(args: argparse.Namespace) -> int:
+    import json
+
+    from payrecon.streaming.producer import produce_fixture
+
+    print(json.dumps(produce_fixture(args.topic, args.dataset)), flush=True)
+    return 0
+
+
+def _stream_intake(args: argparse.Namespace) -> int:
+    from payrecon.streaming.contract import Dataset, utc
+    from payrecon.streaming.runtime import run_intake
+
+    run_intake(
+        Dataset(args.dataset, utc(args.source_start), utc(args.source_end)),
+        args.topic,
+        args.checkpoint,
+        available_now=args.available_now,
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="payrecon", description="Payment settlement reconciliation")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -122,6 +151,23 @@ def main(argv: list[str] | None = None) -> int:
 
     run_all = add("run-all", "load and reconcile every arrival day in order", _run_all)
     run_all.add_argument("--data", type=Path, default=data_dir())
+
+    add("stream-prepare", "create/migrate a separate payments_stream* database", _stream_prepare)
+    produce = add(
+        "stream-produce-fixture", "publish eight acknowledged intake-check deliveries", _stream_produce
+    )
+    intake = add(
+        "stream-intake", "archive Kafka deliveries and canonical events without a watermark", _stream_intake
+    )
+    for command in (produce, intake):
+        command.add_argument("--topic", default="case03.intake-check")
+        command.add_argument("--dataset", default="case03-intake-v1")
+    intake.add_argument("--source-start", default="2026-10-01T00:00:00Z")
+    intake.add_argument("--source-end", default="2026-11-01T00:00:00Z")
+    intake.add_argument("--checkpoint", type=Path, default=Path("/state/intake-v1"))
+    intake.add_argument(
+        "--available-now", action="store_true", help="drain current offsets and stop; default continuous"
+    )
 
     args = parser.parse_args(argv)
     try:

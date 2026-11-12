@@ -1,6 +1,6 @@
 # Milestone 2 streaming design
 
-Status: 12 November 2026. The owner confirmed the decline-rate definition and 10-minute lateness choice. The shared broker foundation and case topic are now implemented ([evidence](../../../platform/kafka/evidence/foundation-run.md)). The application design below remains planned: no versioned producer, Spark runtime/job, intake ledger or benchmark exists yet.
+Status: 12 November 2026. The owner confirmed the decline-rate definition and 10-minute lateness choice. The shared broker has passing GitHub CI. The optional versioned fixture producer, Spark runtime and unwatermarked intake are implemented and validated locally ([intake evidence](../evidence/stream-intake-run.md), [decision 0008](decisions/0008-streaming-runtime-and-intake.md)). The live query, projections, backfill and measurement below remain planned.
 
 ## Boundary and data flow
 
@@ -37,19 +37,19 @@ Register a topic epoch with its Kafka topic/cluster identity. Topic recreation o
 
 ## Proposed grains and keys
 
-All tables below are new and unimplemented. `generation` separates a new live-state/checkpoint lineage; a restart with the same checkpoint keeps it.
+Implemented intake tables: `stream.delivery`, `stream.intake_event`, `stream.quarantine`, `ops.stream_batch` (intake role), plus dataset and checkpoint-lineage registration. Other tables below remain planned. `generation` separates checkpoint lineages; a restart with the same checkpoint keeps it. Exact implemented DDL is [stream_001_intake.sql](../sql/stream/migrations/stream_001_intake.sql).
 
 | Table | One row per | Key / behaviour |
 | --- | --- | --- |
 | `stream.delivery` | Kafka delivery | topic epoch, partition, offset; raw bytes, broker time and intake commit time |
-| `stream.intake_event` | Canonical schema-valid source event in a dataset | dataset ID, event ID; immutable semantic hash and source coordinates |
-| `stream.quarantine` | Rejected delivery and reason | topic epoch, partition, offset, reason; includes unparsed bytes |
+| `stream.intake_event` | Canonical schema-valid source event in a dataset | dataset ID, event ID; unique payment/source sequence, immutable semantic hash and normalised source fields |
+| `stream.quarantine` | Rejected delivery and reason | topic epoch, partition, offset, reason; raw bytes retained in the referenced delivery |
 | `stream.reference_merchant` | Merchant at the selected reference frontier | merchant ID; separate from finance core writes |
 | `stream.live_event` | Canonical event admitted live or by repair | generation, event ID; complete source fields, hash and admission origin |
 | `stream.event_application` | Result of applying a live-ledger event | generation, event ID; applied, held, illegal or unknown-reference |
 | `stream.payment_latest` | Payment state within the live generation | generation, payment ID; source sequence walk, gaps and exact monetary units |
 | `stream.event_minute` | Merchant/currency/event type in a UTC minute | generation, minute start, merchant ID, currency, event type; replace derived counts |
-| `ops.stream_batch` | Committed database sink batch | generation, query role, batch ID; counts, semantic checksum and commit time |
+| `ops.stream_batch` | Committed database sink batch | generation, query role, batch ID; counts, physical-input hash and commit time |
 | `ops.stream_progress` | Reported Spark query progress | generation, query role, batch ID; offsets, watermark and state metrics; not a transaction spanning both queries |
 | `ops.stream_backfill` | Controlled repair | repair ID; input/reference frontier, scope, status, before/after counts and reason |
 
@@ -85,16 +85,16 @@ Full-month replay is separately labelled accelerated historical replay. It canno
 
 ## Runtime candidates and memory
 
-Kafka `4.3.2` is now pinned and verified in the shared foundation. Remaining candidates, not installed/pinned dependencies: PySpark and matching Scala-2.13 Kafka connector `4.2.1`; existing Python `3.12.16`; OpenJDK `21`; producer `confluent-kafka 2.16.1`. Metadata availability and Python/Linux suitability were checked; end-to-end Spark/producer compatibility is still a smoke-test gate. Spark's connector POM declares `kafka-clients 3.9.2`; do not override it merely to match the broker number. Sources and exact checks are in [design checks](../evidence/streaming-design-checks.md).
+Kafka `4.3.2` is pinned and verified in the shared foundation. The optional image now pins PySpark and matching Scala-2.13 Kafka connector `4.2.1`, Python `3.12.16` and producer `confluent-kafka 2.16.1`; it installs OpenJDK `21` (actual patch in [runtime evidence](../evidence/stream-intake-run.md)). Actual producer/Spark intake compatibility passed. Spark's connector retains `kafka-clients 3.9.2`; do not override it merely to match the broker number. Python dependencies are locked; the JRE patch and Maven transitives are not digest-locked. Original metadata checks are in [design checks](../evidence/streaming-design-checks.md).
 
-Keep streaming dependencies in an opt-in case group/image; the current batch image and shared Airflow environment need no PySpark or JRE. Resolve/lock the complete runtime at the first compatibility slice. Suggested initial limits: Kafka 512 MiB heap within a 1.5 GiB container; Spark `local[2]`, three shuffle partitions, 1 GiB driver heap within a 3 GiB container; 3,000 input offsets per query per micro-batch. PostgreSQL and OS/native overhead need headroom. Docker currently has 8 logical CPUs and 8,225,247,232 bytes (~7.66 GiB); the physical laptop remains four cores. Keep Airflow stopped during streaming checks. These are provisional budgets, not measured peak use.
+Streaming dependencies use an opt-in case group/image; the batch image and shared Airflow environment need no PySpark or JRE. Initial implemented limits: Kafka 512 MiB heap within a 1.5 GiB container; Spark `local[2]`, three shuffle partitions, 1 GiB driver heap within a 3 GiB container; 3,000 input offsets per micro-batch and sink rejection over 5,000 rows or 16 MiB of key/value bytes. These are local processing budgets, not hard bounds on all Spark/driver allocations. PostgreSQL and OS/native overhead need headroom. Docker currently has 8 logical CPUs and 8,225,247,232 bytes (~7.66 GiB); the physical laptop remains four cores. Keep Airflow stopped during streaming checks. No peak-memory benchmark has been run.
 
 ## Delivery slices and acceptance evidence
 
-1. **Shared broker foundation — locally validated:** optional network/listeners, persistent volume, case-owned idempotent topic creation; listener roundtrips, native host metadata, restart and unrelated-topic preservation. See foundation evidence for the exact client paths. No Spark state or recovery claim yet.
-2. **Runtime/intake:** build locked optional Python/JRE/Spark/connector runtime; produce the versioned envelope; persist deliveries and quarantine without a watermark. Verify offsets, hash conflicts, restart and two separate query identities.
+1. **Shared broker foundation — local and GitHub checks passed:** optional network/listeners, persistent volume, case-owned idempotent topic creation; listener roundtrips, native host metadata, restart and unrelated-topic preservation. See foundation evidence for the exact client paths.
+2. **Runtime/intake — locally validated:** optional Python/JRE/Spark/connector runtime; acknowledged versioned fixture; deliveries and quarantine without a watermark. Actual checkpoint restart/re-publication passed; database tests cover hash conflicts, rollback and lineage guards. The live query and its independent identity remain future work.
 3. **Live slice:** bounded deduplication, SQL latest/minute projections and operational views. Duplicate batches and checkpoint restarts leave totals unchanged (A9); illegal transitions/gaps behave like batch. Show decline rate and expiry count separately.
 4. **Recovery slice:** crash before/after sink commit; verify checkpoint continuation and no accepted-event loss (A10); repair a deliberately beyond-watermark record and prove parity (A11); advance event time over repeated intervals and observe eviction (A12). Expose live/intake frontier mismatch rather than claiming atomicity.
 5. **Measurement:** only after correctness, run bounded, repeatable latency/throughput profiles. No cloud, Databricks, Kubernetes, schema registry or extra application framework is required.
 
-Metric and lateness choices are confirmed. Retention, topology and implementation details above are reversible engineering recommendations; no further business answer blocks the broker-foundation slice. Revise this plan if its first smoke tests expose a runtime or memory constraint.
+Metric and lateness choices are confirmed. No further business answer blocks the live slice. Keep the implemented intake guarantees separate from proposed live-state and recovery guarantees, and revise engineering budgets if subsequent tests expose a constraint.

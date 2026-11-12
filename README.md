@@ -17,7 +17,7 @@ Implemented cases have working code, tests and recorded evidence:
   - a Neo4j projection and permission-aware retrieval;
   - guarded agents, row-level security and data contracts.
 
-- **[Case 03, payment reconciliation](cases/03-payment-reconciliation/README.md)** has a validated batch implementation with seeded defects, per-currency SQL controls, late-file recovery and rerun evidence through the shared Airflow, and passing database CI. Its shared Kafka foundation is validated locally; the Spark application remains planned.
+- **[Case 03, payment reconciliation](cases/03-payment-reconciliation/README.md)** has a validated batch implementation with seeded defects, per-currency SQL controls, late-file recovery and rerun evidence through the shared Airflow, and passing database CI. Shared Kafka has passing CI; optional Spark intake is validated locally, including quarantine and checkpoint restart. Live operational projections and backfill remain planned.
 
 Cases 01, 04 and 05 are plans.
 
@@ -28,7 +28,7 @@ Cases 01, 04 and 05 are plans.
 | [02 Retail loyalty and customer analytics](cases/02-retail-loyalty-analytics/README.md) | dbt Core, DuckDB (Snowflake opt-in), SQL, Python, Power BI, Docker; Airflow opt-in | Built and validated locally; CI passing on GitHub |
 | [06 Agentic procure-to-pay reconciliation](cases/06-p2p-agentic-reconciliation/README.md) | PostgreSQL + pgvector, Neo4j, OWL/SKOS/SHACL ontology, LangGraph, Streamlit, Python, SQL | Built and tested locally, with an offline provider; no live model evaluated |
 | [01 Supply chain inventory and demand](cases/01-supply-chain-fabric/README.md) | Fabric, SQL, Python/PySpark, Power BI | Planned |
-| [03 Payment monitoring and settlement reconciliation](cases/03-payment-reconciliation/README.md) | PostgreSQL, Python, Airflow and Kafka (shared); Spark Structured Streaming (planned) | Batch validated and CI passing; Kafka foundation locally verified; stream application planned |
+| [03 Payment monitoring and settlement reconciliation](cases/03-payment-reconciliation/README.md) | PostgreSQL, Python, Airflow and Kafka (shared); optional Spark Structured Streaming | Batch/Kafka CI passing; durable Spark intake locally validated; live projections/backfill planned |
 | [04 Product hierarchy and master data quality](cases/04-bom-master-data/README.md) | Fabric or Databricks, PySpark, SQL | Planned |
 | [05 Warehouse modernisation and SQL performance](cases/05-modernisation-performance/README.md) | PostgreSQL, Fabric or Snowflake | Planned |
 

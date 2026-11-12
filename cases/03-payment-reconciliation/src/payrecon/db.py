@@ -38,6 +38,6 @@ def migrate(con: psycopg.Connection, folder: Path = MIGRATIONS) -> list[str]:
 def reset(con: psycopg.Connection) -> None:
     """Drop every schema this case owns; migrations recreate them."""
     with con.transaction():
-        for schema in ("recon", "core", "raw", "ops"):
+        for schema in ("stream", "recon", "core", "raw", "ops"):
             con.execute(f"drop schema if exists {schema} cascade")
         con.execute("drop table if exists public.schema_migration")

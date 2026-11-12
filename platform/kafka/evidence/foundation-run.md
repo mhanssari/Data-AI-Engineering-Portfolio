@@ -61,7 +61,7 @@ After diagnostic cleanup, topic listing contained only this case topic. Latest o
 
 Ruff lint and formatting passed for `check_foundation.py`; `actionlint` passed for the new [workflow](../../../.github/workflows/platform-kafka.yml); Compose validation and Git whitespace checks passed. The default Case 03 batch Compose still validates with no Kafka dependency. The broker check is the relevant integration validation; the unchanged 47-test financial suite was not repeated locally in this slice.
 
-Streaming-design commit `b9aa48c` was pushed separately and its existing [Case 03 CI](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43246414657) passed. The new Kafka implementation/workflow remains local and uncommitted; it has not run on GitHub.
+Streaming-design commit `b9aa48c` was pushed separately and its existing [Case 03 CI](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43246414657) passed. Kafka implementation commit `74b55aa` was then pushed to `case-03-payments`. Its first [Platform Kafka run](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43250159724) passed broker startup, the full integration check including restart, and cleanup. The corresponding [Case 03 database CI](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/43250159511) also passed. These runs validate the foundation commit, not subsequent application changes.
 
 ## Limits and end state
 

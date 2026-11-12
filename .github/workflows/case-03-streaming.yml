@@ -1,0 +1,55 @@
+name: Case 03 Streaming
+
+on:
+  push:
+    paths:
+      - "cases/03-payment-reconciliation/**"
+      - "platform/kafka/compose.yaml"
+      - ".github/workflows/case-03-streaming.yml"
+  pull_request:
+    paths:
+      - "cases/03-payment-reconciliation/**"
+      - "platform/kafka/compose.yaml"
+      - ".github/workflows/case-03-streaming.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: case-03-streaming-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  intake:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      POSTGRES_USER: payments_admin
+      POSTGRES_PASSWORD: case03-streaming-ci-only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the optional runtime
+        run: docker compose -f cases/03-payment-reconciliation/compose.yaml -f cases/03-payment-reconciliation/streaming/compose.yaml build stream
+
+      - name: Start isolated runner services
+        run: |
+          docker compose -f platform/kafka/compose.yaml up -d --wait
+          docker compose -f cases/03-payment-reconciliation/compose.yaml up -d --wait postgres
+
+      - name: Durable intake, quarantine, restart and re-publication
+        run: python3 cases/03-payment-reconciliation/streaming/check_intake.py
+
+      - name: Service logs on failure
+        if: failure()
+        run: |
+          docker compose -f platform/kafka/compose.yaml logs --no-color --tail 100
+          docker compose -f cases/03-payment-reconciliation/compose.yaml logs --no-color --tail 100 postgres
+
+      - name: Remove this runner's disposable services
+        if: always()
+        run: |
+          docker compose -f cases/03-payment-reconciliation/compose.yaml -f cases/03-payment-reconciliation/streaming/compose.yaml down -v
+          docker compose -f platform/kafka/compose.yaml down -v

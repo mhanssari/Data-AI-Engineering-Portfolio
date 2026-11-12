@@ -12,6 +12,10 @@ dependencies = [
 payrecon = "payrecon.cli:main"
 
 [dependency-groups]
+streaming = [
+    "pyspark==4.2.1",
+    "confluent-kafka==2.16.1",
+]
 dev = [
     "pytest>=9.2.0,<10",
     "ruff>=0.17.4,<0.18",
