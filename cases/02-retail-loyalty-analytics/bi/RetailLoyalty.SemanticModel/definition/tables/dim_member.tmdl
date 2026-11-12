@@ -1,0 +1,52 @@
+/// One row per member, current attributes after corrections.
+table dim_member
+
+	column member_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: member_id
+
+	column enrolled_at
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:nn:ss
+		summarizeBy: none
+		sourceColumn: enrolled_at
+
+	column enrolled_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: enrolled_date
+
+	column enrolment_month_start_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: enrolment_month_start_date
+
+	column home_store_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: home_store_id
+
+	column enrolment_channel
+		dataType: string
+		summarizeBy: none
+		sourceColumn: enrolment_channel
+
+	column birth_month
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: birth_month
+
+	partition dim_member = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\dim_member.parquet")),
+				    Selected = Table.SelectColumns(Source, {"member_id", "enrolled_at", "enrolled_date", "enrolment_month_start_date", "home_store_id", "enrolment_channel", "birth_month"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"member_id", type text}, {"enrolled_at", type datetime}, {"enrolled_date", type date}, {"enrolment_month_start_date", type date}, {"home_store_id", type text}, {"enrolment_channel", type text}, {"birth_month", Int64.Type}})
+				in
+				    Typed

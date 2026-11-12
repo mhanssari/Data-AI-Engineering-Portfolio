@@ -1,0 +1,177 @@
+models:
+  - name: fct_sales_line
+    description: >
+      One row per transaction line, sale or return, with the store version in force on the transaction date.
+      Return lines carry negative quantities and amounts. Net sales by transaction_date is the finance view; by
+      attributed_sale_date, returns move back to the sale they undo (docs/metrics.md). Incremental: see
+      decision 0006.
+    columns:
+      - name: sales_line_id
+        data_type: varchar
+        description: Transaction and line number.
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: transaction_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: line_number
+        data_type: integer
+      - name: transaction_type
+        data_type: varchar
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [sale, return]
+      - name: transaction_at
+        data_type: timestamp
+      - name: transaction_date
+        data_type: date
+        constraints: [{type: not_null}]
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: attributed_sale_date
+        data_type: date
+        description: The original sale's date for a matched return; otherwise the transaction date.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: store_id
+        data_type: varchar
+      - name: store_version_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_store')
+                field: store_version_id
+      - name: member_id
+        data_type: varchar
+        description: Null for an anonymous transaction.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_member')
+                field: member_id
+      - name: is_member_sale
+        data_type: boolean
+      - name: product_id
+        data_type: varchar
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: product_id
+      - name: quantity
+        data_type: integer
+      - name: unit_price
+        data_type: decimal(18,2)
+      - name: gross_amount
+        data_type: decimal(18,2)
+      - name: discount_amount
+        data_type: decimal(18,2)
+      - name: net_amount
+        data_type: decimal(18,2)
+        description: Quantity times unit price, less discount. Negative on return lines.
+      - name: currency_code
+        data_type: varchar
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [GBP]
+      - name: original_transaction_id
+        data_type: varchar
+      - name: original_line_number
+        data_type: integer
+      - name: is_unmatched_return
+        data_type: boolean
+        description: A return whose sale line is not in the data; attributed to its own date.
+      - name: is_over_return
+        data_type: boolean
+        description: Returns of the original line, accumulated to this one, exceed the quantity sold.
+      - name: source_load_id
+        data_type: bigint
+        description: The latest load that delivered this line or its header; the incremental watermark.
+      - name: built_in_invocation_id
+        data_type: varchar
+        description: The dbt run that last wrote the row, to show what an incremental run reprocessed.
+
+  - name: fct_transaction
+    description: >
+      One row per till transaction, sale or return, rolled up from fct_sales_line, with the loyalty points and
+      redemptions on it. Use it to count purchases and baskets; amounts equal the sum of the transaction's lines,
+      and loyalty events are aggregated before joining, so they never multiply revenue.
+    columns:
+      - name: transaction_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: transaction_type
+        data_type: varchar
+      - name: transaction_at
+        data_type: timestamp
+      - name: transaction_date
+        data_type: date
+      - name: attributed_sale_date
+        data_type: date
+      - name: store_id
+        data_type: varchar
+      - name: store_version_id
+        data_type: varchar
+      - name: member_id
+        data_type: varchar
+      - name: is_member_sale
+        data_type: boolean
+      - name: line_count
+        data_type: integer
+      - name: item_quantity
+        data_type: integer
+      - name: gross_amount
+        data_type: decimal(18,2)
+      - name: discount_amount
+        data_type: decimal(18,2)
+      - name: net_amount
+        data_type: decimal(18,2)
+      - name: currency_code
+        data_type: varchar
+      - name: original_transaction_id
+        data_type: varchar
+      - name: is_unmatched_return
+        data_type: boolean
+      - name: points_earned
+        data_type: integer
+        description: Points earned, bonus and reversed on this transaction, net. Zero for an anonymous one.
+      - name: reward_redemption_count
+        data_type: integer
+        description: Rewards redeemed on this transaction.
+
+unit_tests:
+  - name: returns_are_linked_attributed_and_flagged
+    description: >
+      A partial return moves to the sale date; returns of one line accumulate in time order, so only the return
+      that crosses the quantity sold is an over-return; a return of an unknown sale stays on its own date.
+    model: int_sales_lines_with_returns
+    given:
+      - input: ref('stg_pos__transactions')
+        rows:
+          - {transaction_id: S1, transaction_type: sale, transaction_at: "2026-03-01 10:00:00", transaction_date: 2026-03-01, store_id: A, source_load_id: 1}
+          - {transaction_id: R1, transaction_type: return, transaction_at: "2026-03-05 10:00:00", transaction_date: 2026-03-05, store_id: A, original_transaction_id: S1, source_load_id: 1}
+          - {transaction_id: R2, transaction_type: return, transaction_at: "2026-04-02 10:00:00", transaction_date: 2026-04-02, store_id: A, original_transaction_id: S1, source_load_id: 2}
+          - {transaction_id: R3, transaction_type: return, transaction_at: "2026-04-03 10:00:00", transaction_date: 2026-04-03, store_id: A, original_transaction_id: S0, source_load_id: 2}
+      - input: ref('stg_pos__transaction_lines')
+        rows:
+          - {transaction_id: S1, line_number: 1, product_id: P1, quantity: 2, unit_price: 10.00, discount_amount: 0.00, source_load_id: 1}
+          - {transaction_id: R1, line_number: 1, product_id: P1, quantity: -1, unit_price: 10.00, discount_amount: 0.00, original_line_number: 1, source_load_id: 1}
+          - {transaction_id: R2, line_number: 1, product_id: P1, quantity: -2, unit_price: 10.00, discount_amount: 0.00, original_line_number: 1, source_load_id: 2}
+          - {transaction_id: R3, line_number: 1, product_id: P2, quantity: -1, unit_price: 5.00, discount_amount: 0.00, original_line_number: 1, source_load_id: 2}
+    expect:
+      rows:
+        - {sales_line_id: S1-1, attributed_sale_date: 2026-03-01, net_amount: 20.00, is_unmatched_return: false, is_over_return: false}
+        - {sales_line_id: R1-1, attributed_sale_date: 2026-03-01, net_amount: -10.00, is_unmatched_return: false, is_over_return: false}
+        - {sales_line_id: R2-1, attributed_sale_date: 2026-03-01, net_amount: -20.00, is_unmatched_return: false, is_over_return: true}
+        - {sales_line_id: R3-1, attributed_sale_date: 2026-04-03, net_amount: -5.00, is_unmatched_return: true, is_over_return: false}

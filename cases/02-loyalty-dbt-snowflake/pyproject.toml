@@ -1,4 +1,0 @@
-# Placeholder only: this is valid TOML but not an installable Python project.
-# Select the runtime and add project/tool configuration at implementation time.
-# Keep dependencies and a compatible lockfile within this case.
-# Do not run pip install -e . against this scaffold.

@@ -1,0 +1,157 @@
+/// One row per reward entitlement, status resolved from the event log.
+table fct_reward_entitlement
+
+	column entitlement_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: entitlement_id
+
+	column member_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: member_id
+
+	column reward_type
+		dataType: string
+		summarizeBy: none
+		sourceColumn: reward_type
+
+	column issued_at
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:nn:ss
+		summarizeBy: none
+		sourceColumn: issued_at
+
+	column issued_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: issued_date
+
+	column issue_month_start_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: issue_month_start_date
+
+	column expires_at
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:nn:ss
+		summarizeBy: none
+		sourceColumn: expires_at
+
+	column expires_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: expires_date
+
+	column redeemed_at
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:nn:ss
+		summarizeBy: none
+		sourceColumn: redeemed_at
+
+	column redeemed_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: redeemed_date
+
+	column redeemed_transaction_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: redeemed_transaction_id
+
+	column redeemed_store_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: redeemed_store_id
+
+	column redeemed_store_version_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: redeemed_store_version_id
+
+	column source_status
+		dataType: string
+		summarizeBy: none
+		sourceColumn: source_status
+
+	column resolved_status
+		dataType: string
+		summarizeBy: none
+		sourceColumn: resolved_status
+
+	column is_resolved
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_resolved
+
+	column is_redeemed
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_redeemed
+
+	column has_status_conflict
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: has_status_conflict
+
+	column status_conflict_reason
+		dataType: string
+		summarizeBy: none
+		sourceColumn: status_conflict_reason
+
+	/// Entitlements issued in the filter.
+	measure 'Entitlements Issued' = COUNTROWS ( fct_reward_entitlement )
+		formatString: #,0
+		displayFolder: Rewards
+
+	/// Resolved as redeemed (event log).
+	measure 'Entitlements Redeemed' = CALCULATE ( COUNTROWS ( fct_reward_entitlement ), fct_reward_entitlement[is_redeemed] = TRUE () )
+		formatString: #,0
+		displayFolder: Rewards
+
+	/// Redeemed or expired: the redemption-rate denominator. Open and cancelled are excluded.
+	measure 'Entitlements Resolved' = CALCULATE ( COUNTROWS ( fct_reward_entitlement ), fct_reward_entitlement[is_resolved] = TRUE () )
+		formatString: #,0
+		displayFolder: Rewards
+
+	/// Neither redeemed nor expired yet.
+	measure 'Entitlements Open' = CALCULATE ( COUNTROWS ( fct_reward_entitlement ), fct_reward_entitlement[resolved_status] = "open" )
+		formatString: #,0
+		displayFolder: Rewards
+
+	/// Redeemed over resolved, by issue date. Open rewards never count as unused.
+	measure 'Redemption Rate' = DIVIDE ( [Entitlements Redeemed], [Entitlements Resolved] )
+		formatString: 0.0%
+		displayFolder: Rewards
+
+	/// Entitlements whose delivered status column disagreed with the event log.
+	measure 'Status Conflicts' = CALCULATE ( COUNTROWS ( fct_reward_entitlement ), fct_reward_entitlement[has_status_conflict] = TRUE () )
+		formatString: #,0
+		displayFolder: Rewards
+
+	/// Redeemed entitlements by the store and date of redemption, for the store page. Stores are applied with TREATAS rather than a relationship: only redeemed entitlements have a store, and a relationship would add a blank store to every store list.
+	measure 'Redemptions' =
+				CALCULATE (
+				    [Entitlements Redeemed],
+				    TREATAS ( VALUES ( dim_store[store_version_id] ), fct_reward_entitlement[redeemed_store_version_id] ),
+				    USERELATIONSHIP ( fct_reward_entitlement[redeemed_date], dim_date[date_day] )
+				)
+		formatString: #,0
+		displayFolder: Rewards
+
+	partition fct_reward_entitlement = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\fct_reward_entitlement.parquet")),
+				    Selected = Table.SelectColumns(Source, {"entitlement_id", "member_id", "reward_type", "issued_at", "issued_date", "issue_month_start_date", "expires_at", "expires_date", "redeemed_at", "redeemed_date", "redeemed_transaction_id", "redeemed_store_id", "redeemed_store_version_id", "source_status", "resolved_status", "is_resolved", "is_redeemed", "has_status_conflict", "status_conflict_reason"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"entitlement_id", type text}, {"member_id", type text}, {"reward_type", type text}, {"issued_at", type datetime}, {"issued_date", type date}, {"issue_month_start_date", type date}, {"expires_at", type datetime}, {"expires_date", type date}, {"redeemed_at", type datetime}, {"redeemed_date", type date}, {"redeemed_transaction_id", type text}, {"redeemed_store_id", type text}, {"redeemed_store_version_id", type text}, {"source_status", type text}, {"resolved_status", type text}, {"is_resolved", type logical}, {"is_redeemed", type logical}, {"has_status_conflict", type logical}, {"status_conflict_reason", type text}})
+				in
+				    Typed

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "repeat_by_cohort",
+  "position": {
+    "x": 645,
+    "y": 176,
+    "z": 21,
+    "width": 615,
+    "height": 262,
+    "tabOrder": 21
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "agg_repeat_purchase_cohort"
+                    }
+                  },
+                  "Property": "cohort_month_start_date"
+                }
+              },
+              "queryRef": "agg_repeat_purchase_cohort.cohort_month_start_date",
+              "nativeQueryRef": "cohort_month_start_date"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "agg_repeat_purchase_cohort"
+                    }
+                  },
+                  "Property": "Repeat Purchase Rate"
+                }
+              },
+              "queryRef": "agg_repeat_purchase_cohort.Repeat Purchase Rate",
+              "nativeQueryRef": "Repeat Purchase Rate"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "agg_repeat_purchase_cohort"
+                  }
+                },
+                "Property": "cohort_month_start_date"
+              }
+            },
+            "direction": "Ascending"
+          }
+        ],
+        "isDefaultSort": false
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Repeat purchase within 60 days, by first-purchase month (immature cohorts blank)'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

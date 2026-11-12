@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "kpi_1",
+  "position": {
+    "x": 270,
+    "y": 78,
+    "z": 11,
+    "width": 240,
+    "height": 90,
+    "tabOrder": 11
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_sales_line"
+                    }
+                  },
+                  "Property": "Trading Days"
+                }
+              },
+              "queryRef": "fct_sales_line.Trading Days",
+              "nativeQueryRef": "Trading Days"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

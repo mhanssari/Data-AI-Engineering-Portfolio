@@ -1,0 +1,186 @@
+/// One row per transaction line, sale or return. Returns are negative. The only source of money.
+table fct_sales_line
+
+	column sales_line_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: sales_line_id
+
+	column transaction_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: transaction_id
+
+	column line_number
+		dataType: int64
+		formatString: 0
+		isHidden
+		summarizeBy: none
+		sourceColumn: line_number
+
+	column transaction_type
+		dataType: string
+		summarizeBy: none
+		sourceColumn: transaction_type
+
+	column transaction_at
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:nn:ss
+		summarizeBy: none
+		sourceColumn: transaction_at
+
+	column transaction_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: transaction_date
+
+	column attributed_sale_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: attributed_sale_date
+
+	column store_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: store_id
+
+	column store_version_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: store_version_id
+
+	column member_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: member_id
+
+	column is_member_sale
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_member_sale
+
+	column product_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: product_id
+
+	column quantity
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: quantity
+
+	column unit_price
+		dataType: decimal
+		formatString: \£#,0.00;-\£#,0.00
+		summarizeBy: none
+		sourceColumn: unit_price
+
+	column gross_amount
+		dataType: decimal
+		formatString: \£#,0.00;-\£#,0.00
+		summarizeBy: sum
+		sourceColumn: gross_amount
+
+	column discount_amount
+		dataType: decimal
+		formatString: \£#,0.00;-\£#,0.00
+		summarizeBy: sum
+		sourceColumn: discount_amount
+
+	column net_amount
+		dataType: decimal
+		formatString: \£#,0.00;-\£#,0.00
+		summarizeBy: sum
+		sourceColumn: net_amount
+
+	column original_transaction_id
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: original_transaction_id
+
+	column original_line_number
+		dataType: int64
+		formatString: 0
+		isHidden
+		summarizeBy: none
+		sourceColumn: original_line_number
+
+	column is_unmatched_return
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_unmatched_return
+
+	column is_over_return
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_over_return
+
+	/// Net sales after returns, on the transaction date (finance view).
+	measure 'Net Sales' = SUM ( fct_sales_line[net_amount] )
+		formatString: \£#,0.00;-\£#,0.00
+		displayFolder: Sales
+
+	/// Net sales with each return moved back to the date of the sale it undoes (cohort and product view).
+	measure 'Net Sales (attributed to sale date)' = CALCULATE ( [Net Sales], USERELATIONSHIP ( fct_sales_line[attributed_sale_date], dim_date[date_day] ) )
+		formatString: \£#,0.00;-\£#,0.00
+		displayFolder: Sales
+
+	/// Quantity times unit price, before discounts and returns.
+	measure 'Gross Sales' = SUM ( fct_sales_line[gross_amount] )
+		formatString: \£#,0.00;-\£#,0.00
+		displayFolder: Sales
+
+	/// Net amount of return lines; negative.
+	measure 'Returns' = CALCULATE ( [Net Sales], fct_sales_line[transaction_type] = "return" )
+		formatString: \£#,0.00;-\£#,0.00
+		displayFolder: Sales
+
+	/// Net sales on transactions linked to a member.
+	measure 'Member Net Sales' = CALCULATE ( [Net Sales], fct_sales_line[is_member_sale] = TRUE () )
+		formatString: \£#,0.00;-\£#,0.00
+		displayFolder: Sales
+
+	/// Member net sales over net sales. Descriptive only: not an effect of the programme.
+	measure 'Member Share of Net Sales' = DIVIDE ( [Member Net Sales], [Net Sales] )
+		formatString: 0.0%
+		displayFolder: Sales
+
+	/// Store-days in the filter on which a store version in the filter was open, up to the as-of date.
+	measure 'Trading Days' =
+				SUMX (
+				    dim_store,
+				    VAR FirstDay = MAX ( dim_store[valid_from_date], dim_store[opened_date] )
+				    VAR EndDay = dim_store[valid_to_date]
+				    RETURN
+				        COUNTROWS (
+				            FILTER (
+				                dim_date,
+				                dim_date[date_day] >= FirstDay
+				                    && dim_date[date_day] < EndDay
+				                    && NOT dim_date[is_after_as_of_date]
+				            )
+				        )
+				)
+		formatString: #,0
+		displayFolder: Stores
+
+	/// Net sales over trading days, so stores that opened at different times compare fairly. Blank with no trading day.
+	measure 'Net Sales per Trading Day' = DIVIDE ( [Net Sales], [Trading Days] )
+		formatString: \£#,0.00;-\£#,0.00
+		displayFolder: Stores
+
+	partition fct_sales_line = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(ExportFolder & "\fct_sales_line.parquet")),
+				    Selected = Table.SelectColumns(Source, {"sales_line_id", "transaction_id", "line_number", "transaction_type", "transaction_at", "transaction_date", "attributed_sale_date", "store_id", "store_version_id", "member_id", "is_member_sale", "product_id", "quantity", "unit_price", "gross_amount", "discount_amount", "net_amount", "original_transaction_id", "original_line_number", "is_unmatched_return", "is_over_return"}),
+				    Typed = Table.TransformColumnTypes(Selected, {{"sales_line_id", type text}, {"transaction_id", type text}, {"line_number", Int64.Type}, {"transaction_type", type text}, {"transaction_at", type datetime}, {"transaction_date", type date}, {"attributed_sale_date", type date}, {"store_id", type text}, {"store_version_id", type text}, {"member_id", type text}, {"is_member_sale", type logical}, {"product_id", type text}, {"quantity", Int64.Type}, {"unit_price", Currency.Type}, {"gross_amount", Currency.Type}, {"discount_amount", Currency.Type}, {"net_amount", Currency.Type}, {"original_transaction_id", type text}, {"original_line_number", Int64.Type}, {"is_unmatched_return", type logical}, {"is_over_return", type logical}})
+				in
+				    Typed

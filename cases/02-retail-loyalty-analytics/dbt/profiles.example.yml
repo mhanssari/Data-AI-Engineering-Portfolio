@@ -1,0 +1,22 @@
+# Copied to profiles.yml (ignored by Git) by `loyalty build` if it does not exist yet. Holds no secrets.
+retail_loyalty:
+  target: duckdb
+  outputs:
+    duckdb:
+      type: duckdb
+      # Set by the loyalty CLI to an absolute path; the default assumes dbt runs from this folder.
+      path: "{{ env_var('LOYALTY_WAREHOUSE', '../warehouse/loyalty.duckdb') }}"
+      threads: 1
+
+    # Opt-in, not yet run (decision 0001). Every value comes from the environment; never write one here.
+    snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      authenticator: snowflake_jwt
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      schema: main
+      threads: 4

@@ -1,0 +1,4 @@
+# Shared exclusions live in the repository root .gitignore.
+warehouse/
+exports/
+dbt/.user.yml

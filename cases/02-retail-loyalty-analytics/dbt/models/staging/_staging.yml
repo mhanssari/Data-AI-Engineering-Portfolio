@@ -1,0 +1,124 @@
+models:
+  - name: stg_pos__transactions
+    description: >
+      One row per till transaction, sale or return: the latest delivered version, typed. Duplicate deliveries are
+      removed and a correction replaces the earlier version.
+    columns:
+      - name: transaction_id
+        data_tests: [unique, not_null]
+      - name: store_id
+        data_tests: [not_null]
+      - name: member_id
+        description: Null for an anonymous transaction.
+      - name: transaction_at
+        data_tests: [not_null]
+      - name: transaction_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [sale, return]
+      - name: original_transaction_id
+        description: The sale a return refers to. It may name a sale that is not in the data.
+      - name: source_load_id
+        description: The load that delivered this version; the incremental watermark.
+
+  - name: stg_pos__transaction_lines
+    description: >
+      One row per transaction line: the latest delivered version, typed. Quantities, prices and discounts are as
+      delivered; return lines have a negative quantity and a negative discount.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "transaction_id || '-' || line_number"
+    columns:
+      - name: transaction_id
+        data_tests:
+          - not_null
+          # A line without its header would be dropped by the inner join downstream; fail here instead.
+          - relationships:
+              arguments:
+                to: ref('stg_pos__transactions')
+                field: transaction_id
+      - name: line_number
+        data_tests: [not_null]
+      - name: product_id
+        data_tests: [not_null]
+      - name: quantity
+        data_tests: [not_null]
+      - name: currency_code
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [GBP]
+      - name: original_line_number
+        description: On a return line, the line of the original sale being returned.
+
+  - name: stg_loyalty__members
+    description: >
+      One row per member: the latest delivered state, typed. A corrected enrolment date replaces the original.
+    columns:
+      - name: member_id
+        data_tests: [unique, not_null]
+      - name: enrolled_at
+        data_tests: [not_null]
+      - name: enrolment_channel
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [store, web, app]
+
+  - name: stg_loyalty__events
+    description: One row per distinct programme event, typed. Events delivered twice are kept once.
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
+      - name: member_id
+        data_tests: [not_null]
+      - name: event_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [enrolment, points_earned, bonus_points, points_reversed, reward_issued, reward_redeemed]
+
+  - name: stg_loyalty__reward_entitlements
+    description: >
+      One row per entitlement: the latest delivered state, typed. The status column is as delivered and can
+      disagree with the event log.
+    columns:
+      - name: entitlement_id
+        data_tests: [unique, not_null]
+      - name: reward_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [welcome_offer, birthday_offer, points_voucher]
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [issued, redeemed, expired, cancelled]
+
+  - name: stg_reference__stores
+    description: >
+      One row per store attribute version, keyed by store and the date the version took effect. Every batch re-sends
+      every version; duplicates are removed.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "store_id || '-' || cast(effective_from_date as varchar)"
+    columns:
+      - name: store_id
+        data_tests: [not_null]
+      - name: effective_from_date
+        data_tests: [not_null]
+      - name: store_format
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [high_street, retail_park, outlet]
+
+  - name: stg_reference__products
+    description: One row per product known to master data. A product can be sold before it appears here.
+    columns:
+      - name: product_id
+        data_tests: [unique, not_null]

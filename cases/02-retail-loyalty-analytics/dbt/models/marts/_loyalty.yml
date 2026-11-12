@@ -1,0 +1,159 @@
+models:
+  - name: fct_loyalty_event
+    description: >
+      One row per distinct programme event: enrolment, points earned, bonus or reversed, reward issued or redeemed.
+      Carries points, never money.
+    columns:
+      - name: event_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: member_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_member')
+                field: member_id
+      - name: event_type
+        data_type: varchar
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [enrolment, points_earned, bonus_points, points_reversed, reward_issued, reward_redeemed]
+      - name: event_at
+        data_type: timestamp
+      - name: event_date
+        data_type: date
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: transaction_id
+        data_type: varchar
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('fct_transaction')
+                field: transaction_id
+      - name: entitlement_id
+        data_type: varchar
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('fct_reward_entitlement')
+                field: entitlement_id
+      - name: points
+        data_type: integer
+
+  - name: fct_reward_entitlement
+    description: >
+      One row per reward entitlement (accumulating snapshot), with issue, expiry and redemption dates and a status
+      resolved from the event log. Redemption rate = is_redeemed / is_resolved (docs/metrics.md).
+    columns:
+      - name: entitlement_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: member_id
+        data_type: varchar
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_member')
+                field: member_id
+      - name: reward_type
+        data_type: varchar
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [welcome_offer, birthday_offer, points_voucher]
+      - name: issued_at
+        data_type: timestamp
+      - name: issued_date
+        data_type: date
+      - name: issue_month_start_date
+        data_type: date
+      - name: expires_at
+        data_type: timestamp
+      - name: expires_date
+        data_type: date
+      - name: redeemed_at
+        data_type: timestamp
+        description: From the redemption event, not the status column.
+      - name: redeemed_date
+        data_type: date
+      - name: redeemed_transaction_id
+        data_type: varchar
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('fct_transaction')
+                field: transaction_id
+      - name: redeemed_store_id
+        data_type: varchar
+      - name: redeemed_store_version_id
+        data_type: varchar
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_store')
+                field: store_version_id
+      - name: source_status
+        data_type: varchar
+        description: The status column as delivered; kept to show where it was wrong.
+      - name: resolved_status
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [redeemed, expired, open, cancelled]
+      - name: is_resolved
+        data_type: boolean
+        description: Redeemed or expired; the redemption-rate denominator.
+      - name: is_redeemed
+        data_type: boolean
+      - name: has_status_conflict
+        data_type: boolean
+      - name: status_conflict_reason
+        data_type: varchar
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - redemption_missing_from_status
+                  - status_redeemed_without_event
+                  - expiry_missing_from_status
+                  - status_closed_before_expiry
+
+unit_tests:
+  - name: entitlement_status_follows_the_event_log
+    description: >
+      A redemption event beats the status column; cancellation comes from the status column; expiry from the
+      dates; disagreements are flagged with their reason.
+    model: int_entitlements_resolved
+    given:
+      - input: ref('stg_loyalty__reward_entitlements')
+        rows:
+          - {entitlement_id: R1, member_id: M1, reward_type: welcome_offer, issued_at: "2026-01-01 10:00:00", expires_at: "2026-01-31 10:00:00", status: issued}
+          - {entitlement_id: R2, member_id: M1, reward_type: birthday_offer, issued_at: "2026-02-01 06:00:00", expires_at: "2026-03-03 06:00:00", status: issued}
+          - {entitlement_id: R3, member_id: M1, reward_type: points_voucher, issued_at: "2026-09-01 12:00:00", expires_at: "2026-11-30 12:00:00", status: issued}
+          - {entitlement_id: R4, member_id: M1, reward_type: points_voucher, issued_at: "2026-08-01 12:00:00", expires_at: "2026-10-30 12:00:00", status: cancelled}
+          - {entitlement_id: R5, member_id: M1, reward_type: welcome_offer, issued_at: "2026-09-20 12:00:00", expires_at: "2026-09-30 12:00:00", status: issued}
+      - input: ref('stg_loyalty__events')
+        rows:
+          - {event_id: E1, member_id: M1, event_type: reward_redeemed, event_at: "2026-01-05 12:00:03", transaction_id: T1, entitlement_id: R1}
+          - {event_id: E2, member_id: M1, event_type: points_earned, event_at: "2026-01-05 12:00:00", transaction_id: T1, points: 20}
+      - input: ref('int_as_of_date')
+        format: sql
+        rows: "select cast('2026-09-30' as date) as as_of_date"
+    expect:
+      rows:
+        - {entitlement_id: R1, resolved_status: redeemed, redeemed_transaction_id: T1, status_conflict_reason: redemption_missing_from_status}
+        - {entitlement_id: R2, resolved_status: expired, redeemed_transaction_id: null, status_conflict_reason: expiry_missing_from_status}
+        - {entitlement_id: R3, resolved_status: open, redeemed_transaction_id: null, status_conflict_reason: null}
+        - {entitlement_id: R4, resolved_status: cancelled, redeemed_transaction_id: null, status_conflict_reason: null}
+        - {entitlement_id: R5, resolved_status: expired, redeemed_transaction_id: null, status_conflict_reason: expiry_missing_from_status}

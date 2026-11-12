@@ -1,0 +1,16 @@
+snapshots:
+  - name: snp_member
+    description: >
+      One row per member per version as known to the warehouse, from one snapshot run to the next. The source sends
+      only a member's latest state, so this is the only record of what was reported before a correction
+      (decision 0002). It is built by replaying the batches in order; it cannot be rebuilt from the final state.
+    relation: ref('stg_loyalty__members')
+    config:
+      unique_key: member_id
+      strategy: timestamp
+      updated_at: updated_at
+    columns:
+      - name: member_id
+        data_tests: [not_null]
+      - name: dbt_scd_id
+        data_tests: [unique]

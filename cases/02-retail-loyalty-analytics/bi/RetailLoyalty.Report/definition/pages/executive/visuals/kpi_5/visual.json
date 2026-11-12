@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "kpi_5",
+  "position": {
+    "x": 1070,
+    "y": 78,
+    "z": 15,
+    "width": 200,
+    "height": 90,
+    "tabOrder": 15
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_date"
+                    }
+                  },
+                  "Property": "As-of Date"
+                }
+              },
+              "queryRef": "dim_date.As-of Date",
+              "nativeQueryRef": "As-of Date"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

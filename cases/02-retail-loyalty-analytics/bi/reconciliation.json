@@ -1,0 +1,179 @@
+{
+  "description": "Acceptance A10. Each check pairs a DAX expression evaluated by Power BI with SQL over the same Parquet exports. A null SQL result must be a blank in DAX. Money is compared to the penny, rates to 1e-9.",
+  "checks": [
+    {
+      "name": "Net sales, all",
+      "dax": "[Net Sales]",
+      "sql": "select sum(net_amount) from fct_sales_line"
+    },
+    {
+      "name": "Net sales, August 2026, by transaction date",
+      "dax": "CALCULATE ( [Net Sales], dim_date[month_start_date] = DATE ( 2026, 8, 1 ) )",
+      "sql": "select sum(net_amount) from fct_sales_line where transaction_date between '2026-08-01' and '2026-08-31'"
+    },
+    {
+      "name": "Net sales, August 2026, attributed to sale date",
+      "dax": "CALCULATE ( [Net Sales (attributed to sale date)], dim_date[month_start_date] = DATE ( 2026, 8, 1 ) )",
+      "sql": "select sum(net_amount) from fct_sales_line where attributed_sale_date between '2026-08-01' and '2026-08-31'"
+    },
+    {
+      "name": "Returns, all",
+      "dax": "[Returns]",
+      "sql": "select sum(net_amount) from fct_sales_line where transaction_type = 'return'"
+    },
+    {
+      "name": "Member share of net sales",
+      "dax": "[Member Share of Net Sales]",
+      "sql": "select sum(case when is_member_sale then net_amount else 0 end) / sum(net_amount) from fct_sales_line"
+    },
+    {
+      "name": "Sale transactions",
+      "dax": "[Sale Transactions]",
+      "sql": "select count(*) from fct_transaction where transaction_type = 'sale'"
+    },
+    {
+      "name": "Average basket",
+      "dax": "[Average Basket]",
+      "sql": "select (select sum(net_amount) from fct_sales_line) / (select count(*) from fct_transaction where transaction_type = 'sale')"
+    },
+    {
+      "name": "Average basket, members",
+      "dax": "[Average Basket (members)]",
+      "sql": "select (select sum(net_amount) from fct_sales_line where is_member_sale) / (select count(*) from fct_transaction where transaction_type = 'sale' and is_member_sale)"
+    },
+    {
+      "name": "Average basket, anonymous",
+      "dax": "[Average Basket (anonymous)]",
+      "sql": "select (select sum(net_amount) from fct_sales_line where not is_member_sale) / (select count(*) from fct_transaction where transaction_type = 'sale' and not is_member_sale)"
+    },
+    {
+      "name": "Trading days, S012, June 2025 (opened 16 June)",
+      "dax": "CALCULATE ( [Trading Days], dim_store[store_id] = \"S012\", dim_date[month_start_date] = DATE ( 2025, 6, 1 ) )",
+      "sql": "select count(*) from dim_date d join dim_store s on s.store_id = 'S012' and d.date_day >= greatest(s.valid_from_date, s.opened_date) and d.date_day < s.valid_to_date where d.month_start_date = '2025-06-01' and not d.is_after_as_of_date"
+    },
+    {
+      "name": "Net sales per trading day, S012, June 2025",
+      "dax": "CALCULATE ( [Net Sales per Trading Day], dim_store[store_id] = \"S012\", dim_date[month_start_date] = DATE ( 2025, 6, 1 ) )",
+      "sql": "select sum(l.net_amount) / 15 from fct_sales_line l join dim_store s using (store_version_id) where s.store_id = 'S012' and l.transaction_date between '2025-06-01' and '2025-06-30'"
+    },
+    {
+      "name": "Trading days, S007 while in the North (since 1 January 2026)",
+      "dax": "CALCULATE ( [Trading Days], dim_store[store_id] = \"S007\", dim_store[region] = \"North\" )",
+      "sql": "select count(*) from dim_date d join dim_store s on s.store_id = 'S007' and s.region = 'North' and d.date_day >= greatest(s.valid_from_date, s.opened_date) and d.date_day < s.valid_to_date where not d.is_after_as_of_date"
+    },
+    {
+      "name": "Eligible members, September 2026",
+      "dax": "CALCULATE ( [Eligible Members], dim_date[month_start_date] = DATE ( 2026, 9, 1 ) )",
+      "sql": "select count(*) from fct_member_month where month_start_date = '2026-09-01' and is_eligible"
+    },
+    {
+      "name": "Eligible members, whole year 2026 (snapshot: last month, not a sum)",
+      "dax": "CALCULATE ( [Eligible Members], dim_date[year_number] = 2026 )",
+      "sql": "select count(*) from fct_member_month where month_start_date = '2026-09-01' and is_eligible"
+    },
+    {
+      "name": "Inactive members, September 2026",
+      "dax": "CALCULATE ( [Inactive Members], dim_date[month_start_date] = DATE ( 2026, 9, 1 ) )",
+      "sql": "select count(*) from fct_member_month where month_start_date = '2026-09-01' and is_eligible and not is_active"
+    },
+    {
+      "name": "Inactivity rate, September 2026",
+      "dax": "CALCULATE ( [Inactivity Rate], dim_date[month_start_date] = DATE ( 2026, 9, 1 ) )",
+      "sql": "select sum(case when not is_active then 1 else 0 end) / count(*) from fct_member_month where month_start_date = '2026-09-01' and is_eligible"
+    },
+    {
+      "name": "Active members, September 2026",
+      "dax": "CALCULATE ( [Active Members], dim_date[month_start_date] = DATE ( 2026, 9, 1 ) )",
+      "sql": "select count(*) from fct_member_month where month_start_date = '2026-09-01' and is_active"
+    },
+    {
+      "name": "Redemption rate, all",
+      "dax": "[Redemption Rate]",
+      "sql": "select sum(case when is_redeemed then 1 else 0 end) / sum(case when is_resolved then 1 else 0 end) from fct_reward_entitlement"
+    },
+    {
+      "name": "Redemption rate, birthday offers",
+      "dax": "CALCULATE ( [Redemption Rate], fct_reward_entitlement[reward_type] = \"birthday_offer\" )",
+      "sql": "select sum(case when is_redeemed then 1 else 0 end) / sum(case when is_resolved then 1 else 0 end) from fct_reward_entitlement where reward_type = 'birthday_offer'"
+    },
+    {
+      "name": "Open entitlements",
+      "dax": "[Entitlements Open]",
+      "sql": "select count(*) from fct_reward_entitlement where resolved_status = 'open'"
+    },
+    {
+      "name": "Status conflicts",
+      "dax": "[Status Conflicts]",
+      "sql": "select count(*) from fct_reward_entitlement where has_status_conflict"
+    },
+    {
+      "name": "Redemptions at S001",
+      "dax": "CALCULATE ( [Redemptions], dim_store[store_id] = \"S001\" )",
+      "sql": "select count(*) from fct_reward_entitlement where is_redeemed and redeemed_store_id = 'S001'"
+    },
+    {
+      "name": "Repeat purchase rate, July 2026 cohort (mature)",
+      "dax": "CALCULATE ( [Repeat Purchase Rate], agg_repeat_purchase_cohort[cohort_month_start_date] = DATE ( 2026, 7, 1 ) )",
+      "sql": "select repeat_member_count / cohort_member_count from agg_repeat_purchase_cohort where cohort_month_start_date = '2026-07-01'"
+    },
+    {
+      "name": "Repeat purchase rate, August 2026 cohort (immature: blank)",
+      "dax": "CALCULATE ( [Repeat Purchase Rate], agg_repeat_purchase_cohort[cohort_month_start_date] = DATE ( 2026, 8, 1 ) )",
+      "sql": "select null"
+    },
+    {
+      "name": "Repeat purchase rate, 2025 cohorts",
+      "dax": "CALCULATE ( [Repeat Purchase Rate], agg_repeat_purchase_cohort[cohort_month_start_date] >= DATE ( 2025, 1, 1 ), agg_repeat_purchase_cohort[cohort_month_start_date] < DATE ( 2026, 1, 1 ) )",
+      "sql": "select sum(repeat_member_count) / sum(cohort_member_count) from agg_repeat_purchase_cohort where cohort_month_start_date between '2025-01-01' and '2025-12-01'"
+    },
+    {
+      "name": "Repeat purchase rate, all cohorts (some immature: blank)",
+      "dax": "[Repeat Purchase Rate]",
+      "sql": "select null"
+    },
+    {
+      "name": "Retention rate, January 2025 cohort, month 6",
+      "dax": "CALCULATE ( [Retention Rate], agg_retention_cohort[cohort_month_start_date] = DATE ( 2025, 1, 1 ), agg_retention_cohort[months_since_enrolment] = 6 )",
+      "sql": "select active_member_count / cohort_member_count from agg_retention_cohort where cohort_month_start_date = '2025-01-01' and months_since_enrolment = 6"
+    },
+    {
+      "name": "Tests in the last build",
+      "dax": "[Tests in Last Build]",
+      "sql": "select count(*) from dq_test_result where run_started_at = (select max(run_started_at) from dq_test_result)"
+    },
+    {
+      "name": "Failed tests in the last build",
+      "dax": "[Failed Tests in Last Build]",
+      "sql": "select count(*) from dq_test_result where run_started_at = (select max(run_started_at) from dq_test_result) and status in ('fail', 'error')"
+    },
+    {
+      "name": "As-of date",
+      "dax": "[As-of Date]",
+      "sql": "select max(date_day) from dim_date where not is_after_as_of_date"
+    },
+    {
+      "name": "RLS allowed: Region North sees North net sales",
+      "role": "Region North",
+      "dax": "[Net Sales]",
+      "sql": "select sum(l.net_amount) from fct_sales_line l join dim_store s using (store_version_id) where s.region = 'North'"
+    },
+    {
+      "name": "RLS denied: Region North sees nothing of S001 (London)",
+      "role": "Region North",
+      "dax": "CALCULATE ( [Net Sales], dim_store[store_id] = \"S001\" )",
+      "sql": "select null"
+    },
+    {
+      "name": "RLS allowed: Region London sees London sale transactions",
+      "role": "Region London",
+      "dax": "[Sale Transactions]",
+      "sql": "select count(*) from fct_transaction t join dim_store s using (store_version_id) where s.region = 'London' and t.transaction_type = 'sale'"
+    },
+    {
+      "name": "RLS scope: programme-wide redemption rate is not filtered by region",
+      "role": "Region North",
+      "dax": "[Redemption Rate]",
+      "sql": "select sum(case when is_redeemed then 1 else 0 end) / sum(case when is_resolved then 1 else 0 end) from fct_reward_entitlement"
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1010" viewBox="0 0 1600 1010" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Retail loyalty analytics: architecture and alternative technologies</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f6e6e"/>
+    </marker>
+  </defs>
+  <style>
+    .title { font-size: 28px; font-weight: 700; fill: #1f2933; }
+    .subtitle { font-size: 15px; fill: #52606d; }
+    .stage { font-size: 13px; font-weight: 700; fill: #52606d; letter-spacing: 1.5px; }
+    .built-box { fill: #e6f4f3; stroke: #0f6e6e; stroke-width: 2; }
+    .alt-box { fill: #ffffff; stroke: #9aa5b1; stroke-width: 1.5; stroke-dasharray: 7 5; }
+    .designed-box { fill: #fff6e0; stroke: #c48a00; stroke-width: 1.5; stroke-dasharray: 7 5; }
+    .band-box { fill: #f5f7fa; stroke: #cbd2d9; stroke-width: 1.5; }
+    .h-built { font-size: 17px; font-weight: 700; fill: #0b4f4f; }
+    .h-alt { font-size: 13px; font-weight: 700; fill: #616e7c; letter-spacing: 1px; }
+    .h-band { font-size: 17px; font-weight: 700; fill: #1f2933; }
+    .t { font-size: 14px; fill: #1f2933; }
+    .ta { font-size: 13.5px; fill: #3e4c59; }
+    .td { font-size: 13.5px; fill: #7a5400; font-weight: 600; }
+    .note { font-size: 13px; fill: #616e7c; }
+    .legend { font-size: 13px; fill: #3e4c59; }
+  </style>
+
+  <rect width="1600" height="1010" fill="#ffffff"/>
+
+  <!-- Title and legend -->
+  <text x="40" y="52" class="title">Retail loyalty analytics: architecture and alternatives</text>
+  <text x="40" y="80" class="subtitle">What this case builds, end to end, and what each part could be replaced with on another platform.</text>
+  <rect x="1010" y="98" width="26" height="16" class="built-box"/>
+  <text x="1044" y="111" class="legend">Built and tested here</text>
+  <rect x="1200" y="98" width="26" height="16" class="designed-box"/>
+  <text x="1234" y="111" class="legend">Designed, not run</text>
+  <rect x="1380" y="98" width="26" height="16" class="alt-box"/>
+  <text x="1414" y="111" class="legend">Alternative, not built</text>
+
+  <!-- Stage labels -->
+  <text x="40" y="150" class="stage">1  SOURCES</text>
+  <text x="430" y="150" class="stage">2  INGESTION</text>
+  <text x="820" y="150" class="stage">3  WAREHOUSE AND TRANSFORMATION</text>
+  <text x="1210" y="150" class="stage">4  SERVING AND BI</text>
+
+  <!-- Built row -->
+  <rect x="40" y="162" width="350" height="232" rx="10" class="built-box"/>
+  <text x="58" y="194" class="h-built">Seeded Python generator</text>
+  <text x="58" y="224" class="t">POS transactions and lines</text>
+  <text x="58" y="248" class="t">Loyalty members, events, rewards</text>
+  <text x="58" y="272" class="t">Store and product reference data</text>
+  <text x="58" y="296" class="t">Two batches of CSV with a manifest</text>
+  <text x="58" y="320" class="t">15 planted defects, each with an</text>
+  <text x="58" y="340" class="t">expected outcome</text>
+  <text x="58" y="370" class="note">Synthetic; same seed, same bytes</text>
+
+  <rect x="430" y="162" width="350" height="232" rx="10" class="built-box"/>
+  <text x="448" y="194" class="h-built">Python loader → raw</text>
+  <text x="448" y="224" class="t">Append-only landing</text>
+  <text x="448" y="248" class="t">Checksum and column contract</text>
+  <text x="448" y="272" class="t">All-or-nothing per batch</text>
+  <text x="448" y="296" class="t">Ordered batches; a reload lands nothing</text>
+  <text x="448" y="320" class="t">Load id as the incremental watermark</text>
+  <text x="448" y="370" class="note">DuckDB raw schema</text>
+
+  <rect x="820" y="162" width="350" height="232" rx="10" class="built-box"/>
+  <text x="838" y="194" class="h-built">DuckDB + dbt Core 1.12</text>
+  <text x="838" y="224" class="t">Staging → intermediate → marts</text>
+  <text x="838" y="248" class="t">Incremental fact, equal to full refresh</text>
+  <text x="838" y="272" class="t">Type 2 store history; member snapshot</text>
+  <text x="838" y="296" class="t">Enforced contracts; unit and</text>
+  <text x="838" y="316" class="t">ten invariant tests</text>
+  <text x="838" y="340" class="t">Cross-database macros (adapter.dispatch)</text>
+  <text x="838" y="370" class="note">Cohort, retention, redemption marts</text>
+
+  <rect x="1210" y="162" width="350" height="232" rx="10" class="built-box"/>
+  <text x="1228" y="194" class="h-built">Parquet → Power BI (PBIP)</text>
+  <text x="1228" y="224" class="t">Semantic model as text (TMDL)</text>
+  <text x="1228" y="248" class="t">30 measures from one metric catalogue</text>
+  <text x="1228" y="272" class="t">Three pages with drill-through</text>
+  <text x="1228" y="296" class="t">Region row-level security</text>
+  <text x="1228" y="320" class="t">34 checks reconciled to SQL</text>
+  <text x="1228" y="370" class="note">Power BI Desktop, no gateway</text>
+
+  <!-- Flow arrows -->
+  <line x1="392" y1="278" x2="426" y2="278" stroke="#0f6e6e" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="782" y1="278" x2="816" y2="278" stroke="#0f6e6e" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="1172" y1="278" x2="1206" y2="278" stroke="#0f6e6e" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- Alternatives row -->
+  <rect x="40" y="412" width="350" height="150" rx="10" class="alt-box"/>
+  <text x="58" y="440" class="h-alt">ALTERNATIVES</text>
+  <text x="58" y="468" class="ta">POS or ERP change data capture</text>
+  <text x="58" y="492" class="ta">Files landed in S3, ADLS or OneLake</text>
+  <text x="58" y="516" class="ta">Event streams such as Kafka</text>
+
+  <rect x="430" y="412" width="350" height="150" rx="10" class="alt-box"/>
+  <text x="448" y="440" class="h-alt">ALTERNATIVES</text>
+  <text x="448" y="468" class="ta">Snowflake stage + COPY INTO or Snowpipe</text>
+  <text x="448" y="492" class="ta">Managed connectors: Fivetran, Airbyte</text>
+  <text x="448" y="516" class="ta">Databricks Auto Loader</text>
+  <text x="448" y="540" class="ta">Fabric pipelines into a Lakehouse</text>
+
+  <rect x="820" y="412" width="350" height="86" rx="10" class="designed-box"/>
+  <text x="838" y="440" class="td">Snowflake: opt-in dbt target</text>
+  <text x="838" y="464" class="ta">Profile and dispatched macros ready;</text>
+  <text x="838" y="482" class="ta">not run, no result claimed</text>
+  <rect x="820" y="506" width="350" height="56" rx="10" class="alt-box"/>
+  <text x="838" y="528" class="ta">Databricks SQL, BigQuery, Fabric</text>
+  <text x="838" y="548" class="ta">Warehouse (dbt adapters); dbt v2 engine</text>
+
+  <rect x="1210" y="412" width="350" height="150" rx="10" class="alt-box"/>
+  <text x="1228" y="440" class="h-alt">ALTERNATIVES</text>
+  <text x="1228" y="468" class="ta">Power BI on Snowflake: Import or</text>
+  <text x="1228" y="488" class="ta">DirectQuery instead of Parquet files</text>
+  <text x="1228" y="512" class="ta">Power BI service: scheduled refresh,</text>
+  <text x="1228" y="532" class="ta">roles assigned to groups</text>
+  <text x="1228" y="554" class="ta">Fabric Direct Lake</text>
+
+  <!-- Cross-cutting bands -->
+  <text x="40" y="606" class="stage">ACROSS ALL STAGES</text>
+
+  <rect x="40" y="618" width="500" height="300" rx="10" class="band-box"/>
+  <text x="60" y="650" class="h-band">Orchestration</text>
+  <rect x="58" y="664" width="464" height="122" rx="8" class="built-box"/>
+  <text x="74" y="690" class="t" font-weight="700">loyalty CLI (default)</text>
+  <text x="74" y="712" class="t">generate → load → freshness → build → export</text>
+  <text x="74" y="740" class="t" font-weight="700">Airflow 3.4 DAG (opt-in)</text>
+  <text x="74" y="762" class="t">One run per delivery; backfill; same CLI steps</text>
+  <rect x="58" y="798" width="464" height="102" rx="8" class="alt-box"/>
+  <text x="74" y="824" class="h-alt">ALTERNATIVES</text>
+  <text x="74" y="850" class="ta">Dagster or Prefect; dbt Cloud jobs</text>
+  <text x="74" y="874" class="ta">Azure Data Factory or Fabric pipelines</text>
+
+  <rect x="550" y="618" width="500" height="300" rx="10" class="band-box"/>
+  <text x="570" y="650" class="h-band">Data quality and audit</text>
+  <rect x="568" y="664" width="464" height="122" rx="8" class="built-box"/>
+  <text x="584" y="690" class="t">Source freshness on every load</text>
+  <text x="584" y="714" class="t">Contracts, unit tests, ten invariant tests</text>
+  <text x="584" y="738" class="t">Failing rows stored; test history in the warehouse</text>
+  <text x="584" y="762" class="t">Tests checked by deliberately breaking the logic</text>
+  <rect x="568" y="798" width="464" height="102" rx="8" class="alt-box"/>
+  <text x="584" y="824" class="h-alt">ALTERNATIVES</text>
+  <text x="584" y="850" class="ta">Elementary or Soda for test history and alerts</text>
+  <text x="584" y="874" class="ta">Great Expectations for expectation suites</text>
+
+  <rect x="1060" y="618" width="500" height="300" rx="10" class="band-box"/>
+  <text x="1080" y="650" class="h-band">Runtime and delivery</text>
+  <rect x="1078" y="664" width="464" height="122" rx="8" class="built-box"/>
+  <text x="1094" y="690" class="t">Linux container (Docker) or local uv</text>
+  <text x="1094" y="714" class="t">Versions pinned in one lock file</text>
+  <text x="1094" y="738" class="t">GitHub Actions CI, path-filtered to the case</text>
+  <text x="1094" y="762" class="t">Everything as text: SQL, YAML, TMDL, PBIR</text>
+  <rect x="1078" y="798" width="464" height="102" rx="8" class="alt-box"/>
+  <text x="1094" y="824" class="h-alt">ALTERNATIVES</text>
+  <text x="1094" y="850" class="ta">Azure DevOps or GitLab CI</text>
+  <text x="1094" y="874" class="ta">Fabric or Power BI deployment pipelines</text>
+
+  <!-- Footer -->
+  <text x="40" y="952" class="note">Runs on one machine on synthetic data; nothing is deployed. Alternatives are shown for comparison only: none has been built or measured here.</text>
+  <text x="40" y="974" class="note">Decisions behind the choices: docs/decisions (warehouse 0001, history 0002, orchestration 0003, dbt version 0004, container 0005, incremental 0006, metrics 0007).</text>
+</svg>

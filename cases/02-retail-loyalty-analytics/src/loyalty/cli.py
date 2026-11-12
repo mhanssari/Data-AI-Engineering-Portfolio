@@ -1,0 +1,151 @@
+"""Command line: `loyalty generate | load | freshness | build | export | run-all | compare`."""
+
+import argparse
+import sys
+from pathlib import Path
+
+from loyalty import compare, export, generator, loader, reference, transform
+from loyalty.config import BATCH_WINDOWS, CASE_ROOT, SEED, data_dir, export_dir, warehouse_path
+
+
+def _load_batches(batches: list[int], data: Path, warehouse: Path) -> None:
+    con = loader.connect(warehouse)
+    try:
+        for batch in batches:
+            results = loader.load_batch(con, data / f"batch_{batch}")
+            landed = sum(r.rows for r in results)
+            skipped = sum(r.skipped for r in results)
+            print(
+                f"batch {batch}: {landed} rows landed, {skipped} of {len(results)} files already loaded",
+                flush=True,
+            )
+    finally:
+        # DuckDB allows one writer: release the file before dbt opens it.
+        con.close()
+
+
+def _generate(args: argparse.Namespace) -> int:
+    present = all((args.out / f"batch_{b}" / "manifest.json").exists() for b in BATCH_WINDOWS)
+    if args.if_missing and present:
+        print(f"extracts already present in {args.out}; nothing written", flush=True)
+        return 0
+    for manifest in generator.generate(args.out, args.seed):
+        print(f"wrote {manifest.parent}", flush=True)
+    return 0
+
+
+def _load(args: argparse.Namespace) -> int:
+    batches = sorted(BATCH_WINDOWS) if args.batch == "all" else [int(args.batch)]
+    _load_batches(batches, args.data, args.warehouse)
+    return 0
+
+
+def _build(args: argparse.Namespace) -> int:
+    select = ["--select", *args.select] if args.select else []
+    indirect = ["--indirect-selection", args.indirect_selection] if args.indirect_selection else []
+    transform.run_dbt(["build", *select, *indirect], args.warehouse)
+    return 0
+
+
+def _freshness(args: argparse.Namespace) -> int:
+    transform.run_dbt(["source", "freshness"], args.warehouse)
+    return 0
+
+
+def _reference(args: argparse.Namespace) -> int:
+    out = reference.write_reference_values(args.exports, args.checks, args.exports / "reference_values.json")
+    print(f"wrote {out}", flush=True)
+    return 0
+
+
+def _compare(args: argparse.Namespace) -> int:
+    result = compare.compare_marts(args.left, args.right)
+    for table, count in result.items():
+        print(f"{table}: {'missing on one side' if count < 0 else f'{count} differing rows'}")
+    return 0 if all(count == 0 for count in result.values()) else 1
+
+
+def _export(args: argparse.Namespace) -> int:
+    written = export.export_marts(args.warehouse, args.out)
+    print(f"wrote {len(written)} Parquet files to {args.out}", flush=True)
+    return 0
+
+
+def _run_all(args: argparse.Namespace) -> int:
+    """Generate, then load and build one batch at a time, so the snapshot sees each batch's state in order."""
+    if args.warehouse.exists():
+        args.warehouse.unlink()
+        print(f"removed {args.warehouse}", flush=True)
+    generator.generate(args.data, args.seed)
+    for batch in sorted(BATCH_WINDOWS):
+        _load_batches([batch], args.data, args.warehouse)
+        transform.run_dbt(["source", "freshness"], args.warehouse)
+        transform.run_dbt(["build"], args.warehouse)
+    return _export(args)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="loyalty", description="Retail loyalty analytics pipeline")
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    def add(name: str, help_text: str, handler) -> argparse.ArgumentParser:
+        command = commands.add_parser(name, help=help_text)
+        command.set_defaults(handler=handler)
+        return command
+
+    gen = add("generate", "write both batch extracts from the seeded generator", _generate)
+    gen.add_argument("--seed", type=int, default=SEED)
+    gen.add_argument("--out", type=Path, default=data_dir())
+    gen.add_argument(
+        "--if-missing", action="store_true", help="do nothing if both batches are already written"
+    )
+
+    load = add("load", "land batch extracts in the raw schema", _load)
+    load.add_argument("--batch", choices=[*map(str, sorted(BATCH_WINDOWS)), "all"], default="all")
+    load.add_argument("--data", type=Path, default=data_dir())
+    load.add_argument("--warehouse", type=Path, default=warehouse_path())
+
+    build = add("build", "dbt build: models, snapshot and tests", _build)
+    build.add_argument("--warehouse", type=Path, default=warehouse_path())
+    build.add_argument("--select", nargs="+", help="dbt selectors, e.g. path:models/staging path:snapshots")
+    build.add_argument("--indirect-selection", choices=["eager", "cautious", "buildable", "empty"])
+
+    fresh = add("freshness", "dbt source freshness against the warehouse", _freshness)
+    fresh.add_argument("--warehouse", type=Path, default=warehouse_path())
+
+    ref = add(
+        "reference",
+        "SQL reference values for the Power BI reconciliation (bi/reconciliation.json)",
+        _reference,
+    )
+    ref.add_argument("--exports", type=Path, default=export_dir())
+    ref.add_argument("--checks", type=Path, default=CASE_ROOT / "bi" / "reconciliation.json")
+
+    cmp = add("compare", "compare the marts of two warehouse files row for row", _compare)
+    cmp.add_argument("left", type=Path)
+    cmp.add_argument("right", type=Path)
+
+    exp = add("export", "write the marts and the data-quality history to Parquet for Power BI", _export)
+    exp.add_argument("--warehouse", type=Path, default=warehouse_path())
+    exp.add_argument("--out", type=Path, default=export_dir())
+
+    run_all = add(
+        "run-all",
+        "from an empty warehouse: generate, load and build each batch in order, then export",
+        _run_all,
+    )
+    run_all.add_argument("--seed", type=int, default=SEED)
+    run_all.add_argument("--data", type=Path, default=data_dir())
+    run_all.add_argument("--warehouse", type=Path, default=warehouse_path())
+    run_all.add_argument("--out", type=Path, default=export_dir())
+
+    args = parser.parse_args(argv)
+    try:
+        return args.handler(args)
+    except (loader.LoadError, transform.DbtError) as error:
+        print(f"failed: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

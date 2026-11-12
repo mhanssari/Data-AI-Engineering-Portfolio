@@ -1,0 +1,6 @@
+/// A store manager for the London region: sales and baskets of stores while they were in London.
+role 'Region London'
+	modelPermission: read
+
+	tablePermission dim_store = [region] = "London"
+
