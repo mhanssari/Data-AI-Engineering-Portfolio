@@ -4,14 +4,14 @@ Recorded 11 November 2026 on Windows 11 with Docker Desktop: Airflow 3.4.0 stand
 
 ## Commands
 
-From `orchestration/`, on fresh volumes (`docker compose down -v` first):
+From `orchestration/`, on fresh volumes (`docker compose down -v` first). This was the case's own Airflow stack at the time; it has since moved to the shared platform, re-run below:
 
 ```powershell
 docker compose up -d --build
 docker compose exec airflow airflow dags unpause retail_loyalty
 docker compose exec airflow airflow backfill create --dag-id retail_loyalty `
     --from-date 2026-09-01 --to-date 2026-10-01 --max-active-runs 1 --reprocess-behavior failed
-docker compose exec airflow bash /opt/loyalty-project/orchestration/verify_a15.sh
+docker compose exec airflow bash /opt/loyalty-project/orchestration/verify_a15.sh   # path at the time
 ```
 
 ## Backfill
@@ -62,6 +62,28 @@ The test history grew by two dbt runs, so the rerun did execute its staging and 
 - **dbt could not write its log** in the mounted project folder, which another container's user had created. Airflow's dbt logs and compiled files now go to its own volume (`DBT_LOG_PATH`, `DBT_TARGET_PATH`).
 - **SQLite locked** when the backfill command and the scheduler wrote at once. Replaced with PostgreSQL, reachable only inside the Compose network, so it needs no password.
 - **Airflow 3 refuses a backfill** of a DAG with `depends_on_past` unless the reprocess behaviour is stated.
+
+## Re-run on the shared Airflow, 12 November 2026
+
+The Airflow stack moved from this case to the portfolio's [shared platform](../../../platform/airflow/README.md), with the case in its own environment, `/opt/cases/retail-loyalty`, and its settings carried by the DAG's tasks. A15 was re-run there, on fresh volumes:
+
+```powershell
+cd platform/airflow
+docker compose up -d --build
+docker compose exec airflow airflow dags unpause retail_loyalty
+docker compose exec airflow airflow backfill create --dag-id retail_loyalty `
+    --from-date 2026-09-01 --to-date 2026-10-01 --max-active-runs 1 --reprocess-behavior failed
+docker compose exec airflow bash /opt/portfolio/cases/02-retail-loyalty-analytics/orchestration/verify_a15.sh
+```
+
+| Check | Result |
+| --- | --- |
+| DAG import errors | None |
+| Backfill | 2 runs created; 16 September succeeded, then 30 September |
+| Batches in load order | 1: 7 files, 243,320 rows; 2: 7 files, 5,898 rows |
+| Marts against `run-all` | 0 differing rows in all 11 |
+| Cleared rerun of 30 September | Succeeded; 0 differing rows; the same 2 dbt runs wrote the sales fact before and after; the test history grew from 4 runs to 6 |
+| Files written into the project folder | None |
 
 ## Not validated
 

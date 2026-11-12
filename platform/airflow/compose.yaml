@@ -1,0 +1,53 @@
+# Shared portfolio Airflow. From this folder:
+#   docker compose up -d --build        then open http://127.0.0.1:8080
+#   docker compose down                 (add -v to delete Airflow's state, including case outputs kept in it)
+# Each case documents its own DAG commands; see platform/airflow/README.md.
+name: portfolio-airflow
+
+services:
+  # Airflow's metadata database. SQLite allows one writer, and the scheduler, DAG processor and CLI write at once.
+  # No port is published and only this Compose network reaches it, so it trusts its clients and has no password.
+  metadata-db:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_DB: airflow
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - metadata-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow", "-d", "airflow"]
+      interval: 5s
+      retries: 20
+
+  airflow:
+    build:
+      context: ../..
+      dockerfile: platform/airflow/Dockerfile
+    image: portfolio-airflow:local
+    # Scheduler, DAG processor, API server and triggerer in one container: a local demonstration, not production.
+    command: standalone
+    depends_on:
+      metadata-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow@metadata-db/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      # Local only, bound to 127.0.0.1: everyone is an admin and there is no password to manage or leak.
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
+    # Case services (for example case 03's PostgreSQL) publish a port on this machine; DAGs reach them here.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # The repository, for case source code; each case's DAG folder under its own name.
+      - ../..:/opt/portfolio
+      - ../../cases/02-retail-loyalty-analytics/orchestration/dags:/opt/airflow/dags/retail_loyalty:ro
+      - airflow-state:/opt/airflow
+
+volumes:
+  metadata-db:
+  airflow-state:

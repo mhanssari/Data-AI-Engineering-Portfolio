@@ -29,7 +29,7 @@ flowchart LR
 
 - **One stack for the portfolio.** It moves from case 02's `orchestration/` folder to `platform/airflow/`.
 - **Mounts:** each case's `dags/` folder, and the case's own Python environment, so case dependencies never mix with Airflow's.
-- **Network:** case services such as this PostgreSQL join an external Docker network, `portfolio`, so Airflow can reach them by name.
+- **Network:** this case's PostgreSQL publishes a port on the machine, and the shared Airflow reaches it at `host.docker.internal`. No network is shared between Compose projects.
 - **Every case still runs without Airflow,** through its own CLI.
 
 ## Memory budget

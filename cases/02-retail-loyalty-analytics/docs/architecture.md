@@ -50,7 +50,7 @@ A second dbt target, `snowflake`, in `profiles.example.yml`. It is **not built o
 
 ## Opt-in: Airflow
 
-An [`orchestration/`](../orchestration/README.md) folder with its own Docker Compose file: Airflow 3.4.0 standalone and a PostgreSQL metadata database. Not needed for the default path, CI or any result in the README except A15. SQLite was tried first and dropped: the scheduler, DAG processor and CLI write at once, and a backfill failed with "database is locked".
+The DAG in [`orchestration/`](../orchestration/README.md) runs in the portfolio's [shared Airflow](../../../platform/airflow/README.md): Airflow 3.4.0 standalone and a PostgreSQL metadata database, with this case in its own environment. It was built inside this case first and moved to the platform on 12 November 2026, when case 03 needed Airflow too. Not needed for the default path, CI or any result in the README except A15. SQLite was tried first and dropped: the scheduler, DAG processor and CLI write at once, and a backfill failed with "database is locked".
 
 ```mermaid
 flowchart LR
@@ -61,7 +61,7 @@ flowchart LR
 - **Rerun safety.** Clearing and rerunning an interval reloads nothing (checksums), the snapshot records no new versions, and the incremental merge rewrites the same rows. A15 checks this.
 - **Tasks call dbt by layer** with `dbt build --select`, so each layer is tested before the next runs. Rendering every model as a task (for example with Cosmos) is left out: another dependency and a noisy graph for about twenty models.
 - **One task at a time,** because DuckDB allows one writer. On Snowflake the marts could run in parallel.
-- **CI** builds the Airflow image and checks that the DAG imports with the agreed shape; it does not start Airflow.
+- **CI** builds the shared Airflow image and checks that the DAG imports with the agreed shape ([platform workflow](../../../.github/workflows/platform-airflow.yml)); it does not start Airflow.
 - **Measured on 11 November 2026** ([verify_a15.sh](../orchestration/verify_a15.sh)): the backfill created two runs and both succeeded, batch 1 then batch 2. All 11 marts equal those of `run-all` built separately. Clearing and rerunning 30 September changed no mart and rewrote no row.
 
 ## Run, data interval and recovery

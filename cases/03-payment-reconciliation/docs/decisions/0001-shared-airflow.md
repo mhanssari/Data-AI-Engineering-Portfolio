@@ -22,5 +22,6 @@ Option 3, chosen by the owner. It is how a team would run it: one scheduler, man
 
 - Case 02's orchestration moves to `platform/airflow/`. Its acceptance A15, the backfill matching `run-all`, must be re-run on the shared stack and its evidence updated before case 03 adds a DAG.
 - The image installs each case's environment separately, under `/opt/cases/<case>`, so dbt and PySpark versions never meet Airflow's.
-- Case services join an external Docker network, `portfolio`. Credentials stay in each case's `.env`, which is never committed.
-- CI checks every case's DAGs in the shared image.
+- Case services publish a port on this machine and DAGs reach them at `host.docker.internal`. A shared Docker network was considered and dropped: every case's Compose file would have depended on it existing. Credentials stay in each case's `.env`, which is never committed, and travel to Airflow with the DAG's tasks.
+- CI checks every case's DAGs in the shared image ([platform workflow](../../../../.github/workflows/platform-airflow.yml)).
+- Done 12 November 2026: the stack is in [platform/airflow](../../../../platform/airflow/README.md), and case 02's A15 passed again on it.

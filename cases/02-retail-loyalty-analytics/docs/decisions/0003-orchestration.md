@@ -24,4 +24,5 @@ Option 3. The steps live in the case's Python package and dbt project. The CLI c
 - DuckDB allows one writer, so tasks run one at a time.
 - CI builds the Airflow image and checks that the DAG imports with the agreed shape. Acceptance A15 is recorded in [evidence](../../evidence/airflow-backfill-run.md): a two-run backfill in order, marts equal to the CLI run's, and a rerun that changes nothing.
 - Built with Airflow 3.4.0: an `EventsTimetable` of delivery dates, standalone mode with a PostgreSQL metadata database (SQLite locked under the scheduler and CLI writing together), and the case installed in its own environment beside Airflow's.
+- 12 November 2026: the Airflow stack moved to the portfolio's [shared platform](../../../../platform/airflow/README.md), and A15 was re-run there ([evidence](../../evidence/airflow-backfill-run.md#re-run-on-the-shared-airflow-12-november-2026)).
 - Cosmos (one task per dbt model) is not used; it could replace the per-layer tasks if model-level retries ever mattered.

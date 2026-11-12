@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 # Acceptance A15, run inside the Airflow container after the backfill has finished:
-#   docker compose exec airflow bash /opt/loyalty-project/orchestration/verify_a15.sh
+#   docker compose exec airflow bash /opt/portfolio/cases/02-retail-loyalty-analytics/orchestration/verify_a15.sh
+# (from platform/airflow; the shared portfolio Airflow)
 #
 # 1. The DAG loaded batch 1, then batch 2.
 # 2. Its marts equal those of `loyalty run-all`, built separately into another warehouse.
 # 3. Clearing and rerunning the 30 September interval changes no mart and rewrites no row.
 set -euo pipefail
 
-LOYALTY=/opt/loyalty-venv/bin/loyalty
-PYTHON=/opt/loyalty-venv/bin/python
+LOYALTY=/opt/cases/retail-loyalty/bin/loyalty
+PYTHON=/opt/cases/retail-loyalty/bin/python
 BASE=/opt/airflow/loyalty
 WAREHOUSE=$BASE/warehouse/loyalty.duckdb
 REFERENCE=$BASE/reference
 BEFORE=$BASE/before-rerun
+# dbt's logs and compiled files stay in Airflow's volume, never in the mounted project folder.
+export DBT_LOG_PATH=$BASE/reference/dbt/logs DBT_TARGET_PATH=$BASE/reference/dbt/target
 
 query() {
     "$PYTHON" - "$1" "$2" <<'PY'
