@@ -1,6 +1,6 @@
 # Requirements
 
-Status: agreed 12 November 2026. Milestone 1 is being built: landing and core are done; reconciliation is next.
+Status: agreed 12 November 2026. Milestone 1 is being built: landing, core and reconciliation are done; orchestration is next.
 
 ## Problem and decisions
 
@@ -44,12 +44,14 @@ Agreed defaults, to be revisited with a finance reviewer:
 | --- | --- |
 | Match key | The settlement line's payment reference is the payment id |
 | Money | Integer minor units (pence, cents) with an ISO currency code; amounts in different currencies are never added |
-| Expected settlement | Per payment: captured amount minus refunded amount, in the payment's currency |
+| Expected settlement | Per payment: captured amount minus refunded amount, in the payment's currency; a reversal takes it to zero |
 | Fee | Settlement net = gross − fee. The expected fee comes from the merchant's price plan (basis points plus a fixed amount, rounded half up to a minor unit); a difference above one minor unit is a fee exception |
 | Partial settlement | A payment may settle over several lines; their gross amounts are summed |
 | Refunds and reversals | Negative settlement lines against the original payment |
 | Cut-off | A payment captured on day D (UTC, up to 23:59:59) is due in the settlement file for D |
-| Grace | One day: until the file for D + 1 has been processed, an unsettled payment is *pending*, not *missing* |
+| Grace | One day: until the file for D + 1 has been processed, an unsettled payment is *pending*, not *missing*. D is the payment's last due date: its capture, or its latest refund or reversal |
+| Lines that wait | A settlement line that matches no payment yet (the capture is held behind a missing event, or the merchant is not yet in reference data) is *awaiting* for the same one day, then an *unexpected settlement* exception. A line whose payment is due in another currency is a *currency mismatch* at once. Agreed 12 November 2026 ([decision 0005](decisions/0005-reconciliation-runs-and-grace.md)) |
+| Run | Identified by its arrival date A; it has processed settlement files up to day A − 1. Rerunning a day replaces that day's results |
 | Status authority | The source's per-payment sequence number orders events. Event time is for display and windows; ingestion time is for lateness |
 
 ## Acceptance
@@ -60,8 +62,8 @@ Agreed defaults, to be revisited with a finance reviewer:
 | A2 | Out-of-order events give the same final payment state as in-order events |
 | A3 | An illegal transition (for example a refund before capture) is never applied, and is recorded |
 | A4 | A malformed or unknown-reference record is quarantined with its reason and source position; nothing else in its file is lost |
-| A5 | Per currency and settlement day, captured minus refunded minus settled equals open exceptions plus payments still pending: every difference is explained |
-| A6 | A payment is pending until its grace period ends, then missing; a late settlement file resolves it on the next run |
+| A5 | Per currency and due date, captured minus refunded minus reversed minus settled equals open exceptions plus payments pending plus lines awaiting: every difference is explained |
+| A6 | A payment is pending, and an unmatched line awaiting, until its grace period ends, then an exception; a late file or late reference data resolves it on the next run |
 | A7 | Rerunning a day with the same inputs changes nothing |
 | A8 | A genuine double settlement is an exception, while a re-sent identical file is not |
 | A9 | Duplicate streamed events do not double the minute aggregates (milestone 2) |
@@ -75,10 +77,10 @@ Each becomes a test that fails on the planted defects if the handling is removed
 
 1. Every distinct event is counted once. Distinct events equal the delivered events minus the planted duplicates.
 2. A payment's state is the result of applying its events in sequence order through the allowed transitions only.
-3. For every currency and settlement day: captured − refunded − settled gross = open exception amounts + pending amounts.
+3. For every currency and due date: captured − refunded − reversed − settled gross = open exception amounts + pending amounts + awaiting amounts.
 4. Each settlement line belongs to at most one payment, and a payment's settled gross is the sum of its lines.
 5. No amount is ever added across currencies, in SQL or in any output.
-6. No payment is *missing* before its grace period ends.
+6. No payment is *missing*, and no line *unexpected*, before its grace period ends.
 7. Every quarantined record keeps its file or offset, its raw content and its reason.
 8. Reconciliation results depend only on inputs: the same inputs, run twice, give identical output.
 

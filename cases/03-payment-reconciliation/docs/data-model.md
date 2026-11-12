@@ -1,6 +1,6 @@
 # Data model
 
-Status: grain agreed 12 November 2026. Raw, ops and core are built; recon is not yet.
+Status: grain agreed 12 November 2026. Raw, ops, core and recon are built.
 
 ## Sources
 
@@ -43,7 +43,7 @@ Each is planted on named records with a stated outcome, so tests can assert exac
 | P2 | Events out of order (captured arrives before authorised) | Parallel producers, network delay | Final state follows the sequence |
 | P3 | An illegal transition (a refund for a payment never captured) | Upstream bug | Not applied; recorded as an illegal transition |
 | P4 | A malformed event (amount not a number) | Corrupt producer | Quarantined with its reason; the rest of its file loads |
-| P5 | An event for an unknown merchant | Reference data lag | Quarantined, and loaded again once the merchant arrives |
+| P5 | An event for an unknown merchant | Reference data lag | Quarantined, and loaded again once the merchant arrives; its settlement line awaits for its grace day, is an *unexpected settlement* on the run for 11 October, and matches on 12 October |
 | P6 | A captured payment never settled | Acquirer omission | Pending during grace, then a *missing settlement* exception |
 | P7 | A settlement line with no captured payment | Settled under a wrong reference | *Unexpected settlement* exception |
 | P8 | Two partial settlements that sum correctly | Split settlement | Matched, no exception |
@@ -73,14 +73,17 @@ PostgreSQL schemas: `raw` (append-only landing), `core` (cleaned and derived), `
 | `core.allowed_transition` | Allowed state change | `from_status`, `event_type` | The state machine above, as data |
 | `core.build` | Current core build | one row | The arrival date core reflects |
 | `core.settlement_line` | Distinct settlement line | `settlement_line_id` | Latest delivery wins, so a corrected re-issue supersedes; identical re-sends never reach raw |
-| `recon.payment_settlement` | Payment due for settlement, per run | `run_id`, `payment_id` | Match result: expected and settled gross, fee, expected fee, status (matched, pending or an exception type) |
-| `recon.exception` | Open or resolved exception, per run | `run_id`, `exception_id` | One row per payment or orphan line and exception type, with its signed amount and currency |
-| `recon.control_total` | Currency × settlement day, per run | `run_id`, `currency`, `settlement_date` | Captured, refunded, settled gross, fees, open exception amount, pending amount, unexplained difference (must be 0) |
-| `ops.run` | Pipeline run | `run_id` | Run metadata: as-of date, inputs, counts, duration |
+| `recon.payment_settlement` | Payment due for settlement (ever captured), per run | `as_of_arrival`, `payment_id` | Match result: expected and settled gross in its own currency, fee, expected fee, status (matched, pending or an exception type) |
+| `recon.unmatched_line` | Settlement line matching no payment due in its currency, per run | `as_of_arrival`, `settlement_line_id` | Status: awaiting, unexpected settlement, or currency mismatch |
+| `recon.exception` | Open exception, per run | `as_of_arrival`, `exception_id` | One row per payment or orphan line and exception type, with its signed amount and currency |
+| `recon.control_total` | Currency × due date, per run | `as_of_arrival`, `currency`, `due_date` | Captured, refunded, reversed, settled gross, pending, awaiting, open exception amount, unexplained difference (must be 0) |
+| `ops.run` | Execution of a reconciliation run | `run_id` | As-of arrival, start and finish, status, counts or error |
 | `ops.file` | Arrived file | `file_name`, `checksum` | Arrival, load status, row counts |
 | `ops.quarantine` | Rejected record | `quarantine_id` | Source file and row, raw content, reason, reprocessed flag |
 
 Core is rebuilt whole from raw as of an arrival date ([decision 0004](decisions/0004-core-rebuilt-as-of-arrival.md)): holding out-of-order events, recording illegal transitions and re-reading events for merchants not yet known are described there.
+
+Reconciliation results are keyed by the run's arrival date rather than a run id: rerunning a day replaces that day's results, so they depend only on what had arrived by then, while `ops.run` keeps every execution. Matching, the grace period and lines that wait are in [decision 0005](decisions/0005-reconciliation-runs-and-grace.md).
 
 Milestone 2, to be agreed at its start: `stream.payment_status_minute` (currency × merchant × status × one-minute event-time window) and `stream.payment_latest` (payment, latest streamed state).
 

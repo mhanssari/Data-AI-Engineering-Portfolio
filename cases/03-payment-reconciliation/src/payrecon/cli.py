@@ -1,11 +1,11 @@
-"""Command line: `payrecon generate | migrate | reset | load | build-core`."""
+"""Command line: `payrecon generate | migrate | reset | load | build-core | reconcile | run-all`."""
 
 import argparse
 import sys
 from datetime import date
 from pathlib import Path
 
-from payrecon import core, db, generator, loader
+from payrecon import core, db, generator, loader, recon
 from payrecon.config import SEED, arrival_days, data_dir
 
 
@@ -63,6 +63,35 @@ def _build_core(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_run(as_of: date, summary: dict) -> None:
+    payments = ", ".join(f"{n} {s}" for s, n in summary["payments"].items())
+    lines = ", ".join(f"{n} {s}" for s, n in summary["unmatched_lines"].items()) or "none"
+    print(
+        f"run as of arrival {as_of}: payments {payments}; unmatched lines {lines}; "
+        f"{summary['open_exceptions']} open exceptions; checks passed",
+        flush=True,
+    )
+
+
+def _reconcile(args: argparse.Namespace) -> int:
+    with db.connect() as con:
+        as_of = date.fromisoformat(args.arrival) if args.arrival else core.latest_arrival(con)
+        if as_of is None:
+            print("nothing has been loaded yet; run payrecon load first", file=sys.stderr)
+            return 1
+        _print_run(as_of, recon.reconcile(con, as_of))
+    return 0
+
+
+def _run_all(args: argparse.Namespace) -> int:
+    """Replay the schedule: each arrival day in order, load it, then reconcile as of it."""
+    with db.connect() as con:
+        for day in arrival_days():
+            loader.load_arrival(con, args.data / f"arrival_{day}")
+            _print_run(day, recon.reconcile(con, day))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="payrecon", description="Payment settlement reconciliation")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -88,11 +117,20 @@ def main(argv: list[str] | None = None) -> int:
     build_core = add("build-core", "rebuild core from everything arrived by a date", _build_core)
     build_core.add_argument("--arrival", help="YYYY-MM-DD; default the latest arrival loaded")
 
+    reconcile = add("reconcile", "build core and reconcile as of an arrival date", _reconcile)
+    reconcile.add_argument("--arrival", help="YYYY-MM-DD; default the latest arrival loaded")
+
+    run_all = add("run-all", "load and reconcile every arrival day in order", _run_all)
+    run_all.add_argument("--data", type=Path, default=data_dir())
+
     args = parser.parse_args(argv)
     try:
         return args.handler(args)
     except loader.LoadError as error:
         print(f"load rejected: {error}", file=sys.stderr)
+        return 1
+    except recon.CheckFailed as error:
+        print(f"reconciliation checks failed, results rolled back: {error}", file=sys.stderr)
         return 1
 
 

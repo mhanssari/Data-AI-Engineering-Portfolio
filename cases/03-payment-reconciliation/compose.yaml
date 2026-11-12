@@ -3,7 +3,7 @@
 #   docker compose run --rm payrecon generate
 #   docker compose run --rm payrecon migrate
 #   docker compose run --rm payrecon load --arrival all
-#   docker compose run --rm payrecon build-core
+#   docker compose run --rm payrecon reconcile    (or run-all to replay every day)
 #   docker compose run --rm --entrypoint pytest payrecon -q
 name: payment-reconciliation
 
