@@ -1,6 +1,6 @@
 # Milestone 2 streaming design
 
-Status: 12 November 2026. The owner confirmed the decline-rate definition and 10-minute lateness choice. Kafka, intake/live and recovery have passing GitHub checks. A finite continuous-query A12 profile now passes locally under [decision 0011](decisions/0011-observed-stream-state-bounds.md); [state evidence](../evidence/stream-state-run.md) records actual bounds and the idle-progress reporting fix. Measurement and full-month replay remain outstanding.
+Status: 12 November 2026. The owner confirmed the decline-rate definition and 10-minute lateness choice. Kafka, intake/live, recovery and finite A12 state checks pass on GitHub. [State evidence](../evidence/stream-state-run.md) records actual bounds and the idle-progress reporting fix; [measurement evidence](../evidence/stream-measurement-run.md) records three bounded current-clock repeats. Full-month historical replay remains a separate optional exercise.
 
 ## Boundary and data flow
 
@@ -35,23 +35,29 @@ The first MVP binds one dataset to a streaming database/topic epoch and each que
 
 Register a topic epoch with its Kafka topic/cluster identity. Topic recreation or checkpoint replacement requires a deliberate new epoch/generation; reused offsets must not collide with prior deliveries. Include that identity in startup checks and evidence. Cross-query conflict detection can lag: until intake and live reach the same validated frontier, outputs are labelled provisional; a conflict makes publication untrusted.
 
-## Proposed grains and keys
+## Implemented grains and keys
 
 The tables below, including completed repair audit `ops.stream_backfill`, are implemented. Additional control tables register the dataset, role-aware checkpoint lineage, reference snapshot and live conflicts. `generation` separates checkpoint lineages; a restart or repair keeps the existing generation. Exact DDL is in [intake](../sql/stream/migrations/stream_001_intake.sql), [live](../sql/stream/migrations/stream_002_live.sql) and [recovery](../sql/stream/migrations/stream_003_recovery.sql) migrations.
 
 | Table | One row per | Key / behaviour |
 | --- | --- | --- |
-| `stream.delivery` | Kafka delivery | topic epoch, partition, offset; raw bytes, broker time and intake commit time |
+| `stream.dataset` | Declared source dataset/clock binding | singleton (true); dataset ID unique; one binding per database |
+| `stream.lineage` | Role-specific checkpoint generation | generation; checkpoint path unique; dataset, role and Kafka epoch retained |
+| `stream.delivery` | Kafka delivery | topic epoch, partition, offset; raw bytes, broker time and first intake transaction-start metadata |
 | `stream.intake_event` | Canonical schema-valid source event in a dataset | dataset ID, event ID; unique payment/source sequence, immutable semantic hash and normalised source fields |
 | `stream.quarantine` | Rejected delivery and reason | topic epoch, partition, offset, reason; raw bytes retained in the referenced delivery |
 | `stream.reference_merchant` | Merchant at the selected reference frontier | merchant ID; separate from finance core writes; snapshot seed/arrival/hash in `stream.reference_snapshot` |
+| `stream.reference_snapshot` | Active seeded reference snapshot | singleton (true); seed, arrival frontier and content hash |
+| `stream.allowed_transition` | Permitted state change | from status, event type; values shared with batch |
 | `stream.live_event` | Canonical event admitted live or by repair | generation, event ID; complete source fields, hash and admission origin |
+| `stream.live_conflict` | Conflicting event content seen by a live callback | generation, batch ID, event ID, semantic hash; blocking evidence |
 | `stream.event_application` | Result of applying a live-ledger event | generation, event ID; applied, held, illegal, unknown-reference or identity-mismatch |
 | `stream.payment_latest` | Payment state within the live generation | generation, payment ID; source sequence walk, gaps and exact monetary units |
 | `stream.event_minute` | Merchant/currency/event type/application outcome in a UTC minute | generation, minute start, merchant ID, currency, event type, outcome; replace derived counts |
-| `ops.stream_batch` | Committed database sink batch | generation, query role, batch ID; counts and commit time; intake hashes physical input, live hashes admitted semantic events |
+| `stream.operation_minute` (view) | Operational metrics for a merchant/currency in a UTC minute | generation, minute start, merchant ID, currency; counts and decision rate from event minutes |
+| `ops.stream_batch` | Committed database sink batch | generation, query role, batch ID; counts and transaction-start metadata; intake hashes physical input, live hashes admitted semantic events |
 | `ops.stream_progress` | Reported Spark query progress | generation, query role, batch ID; offsets, watermark and state metrics; not a transaction spanning both queries |
-| `ops.stream_backfill` | Completed controlled repair | repair ID; request hash, explicit plan/frontiers, reason, source digest, before/after counts/fingerprints and completion time; retry reuses result |
+| `ops.stream_backfill` | Completed controlled repair | repair ID; request hash, explicit plan/frontiers, reason, source digest, before/after counts/fingerprints and transaction-start audit time; retry reuses result |
 
 Do not mix generations in one operational view. Minute buckets are half-open UTC `[start, start + 1 minute)`. Definitions and eligibility are owned by [metrics](metrics.md); event counts are not snapshots of current payment status.
 
@@ -83,7 +89,7 @@ Start with a short, named deterministic stream fixture containing normal events,
 
 Full-month replay is separately labelled accelerated historical replay. It cannot establish real-time event latency from old timestamps. The [current-clock profile](decisions/0012-current-clock-measurement.md) measures independent visibility latency, offered/output rate and observed in-flight counts over three finite repeats. [Local results](../evidence/stream-measurement-run.md) achieved broker-to-visible p95 6.79–7.06 seconds at roughly ten events/second, below the initial 15-second engineering target with five-second triggers. Visibility includes polling delay; this is a warmed single-live-reader result, not capacity or concurrent-reader evidence.
 
-## Runtime candidates and memory
+## Runtime and memory
 
 Kafka `4.3.2` is pinned and verified in the shared foundation. The optional image now pins PySpark and matching Scala-2.13 Kafka connector `4.2.1`, Python `3.12.16` and producer `confluent-kafka 2.16.1`; it installs OpenJDK `21` (actual patch in [runtime evidence](../evidence/stream-intake-run.md)). Actual producer/Spark intake compatibility passed. Spark's connector retains `kafka-clients 3.9.2`; do not override it merely to match the broker number. Python dependencies are locked; the JRE patch and Maven transitives are not digest-locked. Original metadata checks are in [design checks](../evidence/streaming-design-checks.md).
 
@@ -94,7 +100,7 @@ Streaming dependencies use an opt-in case group/image; the batch image and share
 1. **Shared broker foundation — local and GitHub checks passed:** optional network/listeners, persistent volume, case-owned idempotent topic creation; listener roundtrips, native host metadata, restart and unrelated-topic preservation. See foundation evidence for the exact client paths.
 2. **Runtime/intake — local and GitHub checks passed:** optional Python/JRE/Spark/connector runtime; acknowledged versioned fixture; deliveries and quarantine without a watermark. Actual checkpoint restart/re-publication passed; database tests cover hash conflicts, rollback and lineage guards.
 3. **Live slice — implemented:** independent role/checkpoint, bounded deduplication, SQL latest/minute projections and operational views, reference refresh and reported-frontier status. [Live evidence](../evidence/stream-live-run.md) owns duplicate/restart (A9), batch-state parity and actual watermark checks. Decline rate and expiries remain separate.
-4. **Recovery/state slices:** abrupt before/after-commit exits and controlled late authorisation repair passed locally/in CI (A10/A11), with separate batch state/minute comparison. A continuous eight-cohort A12 profile passed locally: repeated eviction with retained business history, idle and duplicate controls, and the same checkpoint resumed. [Recovery](../evidence/stream-recovery-run.md) and [state](../evidence/stream-state-run.md) evidence own results and limits. Expose live/intake frontier mismatch rather than claiming atomicity.
-5. **Measurement — locally validated:** three bounded current-clock repeats with explicit warm-up, latency observations, rates, completeness and frontiers; measurement changes await commit/CI and final clean-checkout review. No cloud, Databricks, Kubernetes, schema registry or extra application framework is required.
+4. **Recovery/state slices:** abrupt before/after-commit exits and controlled late authorisation repair passed locally/in CI (A10/A11), with separate batch state/minute comparison. A continuous eight-cohort A12 profile passed locally/in CI: repeated eviction with retained business history, idle and duplicate controls, and the same checkpoint resumed. [Recovery](../evidence/stream-recovery-run.md) and [state](../evidence/stream-state-run.md) evidence own results and limits. Expose live/intake frontier mismatch rather than claiming atomicity.
+5. **Measurement — locally validated:** three bounded current-clock repeats with explicit warm-up, latency observations, rates, completeness and frontiers; measurement source `0de8ae5` passed database/streaming CI; the [final clean-checkout review](../evidence/final-review-run.md) validates reproducibility. No cloud, Databricks, Kubernetes, schema registry or extra application framework is required.
 
-Metric and lateness choices are confirmed. No further business answer blocks a small current-clock measurement profile. Keep finite-profile correctness separate from remaining archival, broker-loss, arbitrary-rate/long-duration bounds and performance work.
+Metric and lateness choices are confirmed. Keep finite-profile correctness and measured local latency separate from remaining archival, broker-loss, arbitrary-rate/long-duration bounds and capacity work.

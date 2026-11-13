@@ -1,6 +1,6 @@
 # Architecture
 
-Status: 12 November 2026. Batch, shared Kafka, Spark intake/live and recovery have passing GitHub checks. A finite continuous-query state-eviction profile also passes locally. Measurement remains outstanding; no cloud deployment exists.
+Status: 12 November 2026. Batch, shared Kafka, Spark intake/live, recovery and finite state eviction have passing GitHub checks. Three bounded current-clock profiles are measured locally; see [results and limits](../evidence/stream-measurement-run.md). No cloud deployment exists.
 
 Infrastructure ownership follows [portfolio decision 0001](../../../platform/decisions/0001-shared-infrastructure.md). Airflow and Kafka are shared in `platform/airflow/` and `platform/kafka/`. Case 03 retains its PostgreSQL, jobs, dependency environment and processing state.
 
@@ -8,8 +8,7 @@ Infrastructure ownership follows [portfolio decision 0001](../../../platform/dec
 flowchart LR
   G["Seeded generator"] --> EF["Daily event files"]
   G --> SF["Daily settlement files"]
-  G -. "milestone 2" .-> K["Kafka (KRaft)"]
-  FP["Small acknowledged fixture producer"] --> K
+  FP["Fixture/current-clock producer"] --> K["Shared Kafka (KRaft)"]
   K --> SI["Spark intake: no watermark"]
   SI --> SD[("Separate payments_stream: intake/live ledgers and projections")]
   EF & SF --> L["Loader: checks, quarantine, append-only raw"]
@@ -20,6 +19,7 @@ flowchart LR
   S --> LS["Transactional SQL: admitted ledger, sequence walk, minute counts"]
   LS --> SD
   SD --> BF["Paused readers: fenced prefix repair and audit"]
+  SD --> OP["Operational minute views and recorded-frontier status"]
   BF --> LS
   MR["Independent seeded reference snapshot"] --> LS
   AF["Shared portfolio Airflow"] -- "daily: wait for file, load, reconcile" --> L
@@ -52,4 +52,4 @@ Kafka's client network belongs to the platform ([decision 0002](../../../platfor
 
 ## Memory budget
 
-Docker reported ~7.66 GiB and 8 logical CPUs on 12 November 2026. Milestone 1 uses PostgreSQL and optional Airflow. The streaming proposal budgets up to 1.5 GiB for Kafka and 3 GiB for the case Spark container, plus PostgreSQL/native/OS headroom, with Airflow stopped. These are unmeasured limits, not observed service peaks. The runtime compatibility and memory gates are recorded in the streaming design.
+Docker reported ~7.66 GiB and 8 logical CPUs on 12 November 2026. Batch uses PostgreSQL and optional Airflow. The configured streaming profile allows up to 1.5 GiB for Kafka and 3 GiB for the case Spark container, plus PostgreSQL/native/OS headroom, with Airflow stopped. These are configured limits, not measured service peaks. The runtime compatibility and memory gates are recorded in the streaming design. The latency profile ran one live reader at a time, draining intake afterwards; it does not establish concurrent-reader performance.

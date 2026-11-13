@@ -86,5 +86,9 @@ jobs:
       - name: Remove this runner's disposable services
         if: always()
         run: |
-          docker compose -f cases/03-payment-reconciliation/compose.yaml -f cases/03-payment-reconciliation/streaming/compose.yaml down -v
+          docker compose -f cases/03-payment-reconciliation/compose.yaml -f cases/03-payment-reconciliation/streaming/compose.yaml --profile streaming down -v
           docker compose -f platform/kafka/compose.yaml down -v
+          case_volumes=$(docker volume ls -q --filter label=com.docker.compose.project=payment-reconciliation)
+          kafka_volumes=$(docker volume ls -q --filter label=com.docker.compose.project=portfolio-kafka)
+          test -z "$case_volumes"
+          test -z "$kafka_volumes"

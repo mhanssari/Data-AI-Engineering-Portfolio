@@ -1,5 +1,3 @@
 # Notebooks
 
-Status: reserved for implementation.
-
-Exploration and platform notebooks. Extract reusable logic where appropriate, clear sensitive outputs and distinguish experiments from supported pipeline steps.
+No notebooks are required by the local MVP. Supported transformations are reusable [Python modules](../src/README.md) and [SQL](../sql/README.md), exercised by CLI commands and tests. This directory is intentionally unused.

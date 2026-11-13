@@ -1,6 +1,6 @@
 # Requirements
 
-Status: agreed 12 November 2026. Milestone 1 (batch) is validated: clean checkout, landing/core/reconciliation, shared Airflow recovery/rerun and GitHub database CI. The full case remains in progress; streaming and failure/measurement milestones are outstanding. See [batch evidence](../evidence/batch-clean-setup-run.md).
+Status: agreed 12 November 2026. Batch, streaming correctness/recovery/state and bounded current-clock measurement are implemented and evidenced. The [final clean-checkout review](../evidence/final-review-run.md) validates the local MVP. See [batch evidence](../evidence/batch-clean-setup-run.md), [recovery](../evidence/stream-recovery-run.md), [state](../evidence/stream-state-run.md) and [measurement](../evidence/stream-measurement-run.md).
 
 ## Problem and decisions
 
@@ -25,11 +25,11 @@ The design question: **how do you keep an operational view fast and a financial 
 - **Orchestration:** a daily Airflow DAG in the shared portfolio Airflow ([decision 0001](decisions/0001-shared-airflow.md)).
 
 **Milestone 2, streaming:**
-- **Pipeline:** the same events through Kafka (KRaft) and Spark Structured Streaming into PostgreSQL.
+- **Pipeline:** versioned synthetic payment lifecycle fixtures through Kafka (KRaft) and Spark Structured Streaming into PostgreSQL.
 - **Event handling:** deduplication, an event-time watermark, and an idempotent sink.
 - **Outputs:** minute aggregates and a simple operational view.
 
-The [streaming design](streaming-design.md) owns the event contract, proposed output grains, checkpoint/backfill boundaries and runtime candidates. Only the shared broker and case topic initializer are implemented and locally validated so far. Owner confirmed 12 November 2026: ten-minute event-time watermark delay; authorisation decline rate with expiries shown separately. Shared Kafka topology is recorded in [portfolio decision 0002](../../../platform/decisions/0002-shared-kafka-topology.md). These choices do not alter the validated batch settlement rules.
+The [streaming design](streaming-design.md) owns the implemented event contract, output grains, checkpoint/backfill boundaries and runtime. Owner confirmed 12 November 2026: ten-minute event-time watermark delay; authorisation decline rate with expiries shown separately. Shared Kafka topology is recorded in [portfolio decision 0002](../../../platform/decisions/0002-shared-kafka-topology.md). These choices do not alter the validated batch settlement rules.
 
 **Milestone 3, failure and measurement:**
 - **Injected failures:** a consumer crash and a poison event.
@@ -73,7 +73,7 @@ Agreed defaults, to be revisited with a finance reviewer:
 | A11 | A correction later than the lateness window is recovered by a controlled backfill, and the batch and stream views agree afterwards (milestone 3) |
 | A12 | Streaming state stays bounded under the documented watermark and retention (milestone 3) |
 
-Streaming evidence: [A9](../evidence/stream-live-run.md), [A10/A11](../evidence/stream-recovery-run.md) and [A12](../evidence/stream-state-run.md) passed locally and in GitHub CI within their declared finite scopes. This does not prove arbitrary-rate RAM bounds or broker retention expiry. Three [current-clock measurement profiles](../evidence/stream-measurement-run.md) passed locally; the new measurement slice awaits commit/CI and final clean-checkout review. The full case is not complete.
+Streaming evidence: [A9](../evidence/stream-live-run.md), [A10/A11](../evidence/stream-recovery-run.md) and [A12](../evidence/stream-state-run.md) passed locally and in GitHub CI within their declared finite scopes. This does not prove arbitrary-rate RAM bounds or broker retention expiry. Three [current-clock measurement profiles](../evidence/stream-measurement-run.md) passed locally; measurement commit `0de8ae5` passed database/streaming CI. The [final clean-checkout review](../evidence/final-review-run.md) completes the local MVP within the declared finite scopes.
 
 ## Invariants
 
@@ -104,13 +104,13 @@ From the portfolio brief, plus this case's items.
 - [x] Batch reconciliation orchestrated by the shared Airflow, with a late-file rerun recorded (A6): [evidence](../evidence/airflow-late-file-run.md)
 - [x] Small-fixture streaming correctness with replay/recovery and declared state profile (A9–A12), locally and in CI
 - [x] Measured latency and throughput, with method and hardware stated ([three local repeats](../evidence/stream-measurement-run.md))
-- [ ] Final clean-checkout streaming review and handoff after the measurement slice is committed
+- [x] Final clean-checkout streaming review and handoff ([evidence](../evidence/final-review-run.md))
 
 ## What I would do differently at scale
 
-Drafted now, refined at the end.
+Further work outside the local MVP:
 
 - **Partitioning:** partition events by payment id in Kafka, so one payment's events stay ordered within a partition, and partition PostgreSQL tables by settlement date.
-- **State:** keep streaming state in a managed store with a time-to-live, instead of relying on a laptop's checkpoint folder.
+- **State:** profile state and checkpoint disk over longer runs, use durable checkpoint storage, and define archival/backup limits while preserving the event-time recovery contract.
 - **Settlement files:** land them in object storage with an arrival notification, rather than having a sensor watch a folder.
 - **Core and reconciliation:** update core incrementally per arrival and reconcile per settlement day, instead of rebuilding over the whole history ([decision 0004](decisions/0004-core-rebuilt-as-of-arrival.md)); rerun safety then needs explicit undo of a day's effects.

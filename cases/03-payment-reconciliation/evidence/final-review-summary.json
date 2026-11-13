@@ -1,0 +1,77 @@
+{
+  "commit": "0de8ae53b37b5225dfc839b9beb69b92fde93e2a",
+  "project": "case03-final-0de8ae5",
+  "passed": true,
+  "stages": [
+    {
+      "name": "Validate isolated Compose configuration",
+      "elapsed_seconds": 0.19,
+      "passed": true
+    },
+    {
+      "name": "Build both images from clean committed source",
+      "elapsed_seconds": 126.26,
+      "passed": true
+    },
+    {
+      "name": "Start shared Kafka and fresh isolated PostgreSQL",
+      "elapsed_seconds": 44.41,
+      "passed": true
+    },
+    {
+      "name": "Clean image CLI and dependency isolation",
+      "elapsed_seconds": 10.66,
+      "passed": true
+    },
+    {
+      "name": "Lint and format from clean image",
+      "elapsed_seconds": 6.17,
+      "passed": true
+    },
+    {
+      "name": "Full 99-test suite, PostgreSQL required",
+      "elapsed_seconds": 350.69,
+      "passed": true
+    },
+    {
+      "name": "Clean checkout real streaming: check_intake",
+      "elapsed_seconds": 110.39,
+      "passed": true
+    },
+    {
+      "name": "Clean checkout real streaming: check_live",
+      "elapsed_seconds": 356.64,
+      "passed": true
+    },
+    {
+      "name": "Clean checkout real streaming: check_recovery",
+      "elapsed_seconds": 325.41,
+      "passed": true
+    },
+    {
+      "name": "Clean checkout real streaming: check_state",
+      "elapsed_seconds": 266.83,
+      "passed": true
+    },
+    {
+      "name": "Checkout remains unchanged",
+      "elapsed_seconds": 0.06,
+      "passed": true
+    }
+  ],
+  "tests": {
+    "tests": 99,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 346.589
+  },
+  "clean_worktree": true,
+  "artifacts_verified": true,
+  "cleanup_passed": true,
+  "broker_running_before": false,
+  "broker_running_after": false,
+  "cleanup_finding": "Initial audit wrapper exited 1 after all application checks passed: down without the streaming profile left an unattached checkpoint volume.",
+  "resolution": "Verified audit volume ownership/no attachments, removed it explicitly, enabled the streaming profile in CI cleanup and proved profile-aware down removes a unique empty test volume.",
+  "audit_image_tags_removed": true
+}

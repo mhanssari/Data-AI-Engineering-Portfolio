@@ -17,7 +17,7 @@ Implemented cases have working code, tests and recorded evidence:
   - a Neo4j projection and permission-aware retrieval;
   - guarded agents, row-level security and data contracts.
 
-- **[Case 03, payment reconciliation](cases/03-payment-reconciliation/README.md)** has validated batch controls, shared Airflow late-file recovery, Spark intake/live processing, controlled late backfill and repeated state eviction, with passing CI. Three bounded local profiles measured broker-to-visible p95 of 6.79–7.06 seconds at roughly ten events/second; final streaming reproducibility review remains.
+- **[Case 03, payment reconciliation](cases/03-payment-reconciliation/README.md)** has validated batch controls, shared Airflow late-file recovery, Spark intake/live processing, controlled late backfill and repeated state eviction, with passing CI. Three bounded local profiles measured broker-to-visible p95 of 6.79–7.06 seconds at roughly ten events/second; the [final clean-checkout review](cases/03-payment-reconciliation/evidence/final-review-run.md) validates the local MVP.
 
 Cases 01, 04 and 05 are plans.
 
@@ -28,7 +28,7 @@ Cases 01, 04 and 05 are plans.
 | [02 Retail loyalty and customer analytics](cases/02-retail-loyalty-analytics/README.md) | dbt Core, DuckDB (Snowflake opt-in), SQL, Python, Power BI, Docker; Airflow opt-in | Built and validated locally; CI passing on GitHub |
 | [06 Agentic procure-to-pay reconciliation](cases/06-p2p-agentic-reconciliation/README.md) | PostgreSQL + pgvector, Neo4j, OWL/SKOS/SHACL ontology, LangGraph, Streamlit, Python, SQL | Built and tested locally, with an offline provider; no live model evaluated |
 | [01 Supply chain inventory and demand](cases/01-supply-chain-fabric/README.md) | Fabric, SQL, Python/PySpark, Power BI | Planned |
-| [03 Payment monitoring and settlement reconciliation](cases/03-payment-reconciliation/README.md) | PostgreSQL, Python, Airflow and Kafka (shared); optional Spark Structured Streaming | Batch/stream/recovery/state CI passing; bounded local measurement recorded; final review outstanding |
+| [03 Payment monitoring and settlement reconciliation](cases/03-payment-reconciliation/README.md) | PostgreSQL, Python, Airflow and Kafka (shared); optional Spark Structured Streaming | Local MVP validated: batch, stream/recovery/state, bounded measurement and clean-checkout review |
 | [04 Product hierarchy and master data quality](cases/04-bom-master-data/README.md) | Fabric or Databricks, PySpark, SQL | Planned |
 | [05 Warehouse modernisation and SQL performance](cases/05-modernisation-performance/README.md) | PostgreSQL, Fabric or Snowflake | Planned |
 

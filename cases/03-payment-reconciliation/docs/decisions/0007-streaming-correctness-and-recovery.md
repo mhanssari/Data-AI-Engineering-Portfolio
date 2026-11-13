@@ -1,6 +1,6 @@
 # 0007 Durable intake, bounded live state and transactional recovery
 
-Status: proposed engineering design; owner confirmed the metric and lateness choices below
+Status: accepted; implemented through decisions 0008–0012 with finite local and CI evidence
 
 Date: 12 November 2026
 
@@ -8,14 +8,14 @@ Date: 12 November 2026
 
 Batch acceptance A1–A8 is validated. Streaming must demonstrate duplicate handling, event time, restart and late recovery (A9–A12) while preserving SQL as the authority for matching, money and payment-state transitions. A watermark alone cannot provide a durable audit trail for records it excludes.
 
-Options considered: one watermarked query as the only record of input; one stateless query with all state in PostgreSQL; or a durable intake query plus a separate bounded-state live query. Propose the third. It demonstrates Spark state eviction while retaining the original deliveries independently.
+Options considered: one watermarked query as the only record of input; one stateless query with all state in PostgreSQL; or a durable intake query plus a separate bounded-state live query. Selected the third. It demonstrates Spark state eviction while retaining the original deliveries independently.
 
 ## Confirmed owner choices, 12 November 2026
 
 - Authorisation decline rate is declined decisions divided by authorised plus declined decisions, with expiries shown separately. Definitions are owned by [the metric catalogue](../metrics.md).
 - The live query uses a **10-minute event-time watermark delay**. Older events remain recoverable from durable intake through a controlled backfill. Spark watermark semantics do not guarantee that every event older than the threshold is excluded; tests must use observed watermark progress.
 
-## Engineering proposal
+## Implemented design
 
 - Shared Kafka follows [portfolio decision 0002](../../../../platform/decisions/0002-shared-kafka-topology.md). Workloads, topic specifications, dependencies, databases and checkpoints remain case-owned.
 - **Intake query:** no watermark; persist every transport delivery with its payload/offset, canonical valid events and quarantine reasons. Capture the planted malformed record without preventing the rest from landing.
@@ -26,8 +26,8 @@ Options considered: one watermarked query as the only record of input; one state
 - Backfill pauses/fences the live writer, establishes a complete intake/reference frontier, adds valid missing events and rebuilds affected payment histories and minute totals atomically. It records the repair and resumes the same checkpoint. It must not reset the watermark, fabricate missing events or promote quarantined poison records.
 - No end-to-end exactly-once claim. Describe replay-safe database effects under at-least-once delivery, subject to the implementation tests.
 
-The [streaming design](../streaming-design.md) owns the contract, grains and acceptance plan. The shared broker has passing [local and GitHub checks](../../../../platform/kafka/evidence/foundation-run.md). Runtime/intake are implemented under [decision 0008](0008-streaming-runtime-and-intake.md), live SQL projections under [decision 0009](0009-live-state-and-operational-projections.md), and bounded recovery under [decision 0010](0010-controlled-stream-recovery.md). [Decision 0011](0011-observed-stream-state-bounds.md) defines the locally validated finite continuous-query A12 profile. Measurement remains outstanding.
+The [streaming design](../streaming-design.md) owns the contract, grains and acceptance plan. The shared broker has passing [local and GitHub checks](../../../../platform/kafka/evidence/foundation-run.md). Runtime/intake are implemented under [decision 0008](0008-streaming-runtime-and-intake.md), live SQL projections under [decision 0009](0009-live-state-and-operational-projections.md), and bounded recovery under [decision 0010](0010-controlled-stream-recovery.md). [Decision 0011](0011-observed-stream-state-bounds.md) defines the finite continuous-query A12 profile validated locally and in CI. [Decision 0012](0012-current-clock-measurement.md) defines the measured local current-clock profile. Each evidence report preserves its actual limits.
 
 ## Sources and consequences
 
-Spark's [streaming guide](https://spark.apache.org/docs/4.2.1/streaming/apis-on-dataframes-and-datasets.html) documents bounded deduplication, restrictions on chaining stateful operators, checkpoint recovery and the default at-least-once behaviour of `foreachBatch`. These support the design; they do not prove this proposed sink is correct. Two input readers and a durable database ledger cost more than a single query, which is acceptable for a bounded local fixture. Spark memory may be bounded while the durable audit history still grows.
+Spark's [streaming guide](https://spark.apache.org/docs/4.2.1/streaming/apis-on-dataframes-and-datasets.html) documents bounded deduplication, restrictions on chaining stateful operators, checkpoint recovery and the default at-least-once behaviour of `foreachBatch`. The linked implementation evidence tests this sink's specific behaviour. Two input readers and a durable database ledger cost more than a single query, which is acceptable for a bounded local fixture. Finite observed Spark state bounds do not bound the growing durable audit history or total process RAM.

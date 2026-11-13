@@ -1,10 +1,10 @@
 # Data model
 
-Status: grain agreed 12 November 2026. Raw, ops, core and recon are built.
+Status: grain agreed 12 November 2026. Batch raw/ops/core/recon and separate streaming ledgers/projections are built; streaming grains are owned by the linked design below.
 
 ## Sources
 
-All synthetic, from a seeded generator. In milestone 1, events arrive as daily files; in milestone 2, the same generator also publishes them to Kafka.
+All synthetic. The seeded batch generator delivers daily files. Separate case-owned fixture and current-clock producers publish the same payment lifecycle contract to Kafka. Full-month streaming replay is a separate optional exercise and is not claimed by the small-fixture evidence.
 
 | Source | Grain | Business key | Notes |
 | --- | --- | --- | --- |
@@ -58,7 +58,7 @@ Each is planted on named records with a stated outcome, so tests can assert exac
 
 ## Model
 
-PostgreSQL schemas: `raw` (append-only landing), `core` (cleaned and derived), `recon` (reconciliation), `ops` (runs, files, quarantine). Milestone 2 adds `stream`.
+Batch PostgreSQL schemas: `raw` (append-only landing), `core` (cleaned and derived), `recon` (reconciliation), `ops` (runs, files, quarantine). The separate streaming database uses `stream` and its own `ops` records.
 
 ### Grain
 
