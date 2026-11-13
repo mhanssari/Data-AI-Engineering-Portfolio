@@ -79,10 +79,4 @@ jobs:
         run: |
           docker build -t retail-loyalty:ci .
           docker run --rm retail-loyalty:ci --help
-
-      # Parses the DAG with Airflow's own Python; no scheduler or database is started (decision 0003).
-      - name: The Airflow image builds and the DAG imports with the agreed shape
-        run: |
-          docker build -f orchestration/Dockerfile -t retail-loyalty-airflow:ci .
-          docker run --rm --entrypoint python retail-loyalty-airflow:ci \
-            /opt/loyalty-project/orchestration/check_dag.py
+# The DAG is checked in the shared Airflow image by .github/workflows/platform-airflow.yml.

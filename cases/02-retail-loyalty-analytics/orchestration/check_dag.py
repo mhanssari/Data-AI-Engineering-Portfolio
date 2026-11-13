@@ -16,7 +16,9 @@ EXPECTED_ORDER = [
     "export",
 ]
 
-bag = DagBag("/opt/loyalty-project/orchestration/dags")
+# The folder the shared platform mounts this case's DAGs at; CI passes the path explicitly.
+DAG_FOLDER = sys.argv[1] if len(sys.argv) > 1 else "/opt/airflow/dags/retail_loyalty"
+bag = DagBag(DAG_FOLDER)
 if bag.import_errors:
     sys.exit(f"import errors: {bag.import_errors}")
 dag = bag.dags.get("retail_loyalty")
@@ -33,6 +35,8 @@ if order != EXPECTED_ORDER:
     problems.append(f"task chain {order}")
 if dag.max_active_runs != 1:
     problems.append("max_active_runs must be 1: DuckDB allows one writer and batches must arrive in order")
+if any("LOYALTY_WAREHOUSE" not in (t.env or {}) for t in dag.tasks):
+    problems.append("every task must carry the case's own settings: the platform holds none")
 if not all(t.depends_on_past for t in dag.tasks):
     problems.append("every task must depend on its past run, so batch 2 waits for batch 1")
 if problems:

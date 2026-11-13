@@ -1,0 +1,35 @@
+# Merge with the case's base Compose from the case directory:
+# docker compose -f compose.yaml -f streaming/compose.yaml run --rm stream --help
+services:
+  stream:
+    build:
+      context: .
+      dockerfile: Dockerfile.streaming
+    image: payment-reconciliation-stream:local
+    mem_limit: 3g
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${PAYRECON_STREAM_DB:-payments_stream}
+      PGUSER: ${POSTGRES_USER:-payments_admin}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the case .env}
+      PGCONNECT_TIMEOUT: "10"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - stream-state:/state
+    networks:
+      - default
+      - kafka
+    profiles: [streaming]
+
+networks:
+  kafka:
+    external: true
+    name: portfolio-kafka
+
+volumes:
+  stream-state:

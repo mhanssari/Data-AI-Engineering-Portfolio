@@ -1,0 +1,43 @@
+name: Platform Kafka
+
+on:
+  push:
+    paths:
+      - "platform/kafka/**"
+      - "cases/03-payment-reconciliation/streaming/init-kafka.sh"
+      - ".github/workflows/platform-kafka.yml"
+  pull_request:
+    paths:
+      - "platform/kafka/**"
+      - "cases/03-payment-reconciliation/streaming/init-kafka.sh"
+      - ".github/workflows/platform-kafka.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-kafka-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  broker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Start the shared broker on the isolated runner
+        run: docker compose -f platform/kafka/compose.yaml up -d --wait
+
+      - name: Metadata, roundtrips, topic safety and restart persistence
+        run: python3 platform/kafka/check_foundation.py --restart
+
+      - name: Broker logs on failure
+        if: failure()
+        run: docker compose -f platform/kafka/compose.yaml logs --no-color --tail 150
+
+      - name: Remove this runner's disposable stack
+        if: always()
+        run: docker compose -f platform/kafka/compose.yaml down -v

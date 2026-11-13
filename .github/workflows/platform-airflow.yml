@@ -1,0 +1,56 @@
+# The shared portfolio Airflow: the image builds with every case's environment, and every case's DAG imports with
+# the shape its case agreed. No scheduler or database is started.
+name: Platform Airflow
+
+on:
+  push:
+    paths:
+      - "platform/airflow/**"
+      - "cases/*/orchestration/**"
+      - "cases/*/pyproject.toml"
+      - "cases/*/uv.lock"
+      - ".github/workflows/platform-airflow.yml"
+  pull_request:
+    paths:
+      - "platform/airflow/**"
+      - "cases/*/orchestration/**"
+      - "cases/*/pyproject.toml"
+      - "cases/*/uv.lock"
+      - ".github/workflows/platform-airflow.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-airflow-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dags:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The shared image builds
+        run: docker build -f platform/airflow/Dockerfile -t portfolio-airflow:ci .
+
+      - name: Case 02 DAG imports with its agreed shape
+        run: |
+          docker run --rm --entrypoint python -v "$PWD:/opt/portfolio:ro" portfolio-airflow:ci \
+            /opt/portfolio/cases/02-retail-loyalty-analytics/orchestration/check_dag.py \
+            /opt/portfolio/cases/02-retail-loyalty-analytics/orchestration/dags
+
+      - name: Case 02 environment runs its CLI
+        run: docker run --rm --entrypoint /opt/cases/retail-loyalty/bin/loyalty portfolio-airflow:ci --help
+
+      - name: Case 03 DAG imports and waits for complete arrivals
+        run: |
+          docker run --rm --entrypoint python -v "$PWD:/opt/portfolio:ro" portfolio-airflow:ci \
+            /opt/portfolio/cases/03-payment-reconciliation/orchestration/check_dag.py \
+            /opt/portfolio/cases/03-payment-reconciliation/orchestration/dags
+
+      - name: Case 03 environment runs its CLI
+        run: docker run --rm --entrypoint /opt/cases/payment-reconciliation/bin/payrecon portfolio-airflow:ci --help

@@ -1,0 +1,13 @@
+# The build context is the repository root: send only what the image installs.
+*
+!cases/02-retail-loyalty-analytics/pyproject.toml
+!cases/02-retail-loyalty-analytics/uv.lock
+!cases/02-retail-loyalty-analytics/.python-version
+!cases/02-retail-loyalty-analytics/README.md
+!cases/02-retail-loyalty-analytics/src
+!cases/03-payment-reconciliation/pyproject.toml
+!cases/03-payment-reconciliation/uv.lock
+!cases/03-payment-reconciliation/.python-version
+!cases/03-payment-reconciliation/README.md
+!cases/03-payment-reconciliation/src
+**/__pycache__

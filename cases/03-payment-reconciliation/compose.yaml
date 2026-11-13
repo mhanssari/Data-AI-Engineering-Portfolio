@@ -1,0 +1,48 @@
+# Case 03 services. From this folder, after copying .env.example to .env:
+#   docker compose up -d --wait postgres
+#   docker compose run --rm payrecon generate
+#   docker compose run --rm payrecon migrate
+#   docker compose run --rm payrecon load --arrival all
+#   docker compose run --rm payrecon reconcile    (or run-all to replay every day)
+#   docker compose run --rm --entrypoint pytest payrecon -q
+name: payment-reconciliation
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-payments}
+      POSTGRES_USER: ${POSTGRES_USER:-payments_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the case .env}
+    ports:
+      # This machine only: the CLI on the host and the shared Airflow (via host.docker.internal) connect here.
+      - "127.0.0.1:${POSTGRES_PORT:-55433}:5432"
+    volumes:
+      # PostgreSQL 18 images keep data under /var/lib/postgresql/<major>/docker, so mount the parent.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  payrecon:
+    build: .
+    image: payment-reconciliation:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # libpq's standard variables, read by psycopg; the password comes from .env, never from a file in Git.
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-payments}
+      PGUSER: ${POSTGRES_USER:-payments_admin}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the case .env}
+    volumes:
+      # The case folder, so code edited on the host runs in Linux without a rebuild.
+      - .:/app
+    profiles: ["cli"]
+
+volumes:
+  pgdata:

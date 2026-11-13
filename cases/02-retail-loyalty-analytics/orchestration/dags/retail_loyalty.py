@@ -9,6 +9,10 @@ therefore replays batch 1, then batch 2, in order:
 Order matters, because the member snapshot records state as of each batch: max_active_runs=1 and depends_on_past
 keep batch 2 behind batch 1. Every task calls the case's CLI in its own environment, so the DAG holds no logic of
 its own. DuckDB allows one writer, so the tasks run one after another.
+
+Runs in the shared portfolio Airflow (platform/airflow). The case's settings travel with its tasks, not with the
+platform: Airflow's runs keep their extracts, warehouse, exports and dbt artefacts inside Airflow's volume, apart
+from the project folder, so they can be compared with `loyalty run-all`.
 """
 
 import pendulum
@@ -18,7 +22,15 @@ from airflow.timetables.events import EventsTimetable
 
 # Delivery date -> batch. A third delivery would be one more entry here and in the generator.
 BATCH_DELIVERIES = {"2026-09-16": 1, "2026-09-30": 2}
-LOYALTY = "/opt/loyalty-venv/bin/loyalty"
+LOYALTY = "/opt/cases/retail-loyalty/bin/loyalty"
+STATE = "/opt/airflow/loyalty"
+CASE_ENV = {
+    "LOYALTY_DATA_DIR": f"{STATE}/data",
+    "LOYALTY_WAREHOUSE": f"{STATE}/warehouse/loyalty.duckdb",
+    "LOYALTY_EXPORT_DIR": f"{STATE}/exports",
+    "DBT_LOG_PATH": f"{STATE}/dbt/logs",
+    "DBT_TARGET_PATH": f"{STATE}/dbt/target",
+}
 
 
 def batch_for(ds: str) -> int:
@@ -36,7 +48,7 @@ with DAG(
     start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
     catchup=False,
     max_active_runs=1,
-    default_args={"depends_on_past": True, "retries": 0},
+    default_args={"depends_on_past": True, "retries": 0, "env": CASE_ENV, "append_env": True},
     user_defined_macros={"batch_for": batch_for},
     tags=["case-02"],
 ) as dag:

@@ -1,0 +1,84 @@
+# The case's locked Linux image, with a disposable PostgreSQL service and synthetic data only.
+name: Case 03 CI
+
+on:
+  push:
+    paths:
+      - "cases/03-payment-reconciliation/**"
+      - ".github/workflows/case-03-ci.yml"
+  pull_request:
+    paths:
+      - "cases/03-payment-reconciliation/**"
+      - ".github/workflows/case-03-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: case-03-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: cases/03-payment-reconciliation
+    # Test-only credentials for this job's service, not a repository secret or a shared database.
+    env:
+      PGHOST: host.docker.internal
+      PGPORT: "55434"
+      PGDATABASE: payments_ci
+      PGUSER: payments_ci
+      PGPASSWORD: case03-ci-only
+      PGCONNECT_TIMEOUT: "5"
+      PAYRECON_REQUIRE_DB: "1"
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: payments_ci
+          POSTGRES_USER: payments_ci
+          POSTGRES_PASSWORD: case03-ci-only
+        ports:
+          - "55434:5432"
+        options: >-
+          --health-cmd "pg_isready -U payments_ci -d payments_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build locked case image
+        run: docker build --build-arg UID="$(id -u)" -t payment-reconciliation:ci .
+
+      - name: CLI smoke check
+        run: docker run --rm payment-reconciliation:ci --help
+
+      - name: Lint and format
+        run: |
+          docker run --rm --entrypoint ruff payment-reconciliation:ci check .
+          docker run --rm --entrypoint ruff payment-reconciliation:ci format --check .
+
+      - name: All tests, PostgreSQL required
+        run: |
+          mkdir -p evidence/ci
+          docker run --rm --add-host host.docker.internal:host-gateway \
+            --env PGHOST --env PGPORT --env PGDATABASE --env PGUSER --env PGPASSWORD \
+            --env PGCONNECT_TIMEOUT --env PAYRECON_REQUIRE_DB \
+            -v "$PWD/evidence/ci:/reports" \
+            --entrypoint pytest payment-reconciliation:ci -q --junitxml=/reports/pytest.xml
+
+      - name: Test report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: case-03-pytest
+          path: cases/03-payment-reconciliation/evidence/ci/pytest.xml
+          if-no-files-found: ignore
+
+# DAG parsing and isolated CLI checks run in platform-airflow.yml.

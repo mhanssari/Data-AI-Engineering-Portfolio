@@ -1,0 +1,94 @@
+name: Case 03 Streaming
+
+on:
+  push:
+    paths:
+      - "cases/03-payment-reconciliation/**"
+      - "platform/kafka/compose.yaml"
+      - ".github/workflows/case-03-streaming.yml"
+  pull_request:
+    paths:
+      - "cases/03-payment-reconciliation/**"
+      - "platform/kafka/compose.yaml"
+      - ".github/workflows/case-03-streaming.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: case-03-streaming-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  intake:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      POSTGRES_USER: payments_admin
+      POSTGRES_PASSWORD: case03-streaming-ci-only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the optional runtime
+        run: docker compose -f cases/03-payment-reconciliation/compose.yaml -f cases/03-payment-reconciliation/streaming/compose.yaml build stream
+
+      - name: Start isolated runner services
+        run: |
+          docker compose -f platform/kafka/compose.yaml up -d --wait
+          docker compose -f cases/03-payment-reconciliation/compose.yaml up -d --wait postgres
+
+      - name: Durable intake, quarantine, restart and re-publication
+        run: python3 cases/03-payment-reconciliation/streaming/check_intake.py
+
+      - name: Watermarked live view, SQL projections, reference refresh and duplicate safety
+        run: python3 cases/03-payment-reconciliation/streaming/check_live.py
+
+      - name: Abrupt consumer failure, checkpoint replay and controlled late repair
+        run: python3 cases/03-payment-reconciliation/streaming/check_recovery.py
+
+      - name: Continuous query state eviction across repeated event-time windows
+        run: python3 cases/03-payment-reconciliation/streaming/check_state.py
+
+      - name: Live progress evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: case-03-live-progress
+          path: cases/03-payment-reconciliation/evidence/ci/live-integration.json
+          if-no-files-found: ignore
+
+      - name: Recovery evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: case-03-recovery-progress
+          path: cases/03-payment-reconciliation/evidence/ci/recovery-integration.json
+          if-no-files-found: ignore
+
+      - name: State eviction evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: case-03-state-progress
+          path: |
+            cases/03-payment-reconciliation/evidence/ci/state-integration.json
+            cases/03-payment-reconciliation/evidence/ci/state-live-*.log
+          if-no-files-found: ignore
+
+      - name: Service logs on failure
+        if: failure()
+        run: |
+          docker compose -f platform/kafka/compose.yaml logs --no-color --tail 100
+          docker compose -f cases/03-payment-reconciliation/compose.yaml logs --no-color --tail 100 postgres
+
+      - name: Remove this runner's disposable services
+        if: always()
+        run: |
+          docker compose -f cases/03-payment-reconciliation/compose.yaml -f cases/03-payment-reconciliation/streaming/compose.yaml --profile streaming down -v
+          docker compose -f platform/kafka/compose.yaml down -v
+          case_volumes=$(docker volume ls -q --filter label=com.docker.compose.project=payment-reconciliation)
+          kafka_volumes=$(docker volume ls -q --filter label=com.docker.compose.project=portfolio-kafka)
+          test -z "$case_volumes"
+          test -z "$kafka_volumes"
