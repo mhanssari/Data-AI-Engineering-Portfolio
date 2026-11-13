@@ -10,6 +10,10 @@ Stack:
 - **Streaming:** shared Kafka (KRaft), optional Spark intake/live readers, acknowledged fixtures, SQL operational views and bounded controlled backfill.
 - **Runtime:** Docker is required ([decision 0003](docs/decisions/0003-docker-required.md)).
 
+![Architecture: batch and stream paths, shared platform, and what is not built](docs/architecture-overview.svg)
+
+Teal boxes are the default path; blue boxes are the optional Spark profile; the dashed box lists what is not built. Details and the component table are in the [architecture note](docs/architecture.md).
+
 ## Recorded results
 
 All results use synthetic data. Counts and timings describe the linked fixtures, rather than business impact.

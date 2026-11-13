@@ -12,12 +12,15 @@ Implemented cases have working code, tests and recorded evidence:
   - cohort and retention metrics with explicit maturity rules;
   - a Power BI model and report kept as text, reconciled to SQL;
   - an opt-in Airflow backfill.
+- **[Case 03, payment reconciliation](cases/03-payment-reconciliation/README.md)**, for data engineering and streaming. It includes:
+  - a daily batch that rebuilds payment state as of an arrival date, matches settlements with a grace period and gates publishing on control totals;
+  - late-file recovery on a shared Airflow, proven idempotent on rerun;
+  - Kafka and Spark Structured Streaming intake and live views with watermarks, crash recovery and bounded late backfill;
+  - a measured local latency profile and a clean-checkout review, with no cloud deployment claimed.
 - **[Case 06, agentic procure-to-pay reconciliation](cases/06-p2p-agentic-reconciliation/README.md)**, for finance data and AI. It includes:
   - an ontology-mapped model, supplier entity resolution, and SQL matching and controls;
   - a Neo4j projection and permission-aware retrieval;
   - guarded agents, row-level security and data contracts.
-
-- **[Case 03, payment reconciliation](cases/03-payment-reconciliation/README.md)** has validated batch controls, shared Airflow late-file recovery, Spark intake/live processing, controlled late backfill and repeated state eviction, with passing CI. Three bounded local profiles measured broker-to-visible p95 of 6.79–7.06 seconds at roughly ten events/second; the [final clean-checkout review](cases/03-payment-reconciliation/evidence/final-review-run.md) validates the local MVP.
 
 Cases 01, 04 and 05 are plans.
 
@@ -26,9 +29,9 @@ Cases 01, 04 and 05 are plans.
 | Case | Stack | Status |
 | --- | --- | --- |
 | [02 Retail loyalty and customer analytics](cases/02-retail-loyalty-analytics/README.md) | dbt Core, DuckDB (Snowflake opt-in), SQL, Python, Power BI, Docker; Airflow opt-in | Built and validated locally; CI passing on GitHub |
+| [03 Payment monitoring and settlement reconciliation](cases/03-payment-reconciliation/README.md) | PostgreSQL, Python, Airflow and Kafka (shared); optional Spark Structured Streaming | Built and validated locally; CI passing on GitHub; no cloud deployment |
 | [06 Agentic procure-to-pay reconciliation](cases/06-p2p-agentic-reconciliation/README.md) | PostgreSQL + pgvector, Neo4j, OWL/SKOS/SHACL ontology, LangGraph, Streamlit, Python, SQL | Built and tested locally, with an offline provider; no live model evaluated |
 | [01 Supply chain inventory and demand](cases/01-supply-chain-fabric/README.md) | Fabric, SQL, Python/PySpark, Power BI | Planned |
-| [03 Payment monitoring and settlement reconciliation](cases/03-payment-reconciliation/README.md) | PostgreSQL, Python, Airflow and Kafka (shared); optional Spark Structured Streaming | Local MVP validated: batch, stream/recovery/state, bounded measurement and clean-checkout review |
 | [04 Product hierarchy and master data quality](cases/04-bom-master-data/README.md) | Fabric or Databricks, PySpark, SQL | Planned |
 | [05 Warehouse modernisation and SQL performance](cases/05-modernisation-performance/README.md) | PostgreSQL, Fabric or Snowflake | Planned |
 
@@ -37,4 +40,4 @@ Cases 01, 04 and 05 are plans.
 - One repository, self-contained cases. Dependencies and settings belong to the case that uses them; shared services live under [platform](platform/README.md).
 - Every case separates measured results from proposed production designs, and declares grain and keys for its tables. "Planned" means designed, not built.
 - Nothing is deployed unless a case says so. Local prototypes are labelled as such.
-- No licence has been selected yet.
+- Code and documentation are released under the [MIT Licence](LICENSE). All data is synthetic.

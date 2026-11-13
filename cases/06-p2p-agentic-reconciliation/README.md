@@ -1,6 +1,6 @@
 # Agentic procure-to-pay reconciliation
 
-**Status: built and validated locally on synthetic data. Agents have been evaluated with an offline rule-based provider only, not a live model. CI is written and rehearsed but has not yet run on GitHub. Nothing is deployed.**
+**Status: built and validated locally on synthetic data. Agents have been evaluated with an offline rule-based provider only, not a live model. [CI passed on GitHub](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/41709833238) on 3 November 2026. Nothing is deployed.**
 
 A fictional group with two ERPs needs every supplier invoice checked against what was requested, approved, ordered and received. SQL does the accounting; agents investigate exceptions and cite their evidence; a person decides, and the database enforces who may see and do what.
 
@@ -118,7 +118,7 @@ Every command, failure and recovery: [runbook](docs/runbook.md).
 - **Injected failures, with tests:** a truncated, corrupted or drifted delivery fails atomically and leaves nothing to clean up. A row the watermark misses fails a reconciliation. A late correction changes only the affected results. A model outage sends the line to a person.
 - **Rerun safety:** repeating every step with nothing new lands no rows, writes no core rows and gives identical results.
 - **Change control:** a breaking change to a data contract fails tests without a new major version. A catalogue test fails if a new company table or view lacks row-level protection.
-- **CI:** [a workflow](../../.github/workflows/case-06-ci.yml) limited to this case runs lint, SHACL, the pipeline, contracts, the offline evaluation and all tests against service containers. The same steps passed in a Linux container locally. **It has not yet run on GitHub.**
+- **CI:** [a workflow](../../.github/workflows/case-06-ci.yml) limited to this case runs lint, SHACL, the pipeline, contracts, the offline evaluation and all tests against service containers. The same steps passed in a Linux container locally and the workflow has [CI passed on GitHub](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/41709833238).
 
 ## 8. Business consumption
 

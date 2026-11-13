@@ -11,4 +11,4 @@ Actual validation reports and measured results, with dataset, configuration and 
 - [Governance review run record](governance-review-run.md): the admin role and app, measured figures, mutation checks, problems found and what was not validated.
 - [Screenshots](screenshots/) of the review page per role, and of each admin page (`admin-*.png`).
 
-No live-model evidence exists yet, and CI has not yet run on GitHub.
+No live-model evidence exists yet. The case workflow has [CI passed on GitHub](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/41709833238).

@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="960" viewBox="0 0 1600 960" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Payment monitoring and settlement reconciliation: architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f6e6e"/>
+    </marker>
+    <marker id="arrow-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#616e7c"/>
+    </marker>
+  </defs>
+  <style>
+    .title { font-size: 28px; font-weight: 700; fill: #1f2933; }
+    .subtitle { font-size: 15px; fill: #52606d; }
+    .stage { font-size: 13px; font-weight: 700; fill: #52606d; letter-spacing: 1.5px; }
+    .row { font-size: 13px; font-weight: 700; fill: #0b4f4f; letter-spacing: 1.5px; }
+    .built-box { fill: #e6f4f3; stroke: #0f6e6e; stroke-width: 2; }
+    .optional-box { fill: #eef3fb; stroke: #2d5fa6; stroke-width: 2; }
+    .alt-box { fill: #ffffff; stroke: #9aa5b1; stroke-width: 1.5; stroke-dasharray: 7 5; }
+    .band-box { fill: #f5f7fa; stroke: #cbd2d9; stroke-width: 1.5; }
+    .h-built { font-size: 17px; font-weight: 700; fill: #0b4f4f; }
+    .h-opt { font-size: 17px; font-weight: 700; fill: #1f3f73; }
+    .h-alt { font-size: 13px; font-weight: 700; fill: #616e7c; letter-spacing: 1px; }
+    .h-band { font-size: 17px; font-weight: 700; fill: #1f2933; }
+    .t { font-size: 14px; fill: #1f2933; }
+    .ta { font-size: 13.5px; fill: #3e4c59; }
+    .note { font-size: 13px; fill: #616e7c; }
+    .legend { font-size: 13px; fill: #3e4c59; }
+    .flow { stroke: #0f6e6e; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    .flow-grey { stroke: #616e7c; stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrow-grey); }
+  </style>
+
+  <rect width="1600" height="960" fill="#ffffff"/>
+
+  <!-- Title and legend -->
+  <text x="40" y="52" class="title">Payment monitoring and settlement reconciliation: architecture</text>
+  <text x="40" y="80" class="subtitle">A daily financial reconciliation and an operational stream over the same synthetic payments, both landing in PostgreSQL. Local Docker only.</text>
+  <rect x="900" y="98" width="26" height="16" class="built-box"/>
+  <text x="934" y="111" class="legend">Built and tested, default path</text>
+  <rect x="1130" y="98" width="26" height="16" class="optional-box"/>
+  <text x="1164" y="111" class="legend">Built and tested, optional profile</text>
+  <rect x="1390" y="98" width="26" height="16" class="alt-box"/>
+  <text x="1424" y="111" class="legend">Not built</text>
+
+  <!-- Stage labels -->
+  <text x="40" y="150" class="stage">1  SOURCES</text>
+  <text x="430" y="150" class="stage">2  INGESTION</text>
+  <text x="820" y="150" class="stage">3  STORAGE AND SQL LOGIC</text>
+  <text x="1210" y="150" class="stage">4  OUTPUTS AND EVIDENCE</text>
+
+  <!-- Batch row -->
+  <text x="40" y="178" class="row">BATCH, DAILY: FINANCIAL VIEW</text>
+
+  <rect x="40" y="190" width="350" height="240" rx="10" class="built-box"/>
+  <text x="58" y="222" class="h-built">Seeded Python generator</text>
+  <text x="58" y="252" class="t">31 daily arrival folders with a manifest</text>
+  <text x="58" y="276" class="t">Event files: duplicates, gaps, out-of-order</text>
+  <text x="58" y="296" class="t">and late events, about 177k rows</text>
+  <text x="58" y="324" class="t">Settlement files per currency, 49k lines</text>
+  <text x="58" y="348" class="t">16 planted defects, each with an expected</text>
+  <text x="58" y="368" class="t">date and outcome</text>
+  <text x="58" y="404" class="note">Synthetic; same seed, same bytes</text>
+
+  <rect x="430" y="190" width="350" height="240" rx="10" class="built-box"/>
+  <text x="448" y="222" class="h-built">Loader to raw</text>
+  <text x="448" y="252" class="t">Manifest, checksum and header checks</text>
+  <text x="448" y="276" class="t">Bad rows quarantined, not dropped</text>
+  <text x="448" y="300" class="t">Re-sent file skipped by name and SHA-256</text>
+  <text x="448" y="324" class="t">One transaction per arrival, append-only</text>
+  <text x="448" y="348" class="t">Second load of the same files: 0 rows</text>
+  <text x="448" y="404" class="note">Python with uv and psycopg; runs without Airflow</text>
+
+  <rect x="820" y="190" width="350" height="240" rx="10" class="built-box"/>
+  <text x="838" y="222" class="h-built">PostgreSQL: core and recon</text>
+  <text x="838" y="252" class="t">Core rebuilt as of an arrival date: first</text>
+  <text x="838" y="272" class="t">delivery per event, sequence walk, holds</text>
+  <text x="838" y="296" class="t">Payment state machine, illegal transitions</text>
+  <text x="838" y="320" class="t">Matching with a one-day grace period</text>
+  <text x="838" y="344" class="t">Exceptions and control totals incl. pending</text>
+  <text x="838" y="368" class="t">Invariant checks gate every publish</text>
+  <text x="838" y="404" class="note">Money as bigint minor units; set-based SQL</text>
+
+  <rect x="1210" y="190" width="350" height="240" rx="10" class="built-box"/>
+  <text x="1228" y="222" class="h-built">Finance reconciliation views</text>
+  <text x="1228" y="252" class="t">Final date: 47,223 matched payments and</text>
+  <text x="1228" y="272" class="t">exactly the 7 planted exceptions</text>
+  <text x="1228" y="296" class="t">Zero unexplained control-total groups</text>
+  <text x="1228" y="316" class="t">across all 31 arrival dates</text>
+  <text x="1228" y="344" class="t">Late file resolves 473 missing settlements;</text>
+  <text x="1228" y="364" class="t">rerun leaves all four result digests equal</text>
+  <text x="1228" y="404" class="note">Clean-checkout replay recorded as evidence</text>
+
+  <!-- Batch arrows -->
+  <line x1="390" y1="310" x2="428" y2="310" class="flow"/>
+  <line x1="780" y1="310" x2="818" y2="310" class="flow"/>
+  <line x1="1170" y1="310" x2="1208" y2="310" class="flow"/>
+
+  <!-- Streaming row -->
+  <text x="40" y="474" class="row">STREAM, MINUTES: OPERATIONAL VIEW (OPTIONAL SPARK PROFILE)</text>
+
+  <rect x="40" y="486" width="350" height="240" rx="10" class="optional-box"/>
+  <text x="58" y="518" class="h-opt">Fixture and current-clock producer</text>
+  <text x="58" y="548" class="t">Acknowledged fixtures: duplicates, late,</text>
+  <text x="58" y="568" class="t">out-of-order and malformed deliveries</text>
+  <text x="58" y="596" class="t">Current-clock profile at about 10 events/s</text>
+  <text x="58" y="624" class="t">Publishes to the shared Kafka topic,</text>
+  <text x="58" y="644" class="t">three partitions, keyed by payment</text>
+  <text x="58" y="700" class="note">Same event contract as the batch files</text>
+
+  <rect x="430" y="486" width="350" height="112" rx="10" class="optional-box"/>
+  <text x="448" y="516" class="h-opt">Spark intake reader</text>
+  <text x="448" y="544" class="t">No watermark: archives every delivery and</text>
+  <text x="448" y="564" class="t">each canonical schema-valid event</text>
+  <text x="448" y="586" class="ta">Own checkpoint; quarantine for bad payloads</text>
+
+  <rect x="430" y="614" width="350" height="112" rx="10" class="optional-box"/>
+  <text x="448" y="644" class="h-opt">Spark live reader</text>
+  <text x="448" y="672" class="t">Strict decode, ten-minute watermark,</text>
+  <text x="448" y="692" class="t">bounded deduplication, finite state</text>
+  <text x="448" y="714" class="ta">Own role and checkpoint; transactional writes</text>
+
+  <rect x="820" y="486" width="350" height="240" rx="10" class="optional-box"/>
+  <text x="838" y="518" class="h-opt">PostgreSQL: payments_stream</text>
+  <text x="838" y="548" class="t">Intake ledger and admitted live ledger</text>
+  <text x="838" y="572" class="t">Sequence walk and transition rules shared</text>
+  <text x="838" y="592" class="t">with the batch SQL; matching stays in batch</text>
+  <text x="838" y="620" class="t">Minute projections and recorded frontiers</text>
+  <text x="838" y="648" class="t">Controlled repair: readers paused and fenced,</text>
+  <text x="838" y="668" class="t">retained prefix replayed, audit committed</text>
+  <text x="838" y="700" class="note">Separate database and checkpoint volume</text>
+
+  <rect x="1210" y="486" width="350" height="240" rx="10" class="optional-box"/>
+  <text x="1228" y="518" class="h-opt">Operational views and evidence</text>
+  <text x="1228" y="548" class="t">Per-minute decline rate, expiry count and</text>
+  <text x="1228" y="568" class="t">progress status, labelled provisional</text>
+  <text x="1228" y="596" class="t">Broker-to-visible p95 6.79 to 7.06 s over</text>
+  <text x="1228" y="616" class="t">three bounded local repeats</text>
+  <text x="1228" y="644" class="t">Crash either side of commit resumes cleanly;</text>
+  <text x="1228" y="664" class="t">settled keys plateau at 144 under eviction</text>
+  <text x="1228" y="700" class="note">Latency includes polling delay; local only</text>
+
+  <!-- Streaming arrows -->
+  <line x1="390" y1="542" x2="428" y2="542" class="flow"/>
+  <line x1="390" y1="670" x2="428" y2="670" class="flow"/>
+  <line x1="780" y1="542" x2="818" y2="580" class="flow"/>
+  <line x1="780" y1="670" x2="818" y2="632" class="flow"/>
+  <line x1="1170" y1="606" x2="1208" y2="606" class="flow"/>
+
+  <!-- Shared platform band -->
+  <rect x="40" y="770" width="1130" height="150" rx="10" class="band-box"/>
+  <text x="58" y="800" class="h-band">Shared platform and runtime, under platform/</text>
+  <text x="58" y="830" class="t">Airflow: one daily DAG waits for the arrival folder, loads and reconciles. Backfill and clear-and-rerun are proven idempotent.</text>
+  <text x="58" y="854" class="t">Kafka 4 (KRaft): one broker, persistent volume, case-owned topic set-up that refuses drift. The batch path starts with Kafka stopped.</text>
+  <text x="58" y="878" class="t">Docker Compose per case for PostgreSQL 18 and the optional Spark image. Two GitHub workflows: 99 database tests, and real intake, live, recovery and state checks.</text>
+  <text x="58" y="904" class="note">Each case keeps its own database, dependencies and checkpoints; only Airflow and Kafka are shared.</text>
+
+  <!-- Not built -->
+  <rect x="1210" y="770" width="350" height="150" rx="10" class="alt-box"/>
+  <text x="1228" y="798" class="h-alt">NOT BUILT</text>
+  <text x="1228" y="826" class="ta">Cloud deployment or Databricks runtime</text>
+  <text x="1228" y="850" class="ta">Full-month historical replay through Kafka</text>
+  <text x="1228" y="874" class="ta">Power BI or other BI layer</text>
+  <text x="1228" y="898" class="ta">Load sweeps and long-duration soaks</text>
+
+  <!-- Orchestration link from the band -->
+  <line x1="605" y1="768" x2="605" y2="732" class="flow-grey"/>
+  <text x="615" y="752" class="note">Airflow drives the batch loader and reconcile; Kafka carries the stream</text>
+</svg>
