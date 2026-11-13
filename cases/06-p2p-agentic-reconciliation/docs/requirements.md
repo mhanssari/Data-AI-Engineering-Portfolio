@@ -1,6 +1,6 @@
 # Requirements
 
-Status: requirements 1–11 are implemented and tested locally. Requirement 10 is evaluated with an offline provider only, not a live model. Security, contracts, lineage, the review page and CI were added at milestone 3; CI has not yet run on GitHub.
+Status: requirements 1–11 are implemented and tested locally. Requirement 10 is evaluated with an offline provider only, not a live model. Security, contracts, lineage, the review page and CI were added at milestone 3; the workflow has [CI passed on GitHub](https://github.com/mhanssari/Data-AI-Engineering-Portfolio/actions/runs/41709833238).
 
 ## Stakeholders and decisions
 

@@ -4,6 +4,10 @@ Status: 12 November 2026. Batch, shared Kafka, Spark intake/live, recovery and f
 
 Infrastructure ownership follows [portfolio decision 0001](../../../platform/decisions/0001-shared-infrastructure.md). Airflow and Kafka are shared in `platform/airflow/` and `platform/kafka/`. Case 03 retains its PostgreSQL, jobs, dependency environment and processing state.
 
+![Architecture overview](architecture-overview.svg)
+
+Teal boxes are built and tested on the default path. Blue boxes are built and tested under the optional Spark profile. The dashed box lists what is not built. A [PNG copy](architecture-overview.png) is kept for places that do not show SVG. The flowchart below shows the same components at table level.
+
 ```mermaid
 flowchart LR
   G["Seeded generator"] --> EF["Daily event files"]
